@@ -990,6 +990,20 @@ class Image(object):
             self.channels[i].mask = np.logical_and(selfmask,
                                                    img.channels[i].mask)
 
+    def colorize(self, colormap):
+        if self.mode not in ("L", "LA"):
+            raise ValueError("Image should be grayscale to colorize")
+        if self.mode == "LA":
+            alpha = self.channels[1]
+        else:
+            alpha = None
+        self.channels = colormap.colorize(self.channels[0])
+        if alpha is not None:
+            self.channels.append(alpha)
+            self.mode = "RGBA"
+        else:
+            self.mode = "RGB"
+
 def all(iterable):
     for element in iterable:
         if not element:
