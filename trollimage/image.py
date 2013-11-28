@@ -1004,6 +1004,18 @@ class Image(object):
         else:
             self.mode = "RGB"
 
+    def blend(self, other):
+        if self.mode != "RGBA" or other.mode != "RGBA":
+            raise ValueError("Images must be in RGBA")
+        src = other
+        dst = self
+        outa = src.channels[3] + dst.channels[3] * (1 - src.channels[3])
+        for i in range(3):
+            dst.channels[i] = (src.channels[i] * src.channels[3] +
+                               dst.channels[i] * dst.channels[3] * (1 - src.channels[3])) / outa
+            dst.channels[i][outa == 0] = 0
+        dst.channels[3] = outa
+        
 def all(iterable):
     for element in iterable:
         if not element:
