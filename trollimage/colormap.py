@@ -51,11 +51,17 @@ def colorize(arr, colors, values):
 class Colormap(object):
     """The colormap object.
 
-    Initialize with tuples of (value, (colors)), like this:
-    Colormap((-75.0, (255.0, 255.0, 0.0)),
-             (-40.0001, (0.0, 255.0, 255.0)),
-             (-40.0, (255, 255, 255)),
-             (30.0, (0, 0, 0)))
+    Initialize with tuples of (value, (colors)), like this::
+    
+      Colormap((-75.0, (1.0, 1.0, 0.0)),
+               (-40.0001, (0.0, 1.0, 1.0)),
+               (-40.0, (1, 1, 1)),
+               (30.0, (0, 0, 0)))
+
+
+    You can also concatenate colormaps together, try::
+
+      cm = cm1 + cm2
 
     """
 
@@ -68,6 +74,8 @@ class Colormap(object):
         self.interpolation = kwargs.get("interpolation", None)
         
     def colorize(self, data):
+        """Colorize a monochromatic array *data*, based on the current colormap.
+        """
         return colorize(data,
                         self.colors,
                         self.values)
