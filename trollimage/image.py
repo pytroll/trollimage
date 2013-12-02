@@ -991,6 +991,10 @@ class Image(object):
                                                    img.channels[i].mask)
 
     def colorize(self, colormap):
+        """Colorize the current image using
+        *colormap*. Works only on"L" or "LA" images.
+        """
+        
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
         if self.mode == "LA":

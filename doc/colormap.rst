@@ -2,6 +2,47 @@
  Colormap
 ==========
 
+Example usage
+=============
+
+A simple example of applying a colormap on data::
+
+    from trollimage.colormap import rdbu
+    from trollimage.image import Image
+
+    img = Image(data, mode="L")
+    
+    rdbu.reverse()
+    img.colorize(rdbu)
+    
+    img.show()
+
+.. image:: _static/hayan_simple.png
+
+A more complex example, with a colormap build from greyscale on one end, and spectral on the other, like this:
+
+.. image:: _static/my_cm.png
+
+::
+
+    from trollimage.colormap import spectral, greys
+    from trollimage.image import Image
+
+    img = Image(data, mode="L")
+    
+    greys.set_range(-40 + 273.15, 30 + 273.15)
+    spectral.set_range(-90 + 273.15, -40.00001 + 273.15)
+    my_cm = spectral + greys
+    img.colorize(my_cm)
+
+    img.show()
+
+.. image:: _static/hayan.png
+
+
+API
+===
+
 .. automodule:: trollimage.colormap
    :members:
    :undoc-members:
