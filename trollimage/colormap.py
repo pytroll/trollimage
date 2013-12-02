@@ -318,6 +318,11 @@ spectral = Colormap((0.0, (158 / 255.0, 1 / 255.0, 66 / 255.0)),
 
 diverging_colormaps = [brbg, piyg, prgn, puor, rdbu, rdgy, rdylbu, rdylgn, spectral]
 
+def colorbar(height, length, colormap):
+    """Return the channels of a colorbar.
+    """
+    return colormap.colorize(np.tile(np.arange(length)*1.0/length, (height, 1)))
+
 if __name__ == '__main__':
 
 
