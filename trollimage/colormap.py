@@ -90,6 +90,8 @@ class Colormap(object):
         self.colors = np.flipud(self.colors)
 
     def set_range(self, min_val, max_val):
+        """Set the range of the colormap to [*min_val*, *max_val*]
+        """
         if min_val > max_val:
             max_val, min_val = min_val, max_val
         self.values = self.values * (max_val - min_val) + min_val

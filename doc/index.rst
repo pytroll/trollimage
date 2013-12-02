@@ -8,6 +8,10 @@ Welcome to TrollImage's documentation!
 
 .. image:: _static/hayan.png
 
+Get the source code here_ !
+
+.. _here: http://github.com/mraspaud/trollimage
+
 Contents:
 
 .. toctree::
