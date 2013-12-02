@@ -12,7 +12,7 @@ A simple example of applying a colormap on data::
 
     img = Image(data, mode="L")
     
-    rdbu.reverse()
+    rdbu.set_range(-90 + 273.15, 30 + 273.15)
     img.colorize(rdbu)
     
     img.show()
