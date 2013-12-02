@@ -33,7 +33,7 @@ setup(name="trollimage",
       description='Pytroll imaging library',
       author='Martin Raspaud',
       author_email='martin.raspaud@smhi.se',
-      classifiers=["Development Status :: 5 - Production/Stable",
+      classifiers=["Development Status :: 4 - Beta",
                    "Intended Audience :: Science/Research",
                    "License :: OSI Approved :: GNU General Public License v3 " +
                    "or later (GPLv3+)",
