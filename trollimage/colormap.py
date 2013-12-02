@@ -79,7 +79,18 @@ class Colormap(object):
         return colorize(data,
                         self.colors,
                         self.values)
-    
+
+    def __add__(self, other):
+        new = Colormap()
+        new.values = np.concatenate((self.values, other.values))
+        new.colors = np.concatenate((self.colors, other.colors))
+        return new
+
+    def reverse(self):
+        """Reverse the current colormap in place.
+        """
+        self.values = np.flipud(self.values)
+
 if __name__ == '__main__':
 
     # unit tests...
