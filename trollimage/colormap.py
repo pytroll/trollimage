@@ -87,8 +87,13 @@ class Colormap(object):
     def reverse(self):
         """Reverse the current colormap in place.
         """
-        self.values = np.flipud(self.values)
+        self.colors = np.flipud(self.colors)
 
+    def set_range(self, min_val, max_val):
+        if min_val > max_val:
+            max_val, min_val = min_val, max_val
+        self.values = self.values * (max_val - min_val) + min_val
+        
 # matlab jet    "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000"
 
 rainbow = Colormap((0.000, (0.0, 0.0, 0.5)),
@@ -314,12 +319,16 @@ spectral = Colormap((0.0, (158 / 255.0, 1 / 255.0, 66 / 255.0)),
                     (1.0, (94 / 255.0, 79 / 255.0, 162 / 255.0)))
 
 
-diverging_colormaps = [brbg, piyg, prgn, puor, rdbu, rdgy, rdylbu, rdylgn, spectral]
+diverging_colormaps = [brbg, piyg, prgn, puor, rdbu, rdgy, rdylbu, rdylgn,
+                       spectral]
 
 def colorbar(height, length, colormap):
     """Return the channels of a colorbar.
     """
-    return colormap.colorize(np.tile(np.arange(length)*1.0/length, (height, 1)))
+    cbar = np.tile(np.arange(length)*1.0/length, (height, 1))
+    cbar = cbar * (colormap.values.max() - colormap.values.min()) + colormap.values.min()
+    
+    return colormap.colorize(cbar)
 
 if __name__ == '__main__':
 
@@ -335,8 +344,18 @@ if __name__ == '__main__':
     length = len(cm.values)
     cm.values = np.arange(length) * 1.0 / length
 
-    img = Image(colorbar(25, 500, rainbow), mode="RGB")
+    #img = Image(colorbar(25, 500, rainbow), mode="RGB")
+    #img.show()
+
+
+    greys.values = greys.values * 70 - 40 + 273.15
+    blues.values = blues.values * 50 - 90  + 273.15 - 0.0000001
+    blues.reverse()
+    cm = blues + greys
+    img = Image(colorbar(25, 500, cm), mode="RGB")
     img.show()
+
+
 
     # # unit tests...
     # # print lab2xyz(50, 50, 50)
