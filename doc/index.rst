@@ -6,6 +6,8 @@
 Welcome to TrollImage's documentation!
 ======================================
 
+.. image:: _static/hayan.png
+
 Contents:
 
 .. toctree::
