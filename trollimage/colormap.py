@@ -20,9 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Reimplement colorsys with XYZ as base, and using numpy to run on arrays.
-
-A colorize function is also provided.
+"""A simple colormap module.
 """
 
 import numpy as np

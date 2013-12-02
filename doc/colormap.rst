@@ -183,7 +183,9 @@ spectral
 Rainbow Colormap
 ~~~~~~~~~~~~~~~~
 
-Don't use this one !
+Don't use this one ! See here_ why
+
+.. _here: http://www.jwave.vt.edu/~rkriz/Projects/create_color_table/color_07.pdf
 
 rainbow
 
