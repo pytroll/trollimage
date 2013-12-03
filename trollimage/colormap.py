@@ -45,6 +45,18 @@ def colorize(arr, colors, values):
     except:
         return channels
 
+def paletize(arr, colors, values):
+    """From start *values* apply *colors* to *data*.
+    """
+    new_arr = np.digitize(arr.ravel(),
+                          np.concatenate((values,
+                                          [max(arr.max(),
+                                               values.max())])))
+    new_arr -= 1
+    new_arr = np.ma.array(new_arr.reshape(arr.shape), mask=arr.mask)
+    
+    return new_arr, tuple(colors)
+    
 
 class Colormap(object):
     """The colormap object.
@@ -77,6 +89,11 @@ class Colormap(object):
         return colorize(data,
                         self.colors,
                         self.values)
+
+    def paletize(self, data):
+        """Paletize a monochromatic array *data* based on the current colormap.
+        """
+        return paletize(data, self.colors, self.values)
 
     def __add__(self, other):
         new = Colormap()
