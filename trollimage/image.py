@@ -1016,7 +1016,10 @@ class Image(object):
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
         self.channels[0], self.palette = colormap.paletize(self.channels[0])
-    
+        if self.mode == "L":
+            self.mode = "P"
+        else:
+            self.mode = "PA"
 
     def blend(self, other):
         if self.mode != "RGBA" or other.mode != "RGBA":
