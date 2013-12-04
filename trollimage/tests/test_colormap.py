@@ -31,8 +31,8 @@ import numpy as np
 class TestColormapClass(unittest.TestCase):
     """Test case for the colormap object.
     """
-    def test_colormap(self):
-        """Test features of the colormap class
+    def test_colorize(self):
+        """Test colorize
         """
         cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
                                 (2, (0.0, 1.0, 1.0)),
@@ -46,7 +46,75 @@ class TestColormapClass(unittest.TestCase):
             self.assertTrue(np.allclose(channels[i],
                                         cm_.colors[:, i],
                                         atol=0.001))
+
+    def test_paletize(self):
+        """Test paletize
+        """
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        data = np.array([1, 2, 3, 4])
+
+        channels, colors = cm_.paletize(data)
+        self.assertTrue(np.allclose(colors, cm_.colors))
+        self.assertTrue(all(channels == [0, 1, 2, 3]))
+
+    def test_set_range(self):
+        """Test set_range
+        """
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        cm_.set_range(0, 8)
+        self.assertTrue(cm_.values[0] == 0)
+        self.assertTrue(cm_.values[-1] == 8)
+
+    def test_reverse(self):
+        """Test reverse
+        """
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+        colors = cm_.colors
+        cm_.reverse()
+        self.assertTrue(np.allclose(np.flipud(colors), cm_.colors)) 
+
+    def test_add(self):
+        """Test adding colormaps
+        """
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        cm1 = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)))
+        cm2 = colormap.Colormap((3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        cm3 = cm1 + cm2
+
+        self.assertTrue(np.allclose(cm3.colors, cm_.colors))
+        self.assertTrue(np.allclose(cm3.values, cm_.values))
         
+    def test_colorbar(self):
+        """Test colorbar
+        """
+        cm_ = colormap.Colormap((1, (1, 1, 0)),
+                                (2, (0, 1, 1)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        channels = colormap.colorbar(1, 4, cm_)
+        for i in range(3):
+            self.assertTrue(np.allclose(channels[i],
+                                        cm_.colors[:, i],
+                                        atol=0.001))
 
 def suite():
     """The suite for test_colormap.
