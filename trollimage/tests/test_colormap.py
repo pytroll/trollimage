@@ -73,6 +73,18 @@ class TestColormapClass(unittest.TestCase):
         self.assertTrue(cm_.values[0] == 0)
         self.assertTrue(cm_.values[-1] == 8)
 
+    def test_invert_set_range(self):
+        """Test inverted set_range
+        """
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        cm_.set_range(8, 0)
+        self.assertTrue(cm_.values[0] == 0)
+        self.assertTrue(cm_.values[-1] == 8)
+
     def test_reverse(self):
         """Test reverse
         """

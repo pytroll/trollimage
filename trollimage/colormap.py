@@ -355,5 +355,3 @@ def colorbar(height, length, colormap):
     
     return colormap.colorize(cbar)
 
-if __name__ == '__main__':
-    pass
