@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2009, 2013.
-
-# SMHI,
-# Folkborgsvägen 1,
-# Norrköping, 
-# Sweden
+# Copyright (c) 2009-2013.
 
 # Author(s):
  
@@ -749,6 +744,18 @@ def random_string(length,
     """
     return "".join([random.choice(choices)
                     for dummy in range(length)])
+
+def suite():
+    loader = unittest.TestLoader()
+    mysuite = unittest.TestSuite()
+    mysuite.addTest(loader.loadTestsFromTestCase(TestEmptyImage))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestImageCreation))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestRegularImage))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestFlatImage))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestNoDataImage))
+    
+    return mysuite
+
 
 
 if __name__ == '__main__':

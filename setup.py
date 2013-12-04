@@ -44,4 +44,5 @@ setup(name="trollimage",
       packages=['trollimage'],
       zip_safe=False,
       install_requires=['numpy >=1.4.1', 'pillow'],
+      test_suite = 'trollimage.tests.suite',
       )
