@@ -20,27 +20,39 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""The tests package.
+"""Test colormap.py
 """
 
-from trollimage import image, colormap
-from trollimage.tests import test_image, test_colormap
+
 import unittest
-import doctest
+from trollimage import colormap
+import numpy as np
+
+class TestColormapClass(unittest.TestCase):
+    """Test case for the colormap object.
+    """
+    def test_colormap(self):
+        """Test features of the colormap class
+        """
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        data = np.array([1, 2, 3, 4])
+
+        channels = cm_.colorize(data)
+        for i in range(3):
+            self.assertTrue(np.allclose(channels[i],
+                                        cm_.colors[:, i],
+                                        atol=0.001))
+        
 
 def suite():
-    """The global test suite.
+    """The suite for test_colormap.
     """
+    loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
-    # Test the documentation strings
-    mysuite.addTests(doctest.DocTestSuite(image))
-    # Use the unittests also
-    mysuite.addTests(test_image.suite())
-
-    mysuite.addTests(doctest.DocTestSuite(colormap))
-    mysuite.addTests(test_colormap.suite())
+    mysuite.addTest(loader.loadTestsFromTestCase(TestColormapClass))
     
     return mysuite
-
-if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(suite())
