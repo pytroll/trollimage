@@ -31,7 +31,7 @@ import logging
 import os
 import re
 
-import Image as Pil
+from PIL import Image as Pil
 import numpy as np
 
 
