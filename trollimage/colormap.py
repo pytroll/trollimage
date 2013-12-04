@@ -51,9 +51,12 @@ def paletize(arr, colors, values):
     new_arr = np.digitize(arr.ravel(),
                           np.concatenate((values,
                                           [max(arr.max(),
-                                               values.max())])))
+                                               values.max()) + 1])))
     new_arr -= 1
-    new_arr = np.ma.array(new_arr.reshape(arr.shape), mask=arr.mask)
+    try:
+        new_arr = np.ma.array(new_arr.reshape(arr.shape), mask=arr.mask)
+    except AttributeError:
+        new_arr = new_arr.reshape(arr.shape)
     
     return new_arr, tuple(colors)
     
@@ -109,7 +112,9 @@ class Colormap(object):
         """
         if min_val > max_val:
             max_val, min_val = min_val, max_val
-        self.values = self.values * (max_val - min_val) + min_val
+        self.values = (((self.values * 1.0 - self.values.min()) /
+                        (self.values.max() - self.values.min()))
+                        * (max_val - min_val) + min_val)
         
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
 # "#FF7F00", "red", "#7F0000"
@@ -344,7 +349,7 @@ diverging_colormaps = [brbg, piyg, prgn, puor, rdbu, rdgy, rdylbu, rdylgn,
 def colorbar(height, length, colormap):
     """Return the channels of a colorbar.
     """
-    cbar = np.tile(np.arange(length)*1.0/length, (height, 1))
+    cbar = np.tile(np.arange(length)*1.0/(length-1), (height, 1))
     cbar = (cbar * (colormap.values.max() - colormap.values.min())
             + colormap.values.min())
     
