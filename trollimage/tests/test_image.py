@@ -733,6 +733,8 @@ def random_string(length,
                     for dummy in range(length)])
 
 def suite():
+    """The suite for test_image
+    """
     loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(TestEmptyImage))

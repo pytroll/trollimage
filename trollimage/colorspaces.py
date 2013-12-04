@@ -25,7 +25,7 @@
 
 import numpy as np
 
-def lab2xyz(l, a, b):
+def lab2xyz(l__, a__, b__):
     """Convert L*a*b* to XYZ, L*a*b* expressed within [0, 1].
     """
 
@@ -37,100 +37,115 @@ def lab2xyz(l, a, b):
                         arr ** 3,
                         3 * (6.0 / 29.0) * (6.0 / 29.0) * (arr - 4.0 / 29.0))
 
-    new_l = (l + 16.0) / 116.0
-    x = 95.047 * f_inv(new_l + a / 500.0)
-    y = 100.0 * f_inv(new_l)
-    z = 108.883 * f_inv(new_l - b / 200.0)
+    new_l = (l__ + 16.0) / 116.0
+    x__ = 95.047 * f_inv(new_l + a__ / 500.0)
+    y__ = 100.0 * f_inv(new_l)
+    z__ = 108.883 * f_inv(new_l - b__ / 200.0)
 
-    return x, y, z
+    return x__, y__, z__
 
-def xyz2lab(x, y, z):
+def xyz2lab(x__, y__, z__):
     """Convert XYZ to L*a*b*.
     """
 
-    def f(arr):
-        """f function
+    def f__(arr):
+        """f__ function
         """
 
         return np.where(arr > 216.0 / 24389.0,
                         arr ** (1.0/3.0),
                         (1.0 / 3.0) * (29.0 / 6.0) * (29.0 / 6.0) * arr
                         + 4.0 / 29.0)
-    fy = f(y / 100.0)
-    l = 116 * fy - 16
-    a = 500.0 * (f(x / 95.047) - fy)
-    b = 200.0 * (fy - f(z / 108.883))
-    return l, a, b
+    fy_ = f__(y__ / 100.0)
+    l__ = 116 * fy_ - 16
+    a__ = 500.0 * (f__(x__ / 95.047) - fy_)
+    b__ = 200.0 * (fy_ - f__(z__ / 108.883))
+    return l__, a__, b__
 
 
-def hcl2lab(h, c, l):
-    h_rad = np.deg2rad(h)
-    l_ = l * 61 + 9
+def hcl2lab(h__, c__, l__):
+    """HCL to L*ab
+    """
+    h_rad = np.deg2rad(h__)
+    l2_ = l__ * 61 + 9
     angle = np.pi / 3.0 - h_rad
-    r = (l * 311 + 125) * c
-    a = np.sin(angle) * r
-    b = np.cos(angle) * r
-    return l_, a, b
+    r__ = (l__ * 311 + 125) * c__
+    a__ = np.sin(angle) * r__
+    b__ = np.cos(angle) * r__
+    return l2_, a__, b__
 
-def lab2hcl(l, a, b):
+def lab2hcl(l__, a__, b__):
+    """L*a*b* to HCL
+    """
+    l2_ = (l__ - 9) / 61.0
+    r__ = np.sqrt(a__*a__ + b__*b__)
+    s__ = r__ / (l2_ * 311 + 125)
+    angle = np.arctan2(a__, b__)
+    c__ = np.rad2deg(np.pi / 3 - angle)%360
+    return c__, s__, l2_
 
-    l_ = (l - 9) / 61.0
-    r = np.sqrt(a*a + b*b)
-    s = r / (l_ * 311 + 125)
-    angle = np.arctan2(a, b)
-    c = np.rad2deg(np.pi / 3 - angle)%360
-    return c, s, l_
+def rgb2xyz(r__, g__, b__):
+    """RGB to XYZ
+    """
+    
+    r2_ = r__ / 255.0
+    g2_ = g__ / 255.0
+    b2_ = b__ / 255.0
 
-def rgb2xyz(r, g, b):
-
-    r__ = ( r / 255.0 )        
-    g__ = ( g / 255.0 )        
-    b__ = ( b / 255.0 )        
-
-    def f(arr):
+    def f__(arr):
+        """Forward
+        """
         return np.where(arr > 0.04045,
                         ((arr + 0.055) / 1.055) ** 2.4,
                         arr / 12.92)
      
 
-    r__ = f(r__) * 100
-    g__ = f(g__) * 100
-    b__ = f(b__) * 100
+    r2_ = f__(r2_) * 100
+    g2_ = f__(g2_) * 100
+    b2_ = f__(b2_) * 100
 
-    x__ = r__ * 0.4124 + g__ * 0.3576 + b__ * 0.1805
-    y__ = r__ * 0.2126 + g__ * 0.7152 + b__ * 0.0722
-    z__ = r__ * 0.0193 + g__ * 0.1192 + b__ * 0.9505
+    x__ = r2_ * 0.4124 + g2_ * 0.3576 + b2_ * 0.1805
+    y__ = r2_ * 0.2126 + g2_ * 0.7152 + b2_ * 0.0722
+    z__ = r2_ * 0.0193 + g2_ * 0.1192 + b2_ * 0.9505
 
     return x__, y__, z__
 
-def xyz2rgb(x, y, z):
-    x__ = x / 100.0
-    y__ = y / 100.0
-    z__ = z / 100.0
+def xyz2rgb(x__, y__, z__):
+    """XYZ colorspace to RGB
+    """
+    x2_ = x__ / 100.0
+    y2_ = y__ / 100.0
+    z2_ = z__ / 100.0
 
-    r__ = x__ *  3.2406 + y__ * -1.5372 + z__ * -0.4986
-    g__ = x__ * -0.9689 + y__ *  1.8758 + z__ *  0.0415
-    b__ = x__ *  0.0557 + y__ * -0.2040 + z__ *  1.0570
+    r__ = x2_ *  3.2406 + y2_ * -1.5372 + z2_ * -0.4986
+    g__ = x2_ * -0.9689 + y2_ *  1.8758 + z2_ *  0.0415
+    b__ = x2_ *  0.0557 + y2_ * -0.2040 + z2_ *  1.0570
 
     def finv(arr):
+        """Inverse
+        """
         return np.where(arr > 0.0031308,
                         1.055 * (arr ** (1.0 / 2.4)) - 0.055,
                         12.92 * arr)
 
-    R = finv(r__) * 255
-    G = finv(g__) * 255
-    B = finv(b__) * 255
+    return finv(r__) * 255, finv(g__) * 255, finv(b__) * 255
 
-    return R, G, B
+def rgb2hcl(r__, g__, b__):
+    """RGB to HCL
+    """
+    return lab2hcl(*rgb2lab(r__, g__, b__))
 
-def rgb2hcl(r, g, b):
-    return lab2hcl(*xyz2lab(*rgb2xyz(r, g, b)))
+def hcl2rgb(h__, c__, l__):
+    """HCL to RGB
+    """
+    return lab2rgb(*hcl2lab(h__, c__, l__))
 
-def hcl2rgb(h, c, l):
-    return xyz2rgb(*lab2xyz(*hcl2lab(h, c, l)))
+def rgb2lab(r__, g__, b__):
+    """RGB to L*ab
+    """
+    return xyz2lab(*rgb2xyz(r__, g__, b__))
 
-def rgb2lab(r, g, b):
-    return xyz2lab(*rgb2xyz(r, g, b))
-
-def lab2rgb(h, c, l):
-    return xyz2rgb(*lab2xyz(h, c, l))
+def lab2rgb(h__, c__, l__):
+    """L*ab to RGB
+    """
+    return xyz2rgb(*lab2xyz(h__, c__, l__))

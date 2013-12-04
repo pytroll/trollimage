@@ -55,6 +55,8 @@ class UnknownImageFormat(Exception):
     pass
 
 def check_image_format(fformat):
+    """Check that *fformat* is valid
+    """
     cases = {"jpg": "jpeg",
              "jpeg": "jpeg",
              "tif": "tiff",
@@ -111,8 +113,8 @@ class Image(object):
     #: Shape (dimensions) of the image.
     shape = None
     
-    def __init__(self, channels = None, mode = "L", color_range = None, 
-                 fill_value = None, palette = None):
+    def __init__(self, channels=None, mode="L", color_range=None, 
+                 fill_value=None, palette=None):
 
         if(channels is not None and
            not isinstance(channels, (tuple, set, list,
@@ -805,7 +807,7 @@ class Image(object):
                                             (1.0 / gamma_list[i]),
                                             self.channels[i])
         
-    def stretch(self, stretch = "no", **kwarg):
+    def stretch(self, stretch="no", **kwarg):
         """Apply stretching to the current image. The value of *stretch* sets
         the type of stretching applied. The values "histogram", "linear",
         "crude" (or "crude-stretch") perform respectively histogram
@@ -905,14 +907,14 @@ class Image(object):
             logger.warning("Nothing to stretch !")
             return
 
-        crange=(0., 1.0)
+        crange = (0., 1.0)
 
         arr = self.channels[ch_nb]
-        b = float(crange[1] - crange[0])/np.log(factor)
-        c = float(crange[0])
+        b__ = float(crange[1] - crange[0]) / np.log(factor)
+        c__ = float(crange[0])
         slope = (factor-1.)/float(arr.max() - arr.min())
         arr = 1. + (arr - arr.min())*slope
-        arr = c + b*np.log(arr)
+        arr = c__ + b__*np.log(arr)
         self.channels[ch_nb] = arr
 
     def stretch_linear(self, ch_nb, cutoffs=(0.005, 0.005)):
@@ -1022,6 +1024,8 @@ class Image(object):
             self.mode = "PA"
 
     def blend(self, other):
+        """Alpha blend *other* on top of the current image.
+        """
         if self.mode != "RGBA" or other.mode != "RGBA":
             raise ValueError("Images must be in RGBA")
         src = other
@@ -1029,16 +1033,11 @@ class Image(object):
         outa = src.channels[3] + dst.channels[3] * (1 - src.channels[3])
         for i in range(3):
             dst.channels[i] = (src.channels[i] * src.channels[3] +
-                               dst.channels[i] * dst.channels[3] * (1 - src.channels[3])) / outa
+                               dst.channels[i] * dst.channels[3] *
+                               (1 - src.channels[3])) / outa
             dst.channels[i][outa == 0] = 0
         dst.channels[3] = outa
         
-def all(iterable):
-    for element in iterable:
-        if not element:
-            return False
-    return True
-
 def _areinstances(the_list, types):
     """Check if all the elements of the list are of given type.
     """
