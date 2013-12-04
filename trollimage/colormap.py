@@ -42,7 +42,7 @@ def colorize(arr, colors, values):
 
     try:
         return [np.ma.array(channel, mask=arr.mask) for channel in channels]
-    except:
+    except AttributeError:
         return channels
 
 def paletize(arr, colors, values):
@@ -75,14 +75,12 @@ class Colormap(object):
 
     """
 
-    def __init__(self, *tuples, **kwargs):
+    def __init__(self, *tuples):
         values = [a for (a, b) in tuples]
         colors = [b for (a, b) in tuples]
         self.values = np.array(values)
         self.colors = np.array(colors)
 
-        self.interpolation = kwargs.get("interpolation", None)
-        
     def colorize(self, data):
         """Colorize a monochromatic array *data*, based on the current colormap.
         """
@@ -113,7 +111,8 @@ class Colormap(object):
             max_val, min_val = min_val, max_val
         self.values = self.values * (max_val - min_val) + min_val
         
-# matlab jet    "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000"
+# matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
+# "#FF7F00", "red", "#7F0000"
 
 rainbow = Colormap((0.000, (0.0, 0.0, 0.5)),
                    (0.125, (0.0, 0.0, 1.0)),
@@ -125,7 +124,8 @@ rainbow = Colormap((0.000, (0.0, 0.0, 0.5)),
                    (0.875, (1.0, 0.0, 0.0)),
                    (1.000, (0.5, 0.0, 0.0)))
 
-### Colors from www.ColorBrewer.org by Cynthia A. Brewer, Geography, Pennsylvania State University.
+### Colors from www.ColorBrewer.org by Cynthia A. Brewer, Geography,
+### Pennsylvania State University.
 
 ## Single hue
 
@@ -345,80 +345,10 @@ def colorbar(height, length, colormap):
     """Return the channels of a colorbar.
     """
     cbar = np.tile(np.arange(length)*1.0/length, (height, 1))
-    cbar = cbar * (colormap.values.max() - colormap.values.min()) + colormap.values.min()
+    cbar = (cbar * (colormap.values.max() - colormap.values.min())
+            + colormap.values.min())
     
     return colormap.colorize(cbar)
 
 if __name__ == '__main__':
-
-
-    from trollimage.image import Image
-
-    cm = Colormap((0, (1.0, 1.0, 0.0)),
-                  (0.3, (0.0, 1.0, 1.0)),
-                  (0.6, (1, 1, 1)),
-                  (1, (0, 0, 0)))
-
-    cm = rainbow + rainbow
-    length = len(cm.values)
-    cm.values = np.arange(length) * 1.0 / length
-
-    #img = Image(colorbar(25, 500, rainbow), mode="RGB")
-    #img.show()
-
-
-    greys.values = greys.values * 70 - 40 + 273.15
-    blues.values = blues.values * 50 - 90  + 273.15 - 0.0000001
-    blues.reverse()
-    cm = blues + greys
-    img = Image(colorbar(25, 500, cm), mode="RGB")
-    img.show()
-
-
-
-    # # unit tests...
-    # # print lab2xyz(50, 50, 50)
-    # # print xyz2lab(*lab2xyz(50, 50, 50))
-
-    # # print lab2hcl(50, 50, 50)
-    # # print hcl2lab(*lab2hcl(50, 50, 50))
-    
-    # # print rgb2xyz(50, 50, 50)
-    # # print xyz2rgb(*rgb2xyz(50, 50, 50))
-
-    # from mpop.satellites import GeostationaryFactory
-    # from mpop.imageo.geo_image import GeoImage
-    # from datetime import datetime
-    # t = datetime(2009, 10, 8, 14, 30)
-    # g = GeostationaryFactory.create_scene("meteosat", "09", "seviri", t)
-    # g.load([10.8])
-    # #l = g.project("SouthAmerica_flat")
-    # g.area = g[10.8].area
-    # l = g
-    # # ch = colorize(l[10.8].data,
-    # #               np.array(((0.0, 0.0, 0.0),
-    # #                         (255.0, 0.0, 0.0),
-    # #                         (255, 255, 0),
-    # #                         (0, 0, 255.0),
-    # #                         (255, 255, 255.0),
-    # #                         (0.0, 0.0, 0.0))),
-    # #               np.array((-75.0, -70.0, -60.0, -40.001, -40.0, 30.0)) + 273.15)
-    # # ch = colorize(l[10.8].data,
-    # #               np.array(((255.0, 255.0, 0.0),
-    # #                         (0.0, 255.0, 255.0),
-    # #                         (255, 255, 255.0),
-    # #                         (0.0, 0.0, 0.0))),
-    # #               np.array((-75.0, -40.001, -40.0, 30.0)) + 273.15)
-
-
-    # colormap = Colormap((-75.0 + 273.15, (255.0, 255.0, 0.0)),
-    #                     (-40.0001 + 273.15, (0.0, 255.0, 255.0)),
-    #                     (-40.0 + 273.15, (255, 255, 255)),
-    #                     (30.0 + 273.15, (0, 0, 0)))
-
-    # ch = colormap.colorize(l[10.8].data)
-
-    # ch[0][l[10.8].data.mask] = 0.0
-    # img = GeoImage(ch, area=l.area, time_slot=l.time_slot, mode="RGB", crange=[(0, 255), (0, 255), (0,255)], fill_value=None)
-    # img.add_overlay(color=(240, 185, 19), width=1.0)
-    # img.show()
+    pass

@@ -33,16 +33,6 @@ from trollimage import image
 
 EPSILON = 0.0001
 
-# Support for python <2.5
-try:
-    all
-except NameError:
-    def all(iterable):
-        for element in iterable:
-            if not element:
-                return False
-        return True
-
 class TestEmptyImage(unittest.TestCase):
     """Class for testing the mpop.imageo.image module
     """
@@ -561,11 +551,8 @@ class TestRegularImage(unittest.TestCase):
                 mode == "PA"):
                 continue
             self.img.convert(mode)
-            if mode == "YCbCrA":
-                self.assertRaises(ValueError, self.img.pil_image)
-            else:
-                pilimg = self.img.pil_image()
-                self.assertEqual(pilimg.size, (3, 2))
+            pilimg = self.img.pil_image()
+            self.assertEqual(pilimg.size, (3, 2))
         self.img.convert(oldmode)
         
     def test_putalpha(self):
@@ -755,8 +742,3 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(TestNoDataImage))
     
     return mysuite
-
-
-
-if __name__ == '__main__':
-    unittest.main()
