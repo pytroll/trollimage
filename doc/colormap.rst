@@ -40,6 +40,20 @@ A more complex example, with a colormap build from greyscale on one end, and spe
 .. image:: _static/hayan.png
 
 
+Now applying a palette to the data, with sharp edges::
+
+    from trollimage.colormap import set3
+    from trollimage.image import Image
+
+    img = Image(data, mode="L")
+    
+    set3.set_range(-90 + 273.15, 30 + 273.15)
+    img.paletize(set3)
+    
+    img.show()
+
+.. image:: _static/phayan.png
+
 API
 ===
 
