@@ -128,6 +128,20 @@ class TestColormapClass(unittest.TestCase):
                                         cm_.colors[:, i],
                                         atol=0.001))
 
+    def test_palettebar(self):
+        """Test colorbar
+        """
+        cm_ = colormap.Colormap((1, (1, 1, 0)),
+                                (2, (0, 1, 1)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        channel, palette = colormap.palettebar(1, 4, cm_)
+
+        self.assertTrue(np.allclose(channel, np.arange(4)))
+        self.assertTrue(np.allclose(palette, cm_.colors))
+        
+
 def suite():
     """The suite for test_colormap.
     """

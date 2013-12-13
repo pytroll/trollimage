@@ -235,6 +235,42 @@ spectral
 
 .. |pict29| image:: _static/spectral.png
 
+Qualitative Colormaps
+~~~~~~~~~~~~~~~~~~~~~
+
+set1
+
+.. image:: _static/palette0.png
+
+set2
+
+.. image:: _static/palette1.png
+
+set3
+
+.. image:: _static/palette2.png
+
+paired
+
+.. image:: _static/palette3.png
+
+accent
+
+.. image:: _static/palette4.png
+
+dark2
+
+.. image:: _static/palette5.png
+
+pastel1
+
+.. image:: _static/palette6.png
+
+pastel2
+
+.. image:: _static/palette7.png
+
+
 Rainbow Colormap
 ~~~~~~~~~~~~~~~~
 
