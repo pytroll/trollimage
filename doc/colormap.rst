@@ -48,7 +48,7 @@ Now applying a palette to the data, with sharp edges::
     img = Image(data, mode="L")
     
     set3.set_range(-90 + 273.15, 30 + 273.15)
-    img.paletize(set3)
+    img.palettize(set3)
     
     img.show()
 

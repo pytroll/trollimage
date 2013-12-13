@@ -45,7 +45,7 @@ def colorize(arr, colors, values):
     except AttributeError:
         return channels
 
-def paletize(arr, colors, values):
+def palettize(arr, colors, values):
     """From start *values* apply *colors* to *data*.
     """
     new_arr = np.digitize(arr.ravel(),
@@ -91,10 +91,10 @@ class Colormap(object):
                         self.colors,
                         self.values)
 
-    def paletize(self, data):
-        """Paletize a monochromatic array *data* based on the current colormap.
+    def palettize(self, data):
+        """Palettize a monochromatic array *data* based on the current colormap.
         """
-        return paletize(data, self.colors, self.values)
+        return palettize(data, self.colors, self.values)
 
     def __add__(self, other):
         new = Colormap()
@@ -450,6 +450,6 @@ def palettebar(height, length, colormap):
     cbar = (cbar * (colormap.values.max() + 1 - colormap.values.min())
             + colormap.values.min())
     
-    return colormap.paletize(cbar)
+    return colormap.palettize(cbar)
 
 

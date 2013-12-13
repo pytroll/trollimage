@@ -47,8 +47,8 @@ class TestColormapClass(unittest.TestCase):
                                         cm_.colors[:, i],
                                         atol=0.001))
 
-    def test_paletize(self):
-        """Test paletize
+    def test_palettize(self):
+        """Test palettize
         """
         cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
                                 (2, (0.0, 1.0, 1.0)),
@@ -57,7 +57,7 @@ class TestColormapClass(unittest.TestCase):
 
         data = np.array([1, 2, 3, 4])
 
-        channels, colors = cm_.paletize(data)
+        channels, colors = cm_.palettize(data)
         self.assertTrue(np.allclose(colors, cm_.colors))
         self.assertTrue(all(channels == [0, 1, 2, 3]))
 

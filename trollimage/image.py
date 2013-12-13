@@ -1010,14 +1010,14 @@ class Image(object):
         else:
             self.mode = "RGB"
 
-    def paletize(self, colormap):
-        """Paletize the current image using
+    def palettize(self, colormap):
+        """Palettize the current image using
         *colormap*. Works only on"L" or "LA" images.
         """
         
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
-        self.channels[0], self.palette = colormap.paletize(self.channels[0])
+        self.channels[0], self.palette = colormap.palettize(self.channels[0])
         if self.mode == "L":
             self.mode = "P"
         else:
