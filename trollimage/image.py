@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2009-2013
+# Copyright (c) 2009-2014
 
 # Author(s):
  
@@ -99,28 +99,28 @@ class Image(object):
     classical [0,255] range and byte type is done automagically when saving the
     image to file.
     """
-    channels = None
-    mode = None
-    width = 0
-    height = 0
-    fill_value = None
-    palette = None
-
-    _secondary_mode = "RGB"
 
     modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
-    
-    #: Shape (dimensions) of the image.
-    shape = None
     
     def __init__(self, channels=None, mode="L", color_range=None, 
                  fill_value=None, palette=None):
 
+        self.channels = None
+        self.mode = None
+        self.width = 0
+        self.height = 0
+        self.fill_value = None
+        self.palette = None
+        self.shape = None
+        self.info = {}
+
+        self._secondary_mode = "RGB"
+
         if(channels is not None and
            not isinstance(channels, (tuple, set, list,
                                      np.ndarray, np.ma.core.MaskedArray))):
-            raise TypeError("Channels should a tuple, set, list, numpy array, "
-                            "or masked array.")
+            raise TypeError("Image channels should a tuple, set, list, numpy "
+                            "array, or masked array.")
 
         if(isinstance(channels, (tuple, list)) and
            len(channels) != len(re.findall("[A-Z]", mode))):
@@ -174,12 +174,12 @@ class Image(object):
 
                     self.shape = self.channels[-1].shape
                     if self.shape != self.channels[0].shape:
-                        raise ValueError("Channels must have the same shape.")
+                        raise ValueError("Image channels must have the same"
+                                         " shape.")
                 self.height = self.shape[0]
                 self.width = self.shape[1]
             else:
-                raise ValueError("Channels must all be arrays, lists or "
-                                 "tuples.")
+                raise ValueError("Image channels must all be arrays tuples.")
         elif channels is not None:
             self.height = channels.shape[0]
             self.width = channels.shape[1]
@@ -232,7 +232,7 @@ class Image(object):
                 
             channels.append(np.ma.array(final_data,
                                         np.uint8,
-                                        mask = chn.mask))
+                                        mask = np.ma.getmaskarray(chn)))
         if self.fill_value is not None:
             fill_value = [int(col * 255) for col in self.fill_value]
         else:
