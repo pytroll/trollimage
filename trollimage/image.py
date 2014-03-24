@@ -217,7 +217,7 @@ class Image(object):
     def _finalize(self, dtype=np.uint8):
         """Finalize the image, that is put it in RGB mode, and set the channels
         in unsigned 8bit format ([0,255] range) (if the *dtype* doesn't say
-        othewise).
+        otherwise).
         """
         channels = []
         if self.mode == "P":
@@ -752,7 +752,7 @@ class Image(object):
             self.channels[0] = luminance
             self.convert(mode)
             
-    def enhance(self, inverse = False, gamma = 1.0, stretch = "no"):
+    def enhance(self, inverse=False, gamma=1.0, stretch="no"):
         """Image enhancement function. It applies **in this order** inversion,
         gamma correction, and stretching to the current image, with parameters
         *inverse* (see :meth:`Image.invert`), *gamma* (see
@@ -762,7 +762,7 @@ class Image(object):
         self.gamma(gamma)
         self.stretch(stretch)
 
-    def gamma(self, gamma = 1.0):
+    def gamma(self, gamma=1.0):
         """Apply gamma correction to the channels of the image. If *gamma* is a
         tuple, then it should have as many elements as the channels of the
         image, and the gamma correction is applied elementwise. If *gamma* is a
@@ -955,7 +955,7 @@ class Image(object):
             logger.warning("Unable to make a contrast stretch!")
 
 
-    def crude_stretch(self, ch_nb, min_stretch = None, max_stretch = None):
+    def crude_stretch(self, ch_nb, min_stretch=None, max_stretch=None):
         """Perform simple linear stretching (without any cutoff) on the channel
         *ch_nb* of the current image and normalize to the [0,1] range."""
 

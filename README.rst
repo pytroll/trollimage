@@ -15,6 +15,7 @@ Status
 ------
 
 master
+
 .. image:: https://travis-ci.org/mraspaud/trollimage.svg?branch=master   
    :target: https://travis-ci.org/mraspaud/trollimage
    :alt: CI
@@ -28,6 +29,7 @@ master
    :alt: Code Health
 
 develop
+
 .. image:: https://travis-ci.org/mraspaud/trollimage.svg?branch=develop   
    :target: https://travis-ci.org/mraspaud/trollimage
    :alt: CI
