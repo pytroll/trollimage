@@ -1,5 +1,5 @@
-pytroll-image
-=============
+Trollimage
+==========
 
 .. image:: https://pypip.in/d/trollimage/badge.png
     :target: https://pypi.python.org/pypi/trollimage/
