@@ -809,7 +809,7 @@ class Image(object):
                                             (1.0 / gamma_list[i]),
                                             self.channels[i])
         
-    def stretch(self, stretch="no", **kwarg):
+    def stretch(self, stretch="crude", **kwarg):
         """Apply stretching to the current image. The value of *stretch* sets
         the type of stretching applied. The values "histogram", "linear",
         "crude" (or "crude-stretch") perform respectively histogram
@@ -820,24 +820,30 @@ class Image(object):
         with the values as cutoff. These values should be normalized in the
         range [0.0,1.0].
         """
+        
+        ch_len = len(self.channels)
+        if self.mode.endswith("A"):
+            ch_len -= 1
+        
+        
         if((isinstance(stretch, tuple) or
             isinstance(stretch,list))):
             if len(stretch) == 2:
-                for i in range(len(self.channels)):
-                    self.stretch_linear(i, cutoffs = stretch, **kwarg)
+                for i in range(ch_len):
+                    self.stretch_linear(i, cutoffs=stretch, **kwarg)
             else:
                 raise ValueError("Stretch tuple must have exactly two elements")
         elif stretch == "linear":
-            for i in range(len(self.channels)):
+            for i in range(ch_len):
                 self.stretch_linear(i, **kwarg)
         elif stretch == "histogram":
-            for i in range(len(self.channels)):
+            for i in range(ch_len):
                 self.stretch_hist_equalize(i, **kwarg)
         elif(stretch in ["crude", "crude-stretch"]):
-            for i in range(len(self.channels)):
+            for i in range(ch_len):
                 self.crude_stretch(i, **kwarg)
         elif(stretch in ["log", "logarithmic"]):
-            for i in range(len(self.channels)):
+            for i in range(ch_len):
                 self.stretch_logarithmic(i, **kwarg)
         elif(stretch == "no"):
             return
