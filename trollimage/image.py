@@ -374,7 +374,7 @@ class Image(object):
            alpha.shape != self.shape):
             raise ValueError("Alpha channel shape should match image shape")
 
-        if(not self.mode.endswith("A")):
+        if not self.mode.endswith("A"):
             self.convert(self.mode+"A")
         if not self.is_empty():
             self.channels[-1] = alpha
@@ -664,7 +664,7 @@ class Image(object):
     def clip(self, channels = True):
         """Limit the values of the array to the default [0,1] range. *channels*
         says which channels should be clipped."""
-        if not (isinstance(channels, (tuple, list))):
+        if not isinstance(channels, (tuple, list)):
             channels = [channels]*len(self.channels)
 
         for i in range(len(self.channels)):
@@ -785,12 +785,12 @@ class Image(object):
 
         if gamma == 1.0:
             return
-        if (isinstance(gamma, (tuple, list))):
+        if isinstance(gamma, (tuple, list)):
             gamma_list = list(gamma)
         else:
             gamma_list = [gamma] * len(self.channels)
         for i in range(len(self.channels)):
-            if(isinstance(self.channels[i], np.ma.core.MaskedArray)):
+            if isinstance(self.channels[i], np.ma.core.MaskedArray):
                 if ne:
                     self.channels[i] = np.ma.array(
                         ne.evaluate("data ** (1.0 / gamma)",
