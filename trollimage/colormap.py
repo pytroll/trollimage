@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2012, 2013 Martin Raspaud
+# Copyright (c) 2012, 2013, 2014 Martin Raspaud
 
 # Author(s):
 
@@ -129,10 +129,10 @@ rainbow = Colormap((0.000, (0.0, 0.0, 0.5)),
                    (0.875, (1.0, 0.0, 0.0)),
                    (1.000, (0.5, 0.0, 0.0)))
 
-### Colors from www.ColorBrewer.org by Cynthia A. Brewer, Geography,
-### Pennsylvania State University.
+# * Colors from www.ColorBrewer.org by Cynthia A. Brewer, Geography,
+# * Pennsylvania State University.
 
-## Single hue
+# * Single hue *
 
 blues = Colormap((0.000, (247 / 255.0, 251 / 255.0, 1.0)),
                 (1.000, (8 / 255.0, 48 / 255.0, 107 / 255.0)))
@@ -153,7 +153,7 @@ reds = Colormap((0.0, (1.0, 245 / 255.0, 240 / 255.0)),
                 (1.0, (103 / 255.0, 0.0, 13 / 255.0)))
 
 
-## Multihue
+# * Multihue *
 
 # BuGn
 
@@ -224,7 +224,7 @@ sequential_colormaps = [blues, greens, greys, oranges, purples, reds,
                         ylgn, ylgnbu, ylorbr, ylorrd]
 
 
-## Diverging
+# * Diverging *
 
 brbg = Colormap((0.0, (84 / 255.0, 48 / 255.0, 5 / 255.0)),
                 (0.1, (140 / 255.0, 81 / 255.0, 10 / 255.0)),
@@ -346,7 +346,7 @@ spectral = Colormap((0.0, (158 / 255.0, 1 / 255.0, 66 / 255.0)),
 diverging_colormaps = [brbg, piyg, prgn, puor, rdbu, rdgy, rdylbu, rdylgn,
                        spectral]
 
-## qualitative colormaps
+# * qualitative colormaps *
 
 set1 = Colormap((0, (228 / 255.0, 26 / 255.0, 28 / 255.0)),
                 (1, (55 / 255.0, 126 / 255.0, 184 / 255.0)),

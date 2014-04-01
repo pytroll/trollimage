@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013 Martin Raspaud
+# Copyright (c) 2013, 2014 Martin Raspaud
 
 # Author(s):
 
@@ -87,7 +87,7 @@ def lab2hcl(l__, a__, b__):
 def rgb2xyz(r__, g__, b__):
     """RGB to XYZ
     """
-    
+
     r2_ = r__ / 255.0
     g2_ = g__ / 255.0
     b2_ = b__ / 255.0
@@ -98,7 +98,7 @@ def rgb2xyz(r__, g__, b__):
         return np.where(arr > 0.04045,
                         ((arr + 0.055) / 1.055) ** 2.4,
                         arr / 12.92)
-     
+
 
     r2_ = f__(r2_) * 100
     g2_ = f__(g2_) * 100
