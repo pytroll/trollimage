@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2009-2013.
+# Copyright (c) 2009-2014.
 
 # Author(s):
  
@@ -442,8 +442,7 @@ class TestRegularImage(unittest.TestCase):
             histo = np.array([[0.0, 0.99951171875, 0.99951171875], 
                               [0.99951171875, 0.39990234375, 0.39990234375]])
             self.img.stretch()
-            self.assert_(all([np.all(self.img.channels[i] == old_channels[i])
-                         for i in range(len(self.img.channels))]))
+            self.assert_(np.all((self.img.channels[0] - crude) < EPSILON))
             self.img.stretch("linear")
             self.assert_(np.all((self.img.channels[0] - linear) < EPSILON))
             self.img.stretch("crude")
