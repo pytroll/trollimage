@@ -264,7 +264,7 @@ class Image(object):
         if self.is_empty():
             return Pil.new(self.mode, (0, 0))
 
-        if(self.mode == "L"):
+        if self.mode == "L":
             if fill_value is not None:
                 img = Pil.fromarray(channels[0].filled(fill_value))
             else:
@@ -275,7 +275,7 @@ class Image(object):
                 pil_alpha = Pil.fromarray(alpha)
 
                 img = Pil.merge("LA", (img, pil_alpha))
-        elif(self.mode == "LA"):
+        elif self.mode == "LA":
             if fill_value is not None:
                 img = Pil.fromarray(channels[0].filled(fill_value))
                 pil_alpha = Pil.fromarray(channels[1])
@@ -287,7 +287,7 @@ class Image(object):
                 pil_alpha = Pil.fromarray(alpha)
             img = Pil.merge("LA", (img, pil_alpha))
 
-        elif(self.mode == "RGB"):
+        elif self.mode == "RGB":
             # Mask where all channels have missing data (incomplete data will
             # be shown).
             mask = (np.ma.getmaskarray(channels[0]) &
@@ -310,7 +310,7 @@ class Image(object):
 
                 img = Pil.merge("RGBA", (pil_r, pil_g, pil_b, pil_a))
 
-        elif(self.mode == "RGBA"):
+        elif self.mode == "RGBA":
             # Mask where all channels have missing data (incomplete data will
             # be shown).
             mask = (np.ma.getmaskarray(channels[0]) &
@@ -609,23 +609,23 @@ class Image(object):
             self.mode = mode
             return
 
-        if(mode == self.mode + "A"):
+        if mode == self.mode + "A":
             self.channels.append(np.ma.ones(self.channels[0].shape))
             if self.fill_value is not None:
                 self.fill_value += [1]
             self.mode = mode
 
-        elif(mode + "A" == self.mode):
+        elif mode + "A" == self.mode:
             self.channels = self.channels[:-1]
             if self.fill_value is not None:
                 self.fill_value = self.fill_value[:-1]
             self.mode = mode
 
-        elif(mode.endswith("A") and not self.mode.endswith("A")):
+        elif mode.endswith("A") and not self.mode.endswith("A"):
             self.convert(self.mode + "A")
             self.convert(mode)
 
-        elif(self.mode.endswith("A") and not mode.endswith("A")):
+        elif self.mode.endswith("A") and not mode.endswith("A"):
             self.convert(self.mode[:-1])
             self.convert(mode)
 
@@ -839,10 +839,10 @@ class Image(object):
         elif stretch == "histogram":
             for i in range(ch_len):
                 self.stretch_hist_equalize(i, **kwarg)
-        elif(stretch in ["crude", "crude-stretch"]):
+        elif stretch in ["crude", "crude-stretch"]:
             for i in range(ch_len):
                 self.crude_stretch(i, **kwarg)
-        elif(stretch in ["log", "logarithmic"]):
+        elif stretch in ["log", "logarithmic"]:
             for i in range(ch_len):
                 self.stretch_logarithmic(i, **kwarg)
         elif stretch == "no":
