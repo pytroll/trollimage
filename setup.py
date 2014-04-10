@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013 Martin Raspaud
+# Copyright (c) 2013, 2014 Martin Raspaud
 
 # Author(s):
 
@@ -28,7 +28,7 @@ import imp
 
 version = imp.load_source('trollimage.version', 'trollimage/version.py')
 
-setup(name="trollimage",
+setup(name="SMHI-SAF-trollimage",
       version=version.__version__,
       description='Pytroll imaging library',
       author='Martin Raspaud',
