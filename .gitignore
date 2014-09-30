@@ -40,3 +40,6 @@ nosetests.xml
 
 # rope
 .ropeproject
+
+# sphinx
+doc/_build
