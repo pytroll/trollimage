@@ -362,7 +362,39 @@ class Image(object):
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         fformat = check_image_format(fformat)
 
-        self.pil_image().save(filename, fformat)
+        params = {}
+
+        if fformat == 'png':
+            # Take care of GeoImage.tags (if any).
+            params['pnginfo'] = self._pngmeta()
+        
+        self.pil_image().save(filename, fformat, **params)
+
+    def _pngmeta(self):
+        """It will return GeoImage.tags as a PNG metadata object.
+
+        Inspired by:
+        public domain, Nick Galbreath
+        http://blog.modp.com/2007/08/python-pil-and-png-metadata-take-2.html
+        """
+        reserved = ('interlace', 'gamma', 'dpi', 'transparency', 'aspect')
+    
+        try:
+            tags = self.tags
+        except AttributeError:
+            tags = {}
+
+        # Undocumented class
+        from PIL import PngImagePlugin
+        meta = PngImagePlugin.PngInfo()
+
+        # Copy from tags to new dict
+        for k__, v__ in tags.items():
+            if k__ not in reserved:
+                meta.add_text(k__, v__, 0)
+
+        return meta
+                    
 
     def putalpha(self, alpha):
         """Adds an *alpha* channel to the current image, or replaces it with
