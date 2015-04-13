@@ -276,7 +276,7 @@ Rainbow Colormap
 
 Don't use this one ! See here_ why
 
-.. _here: http://www.jwave.vt.edu/~rkriz/Projects/create_color_table/color_07.pdf
+.. _here: http://data3.mprog.nl/course/15%20Readings/40%20Reading%204/Borland_Rainbow_Color_Map.pdf
 
 rainbow
 
