@@ -108,7 +108,7 @@ class Image(object):
     modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
 
     def __init__(self, channels=None, mode="L", color_range=None,
-                 fill_value=None, palette=None):
+                 fill_value=None, palette=None, copy=True):
 
         self.channels = None
         self.mode = None
@@ -130,6 +130,9 @@ class Image(object):
         if(isinstance(channels, (tuple, list)) and
            len(channels) != len(re.findall("[A-Z]", mode))):
             raise ValueError("Number of channels does not match mode.")
+
+        if copy:
+            channels = [np.copy(chn) for chn in channels]
 
         if mode not in self.modes:
             raise ValueError("Unknown mode.")
