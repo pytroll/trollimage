@@ -129,10 +129,10 @@ class Image(object):
 
         if(isinstance(channels, (tuple, list)) and
            len(channels) != len(re.findall("[A-Z]", mode))):
-            raise ValueError("Number of channels does not match mode.")
+            raise ValueError("Number of channels (%s) does not match mode %s."%(len(channels), mode))
 
         if copy:
-            channels = [np.copy(chn) for chn in channels]
+            channels = [chn.copy() for chn in channels]
 
         if mode not in self.modes:
             raise ValueError("Unknown mode.")
@@ -173,11 +173,13 @@ class Image(object):
                     if color_range is not None:
                         color_min = color_range[i][0]
                         color_max = color_range[i][1]
+                        # Add data to image object as a channel
+                        #self._add_channel(chn, color_min, color_max)
                     else:
                         color_min = 0.0
                         color_max = 1.0
-
-                    # Add data to image object as a channel
+                        #self.channels.append(np.ma.array(chn))
+                    #Add data to image object as a channel
                     self._add_channel(chn, color_min, color_max)
 
                     self.shape = self.channels[-1].shape
@@ -211,7 +213,6 @@ class Image(object):
     def _add_channel(self, chn, color_min, color_max):
         """Adds a channel to the image object
         """
-
         if isinstance(chn, np.ma.core.MaskedArray):
             chn_data = chn.data
             chn_mask = chn.mask
@@ -789,7 +790,7 @@ class Image(object):
             self.channels[0] = luminance
             self.convert(mode)
 
-    def enhance(self, inverse=False, gamma=1.0, stretch="no"):
+    def enhance(self, inverse=False, gamma=1.0, stretch="no", **kwargs):
         """Image enhancement function. It applies **in this order** inversion,
         gamma correction, and stretching to the current image, with parameters
         *inverse* (see :meth:`Image.invert`), *gamma* (see
