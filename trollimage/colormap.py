@@ -30,7 +30,7 @@ def colorize(arr, colors, values):
     """Colorize a monochromatic array *arr*, based *colors* given for
     *values*. Interpolation is used. *values* must be in ascending order.
     """
-    hcolors = np.array([rgb2hcl(*i) for i in colors])
+    hcolors = np.array([rgb2hcl(*i[:3]) for i in colors])
     # unwrap colormap in hcl space
     hcolors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcolors)[:, 0])))
     channels = [np.interp(arr,
@@ -38,7 +38,14 @@ def colorize(arr, colors, values):
                           np.array(hcolors)[:, i])
                 for i in range(3)]
 
-    channels = hcl2rgb(*channels)
+    channels = list(hcl2rgb(*channels))
+
+    rest = [np.interp(arr,
+                      np.array(values),
+                      np.array(colors)[:, i + 3])
+            for i in range(np.array(colors).shape[1] - 3)]
+
+    channels.extend(rest)
 
     try:
         return [np.ma.array(channel, mask=arr.mask) for channel in channels]
