@@ -33,6 +33,7 @@ import re
 
 from PIL import Image as Pil
 import numpy as np
+from copy import deepcopy
 
 
 try:
@@ -131,8 +132,8 @@ class Image(object):
            len(channels) != len(re.findall("[A-Z]", mode))):
             raise ValueError("Number of channels (%s) does not match mode %s."%(len(channels), mode))
 
-        if copy:
-            channels = [chn.copy() for chn in channels]
+        if copy and channels is not None:
+            channels = deepcopy(channels)
 
         if mode not in self.modes:
             raise ValueError("Unknown mode.")
@@ -187,7 +188,10 @@ class Image(object):
                         raise ValueError("Image channels must have the same"
                                          " shape.")
                 self.height = self.shape[0]
-                self.width = self.shape[1]
+                try:
+                    self.width = self.shape[1]
+                except IndexError:
+                    self.width = 0
             else:
                 raise ValueError("Image channels must all be arrays tuples.")
         elif channels is not None:

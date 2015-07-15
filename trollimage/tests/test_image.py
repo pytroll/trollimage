@@ -343,9 +343,9 @@ class TestRegularImage(unittest.TestCase):
                                mode = "RGB")
 
         self.flat_channel = [[1, 1, 1], [1, 1, 1]]
-        self.flat_img = image.Image(channels = [self.flat_channel],
-                                    mode = "L",
-                                    fill_value = 0)
+        self.flat_img = image.Image(channels=[self.flat_channel],
+                                    mode="L",
+                                    fill_value=0)
 
 
         
@@ -655,6 +655,7 @@ class TestRegularImage(unittest.TestCase):
         newimg = image.Image(np.ma.array([[1, 2, 3], [4, 5, 6]],
                                          mask = [[1, 0, 0], [1, 1, 0]]),
                              mode = "L")
+
         self.img.convert("L")
         newimg.merge(self.img)
         self.assert_(np.all(np.abs(newimg.channels[0] -
