@@ -794,15 +794,17 @@ class Image(object):
             self.channels[0] = luminance
             self.convert(mode)
 
-    def enhance(self, inverse=False, gamma=1.0, stretch="no", **kwargs):
+    def enhance(self, inverse=False, gamma=1.0, stretch="no", stretch_parameters=None, **kwargs):
         """Image enhancement function. It applies **in this order** inversion,
         gamma correction, and stretching to the current image, with parameters
         *inverse* (see :meth:`Image.invert`), *gamma* (see
         :meth:`Image.gamma`), and *stretch* (see :meth:`Image.stretch`).
         """
         self.invert(inverse)
+        if stretch_parameters is None:
+            stretch_parameters = {}
+        self.stretch(stretch, **stretch_parameters)
         self.gamma(gamma)
-        self.stretch(stretch)
 
     def gamma(self, gamma=1.0):
         """Apply gamma correction to the channels of the image. If *gamma* is a
@@ -812,46 +814,42 @@ class Image(object):
         are several channels in the image. The behaviour of :func:`gamma` is
         undefined outside the normal [0,1] range of the channels.
         """
-        if not isinstance(gamma, (int, long, float)):
-            if(not isinstance(gamma, (tuple, list, set)) or
-               not _areinstances(gamma, (int, long, float))):
-                raise TypeError("Gamma should be a real number, or an iterable "
-                                "of real numbers.")
 
         if(isinstance(gamma, (list, tuple, set)) and
            len(gamma) != len(self.channels)):
             raise ValueError("Number of channels and gamma components differ.")
-
-        if gamma < 0:
-            raise ValueError("Gamma correction must be a positive number.")
-
-        if gamma == 1.0:
-            return
         if isinstance(gamma, (tuple, list)):
             gamma_list = list(gamma)
         else:
             gamma_list = [gamma] * len(self.channels)
         for i in range(len(self.channels)):
+            gamma = float(gamma_list[i])
+            if gamma < 0:
+                raise ValueError("Gamma correction must be a positive number.")
+            logger.debug("Applying gamma %f", gamma)
+            if gamma == 1.0:
+                continue
+
             if isinstance(self.channels[i], np.ma.core.MaskedArray):
                 if ne:
                     self.channels[i] = np.ma.array(
                         ne.evaluate("data ** (1.0 / gamma)",
                                     local_dict={"data": self.channels[i].data,
-                                                'gamma': gamma_list[i]}),
+                                                'gamma': gamma}),
                         mask=self.channels[i].mask,
                         copy=False)
                 else:
                     self.channels[i] = np.ma.array(self.channels[i].data **
-                                                   (1.0 / gamma_list[i]),
+                                                   (1.0 / gamma),
                                                    mask=self.channels[i].mask,
                                                    copy=False)
             else:
                 self.channels[i] = np.where(self.channels[i] >= 0,
                                             self.channels[i] **
-                                            (1.0 / gamma_list[i]),
+                                            (1.0 / gamma),
                                             self.channels[i])
 
-    def stretch(self, stretch="crude", **kwarg):
+    def stretch(self, stretch="crude", **kwargs):
         """Apply stretching to the current image. The value of *stretch* sets
         the type of stretching applied. The values "histogram", "linear",
         "crude" (or "crude-stretch") perform respectively histogram
@@ -863,6 +861,8 @@ class Image(object):
         range [0.0,1.0].
         """
 
+        logger.debug("Applying stretch %s with parameters %s", stretch, str(kwargs))
+
         ch_len = len(self.channels)
         if self.mode.endswith("A"):
             ch_len -= 1
@@ -871,22 +871,22 @@ class Image(object):
                 isinstance(stretch, list))):
             if len(stretch) == 2:
                 for i in range(ch_len):
-                    self.stretch_linear(i, cutoffs=stretch, **kwarg)
+                    self.stretch_linear(i, cutoffs=stretch, **kwargs)
             else:
                 raise ValueError(
                     "Stretch tuple must have exactly two elements")
         elif stretch == "linear":
             for i in range(ch_len):
-                self.stretch_linear(i, **kwarg)
+                self.stretch_linear(i, **kwargs)
         elif stretch == "histogram":
             for i in range(ch_len):
-                self.stretch_hist_equalize(i, **kwarg)
+                self.stretch_hist_equalize(i, **kwargs)
         elif stretch in ["crude", "crude-stretch"]:
             for i in range(ch_len):
-                self.crude_stretch(i, **kwarg)
+                self.crude_stretch(i, **kwargs)
         elif stretch in ["log", "logarithmic"]:
             for i in range(ch_len):
-                self.stretch_logarithmic(i, **kwarg)
+                self.stretch_logarithmic(i, **kwargs)
         elif stretch == "no":
             return
         elif isinstance(stretch, str):
@@ -984,8 +984,7 @@ class Image(object):
         logger.debug("Left and right percentiles: " +
                      str(cutoffs[0] * 100) + " " + str(cutoffs[1] * 100))
 
-        left, right = np.percentile(carr, [cutoffs[0] * 100,
-                                           100. - cutoffs[1] * 100])
+        left, right = np.percentile(carr, [cutoffs[0] * 100, 100. - cutoffs[1] * 100])
 
         delta_x = (right - left)
         logger.debug("Interval: left=%f, right=%f width=%f",
@@ -1007,8 +1006,13 @@ class Image(object):
         if max_stretch is None:
             max_stretch = self.channels[ch_nb].max()
 
+        if isinstance(min_stretch, (list, tuple)):
+            min_stretch = min_stretch[ch_nb]
+        if isinstance(max_stretch, (list, tuple)):
+            max_stretch = max_stretch[ch_nb]
+
         if((not self.channels[ch_nb].mask.all()) and
-                max_stretch - min_stretch > 0):
+                abs(max_stretch - min_stretch) > 0):
             stretched = self.channels[ch_nb].data.astype(np.float)
             stretched -= min_stretch
             stretched /= max_stretch - min_stretch
