@@ -899,22 +899,19 @@ class Image(object):
         is a tuple or a list, elementwise invertion is performed, otherwise all
         channels are inverted if *invert* is true (default).
         """
-        if(isinstance(invert, (tuple, list, set)) and
+        if(isinstance(invert, (tuple, list)) and
            len(self.channels) != len(invert)):
             raise ValueError(
                 "Number of channels and invert components differ.")
 
-        if isinstance(invert, (tuple, list, set)):
-            i = 0
-            for chn in self.channels:
+        logger.debug("Applying invert with parameters %s", str(invert))
+        if isinstance(invert, (tuple, list)):
+            for i, chn in enumerate(self.channels):
                 if invert[i]:
-                    self.channels[i] = 1.0 - chn
-                i = i + 1
+                    self.channels[i] = -chn
         elif invert:
-            i = 0
-            for chn in self.channels:
-                self.channels[i] = 1.0 - chn
-                i = i + 1
+            for i, chn in enumerate(self.channels):
+                self.channels[i] = -chn
 
     def stretch_hist_equalize(self, ch_nb):
         """Stretch the current image's colors by performing histogram
