@@ -130,13 +130,7 @@ class TestEmptyImage(unittest.TestCase):
             # input a tuple
             self.assertRaises(ValueError, self.img.gamma, range(10))
             self.assertRaises(ValueError, self.img.gamma, (0.2, 3.5))
-            self.assertRaises(TypeError, self.img.gamma, ("blue", "white"))
 
-            # input a negative value
-            self.assertRaises(ValueError, self.img.gamma, -0.5)
-            self.assertRaises(ValueError, self.img.gamma, -1)
-            self.assertRaises(ValueError, self.img.gamma, -3.8)
-            self.assertRaises(TypeError, self.img.gamma, "blue")
         self.img.convert(oldmode)
         
     def test_invert(self):
@@ -503,13 +497,7 @@ class TestRegularImage(unittest.TestCase):
             # input a tuple
             self.assertRaises(ValueError, self.img.gamma, range(10))
             self.assertRaises(ValueError, self.img.gamma, (0.2, 3., 8., 1., 9.))
-            self.assertRaises(TypeError, self.img.gamma, ("blue", "white"))
 
-            # input a negative value
-            self.assertRaises(ValueError, self.img.gamma, -0.5)
-            self.assertRaises(ValueError, self.img.gamma, -1)
-            self.assertRaises(ValueError, self.img.gamma, -3.8)
-            self.assertRaises(TypeError, self.img.gamma, "blue")
         self.img.convert(oldmode)
         
     def test_invert(self):
@@ -526,7 +514,7 @@ class TestRegularImage(unittest.TestCase):
             self.img.invert()
             for i in range(len(self.img.channels)):
                 self.assert_(np.all(self.img.channels[i] ==
-                                    1 - old_channels[i]))
+                                    -old_channels[i]))
             self.img.invert(True)
             for i in range(len(self.img.channels)):
                 self.assert_(np.all(self.img.channels[i] -
