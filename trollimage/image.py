@@ -371,7 +371,8 @@ class Image(object):
         if self.is_empty():
             raise IOError("Cannot save an empty image")
 
-        ensure_dir(filename)
+        if isinstance(filename, (str, unicode)):
+            ensure_dir(filename)
 
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         fformat = check_image_format(fformat)
