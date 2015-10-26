@@ -1085,6 +1085,13 @@ class Image(object):
         dst.channels[3] = outa
 
 
+    def _repr_png_(self):
+        import io
+        import IPython.display
+        b = io.BytesIO()
+        self.save(b, format="png")
+        return IPython.display.Image(data=b.getvalue())
+
 def _areinstances(the_list, types):
     """Check if all the elements of the list are of given type.
     """
