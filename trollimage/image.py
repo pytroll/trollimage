@@ -1089,7 +1089,7 @@ class Image(object):
         import io
         import IPython.display
         b = io.BytesIO()
-        self.save(b, format="png")
+        self.save(b, fformat="png")
         return IPython.display.Image(data=b.getvalue())
 
 def _areinstances(the_list, types):
