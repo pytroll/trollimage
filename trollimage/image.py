@@ -1088,7 +1088,6 @@ class Image(object):
 
     def _repr_png_(self):
         import io
-        import IPython.display
         b = io.BytesIO()
         self.save(b, fformat="png")
         return b.getvalue()
