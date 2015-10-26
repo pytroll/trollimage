@@ -1091,7 +1091,7 @@ class Image(object):
         import IPython.display
         b = io.BytesIO()
         self.save(b, fformat="png")
-        return IPython.display.Image(data=b.getvalue())
+        return b.getvalue()
 
 def _areinstances(the_list, types):
     """Check if all the elements of the list are of given type.
