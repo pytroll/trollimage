@@ -130,7 +130,7 @@ class Image(object):
 
         if(isinstance(channels, (tuple, list)) and
            len(channels) != len(re.findall("[A-Z]", mode))):
-            raise ValueError("Number of channels (%s) does not match mode %s."%(len(channels), mode))
+            raise ValueError("Number of channels (%s) does not match mode %s." % (len(channels), mode))
 
         if copy and channels is not None:
             channels = deepcopy(channels)
@@ -179,8 +179,8 @@ class Image(object):
                     else:
                         color_min = 0.0
                         color_max = 1.0
-                        #self.channels.append(np.ma.array(chn))
-                    #Add data to image object as a channel
+                        # self.channels.append(np.ma.array(chn))
+                    # Add data to image object as a channel
                     self._add_channel(chn, color_min, color_max)
 
                     self.shape = self.channels[-1].shape
@@ -1086,12 +1086,12 @@ class Image(object):
             dst.channels[i][outa == 0] = 0
         dst.channels[3] = outa
 
-
     def _repr_png_(self):
         import io
         b = io.BytesIO()
         self.save(b, fformat="png")
         return b.getvalue()
+
 
 def _areinstances(the_list, types):
     """Check if all the elements of the list are of given type.
