@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2009-2014
+# Copyright (c) 2009-2015
 
 # Author(s):
 
@@ -896,9 +896,10 @@ class Image(object):
             raise TypeError("Stretch parameter must be a string or a tuple.")
 
     def invert(self, invert=True):
-        """Inverts all the channels of a image according to *invert*. If invert
-        is a tuple or a list, elementwise invertion is performed, otherwise all
-        channels are inverted if *invert* is true (default).
+        """Inverts all the channels of a image according to *invert*. If invert is a tuple or a list, elementwise
+        invertion is performed, otherwise all channels are inverted if *invert* is true (default).
+
+        Note: 'Inverting' means that black becomes white, and vice-versa, not that the values are negated !
         """
         if(isinstance(invert, (tuple, list)) and
            len(self.channels) != len(invert)):
@@ -909,10 +910,10 @@ class Image(object):
         if isinstance(invert, (tuple, list)):
             for i, chn in enumerate(self.channels):
                 if invert[i]:
-                    self.channels[i] = -chn
+                    self.channels[i] = 1 - chn
         elif invert:
             for i, chn in enumerate(self.channels):
-                self.channels[i] = -chn
+                self.channels[i] = 1 - chn
 
     def stretch_hist_equalize(self, ch_nb):
         """Stretch the current image's colors by performing histogram

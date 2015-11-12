@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2009-2014.
+# Copyright (c) 2009-2015.
 
 # Author(s):
- 
+
 #   Martin Raspaud <martin.raspaud@smhi.se>
 #   Adam Dybbroe <adam.dybbroe@smhi.se>
 
@@ -514,7 +514,7 @@ class TestRegularImage(unittest.TestCase):
             self.img.invert()
             for i in range(len(self.img.channels)):
                 self.assert_(np.all(self.img.channels[i] ==
-                                    -old_channels[i]))
+                                    1 - old_channels[i]))
             self.img.invert(True)
             for i in range(len(self.img.channels)):
                 self.assert_(np.all(self.img.channels[i] -
