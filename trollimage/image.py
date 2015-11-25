@@ -30,6 +30,7 @@ arrays containing invalid values may be properly handled.
 import logging
 import os
 import re
+import six
 
 from PIL import Image as Pil
 import numpy as np
@@ -371,7 +372,7 @@ class Image(object):
         if self.is_empty():
             raise IOError("Cannot save an empty image")
 
-        if isinstance(filename, (str, unicode)):
+        if isinstance(filename, (str, six.text_type)):
             ensure_dir(filename)
 
         fformat = fformat or os.path.splitext(filename)[1][1:4]

@@ -43,6 +43,6 @@ setup(name="trollimage",
       url="https://github.com/mraspaud/trollimage",
       packages=['trollimage'],
       zip_safe=False,
-      install_requires=['numpy >=1.4.1', 'pillow'],
+      install_requires=['numpy >=1.4.1', 'pillow', 'six'],
       test_suite = 'trollimage.tests.suite',
       )
