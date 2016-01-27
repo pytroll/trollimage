@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2013 Martin Raspaud
+# Copyright (c) 2013, 2016 Martin Raspaud
 
 # Author(s):
 
 #   Martin Raspaud <martin.raspaud@smhi.se>
+#   Adam.Dybbroe <adam.dybbroe@smhi.se>
+
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +45,6 @@ setup(name="trollimage",
       url="https://github.com/mraspaud/trollimage",
       packages=['trollimage'],
       zip_safe=False,
-      install_requires=['numpy >=1.4.1', 'pillow', 'six'],
-      test_suite = 'trollimage.tests.suite',
+      install_requires=['numpy >=1.6', 'pillow', 'six'],
+      test_suite='trollimage.tests.suite',
       )
