@@ -245,6 +245,8 @@ class Image(object):
             else:
                 final_data = chn.clip(0, 1) * np.iinfo(dtype).max
 
+            if np.issubdtype(dtype, np.integer):
+                final_data = np.round(final_data)
             channels.append(np.ma.array(final_data,
                                         dtype,
                                         mask=np.ma.getmaskarray(chn)))
