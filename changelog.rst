@@ -1,6 +1,17 @@
 Changelog
 =========
 
+v1.0.1 (2016-10-27)
+-------------------
+
+- Update changelog. [Martin Raspaud]
+
+- Bump version: 1.0.0 → 1.0.1. [Martin Raspaud]
+
+- Add bump and changelog config files. [Martin Raspaud]
+
+- Round data instead of truncation when saving to ints. [Martin Raspaud]
+
 v1.0.0 (2015-12-14)
 -------------------
 
