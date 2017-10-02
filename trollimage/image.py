@@ -996,7 +996,6 @@ class Image(object):
             self.channels[ch_nb] = np.ma.array((arr - left) / delta_x,
                                                mask=arr.mask)
         else:
-            self.channels[ch_nb] = np.ma.zeros(arr.shape)
             logger.warning("Unable to make a contrast stretch!")
 
     def crude_stretch(self, ch_nb, min_stretch=None, max_stretch=None):
