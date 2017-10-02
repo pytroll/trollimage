@@ -30,12 +30,11 @@ arrays containing invalid values may be properly handled.
 import logging
 import os
 import re
-import six
-
-from PIL import Image as Pil
-import numpy as np
 from copy import deepcopy
 
+import numpy as np
+import six
+from PIL import Image as Pil
 
 try:
     import numexpr as ne
@@ -482,7 +481,9 @@ class Image(object):
             self._secondary_mode = self.mode
 
         palette = []
-        selfmask = reduce(np.ma.mask_or, [chn.mask for chn in chans])
+        selfmask = chans[0].mask
+        for chn in chans[1:]:
+            selfmask = np.ma.mask_or(selfmask, chn.mask)
         new_chn = np.ma.zeros(self.shape, dtype=int)
         color_nb = 0
 
@@ -490,9 +491,9 @@ class Image(object):
             for j in range(self.width):
                 current_col = tuple([chn[i, j] for chn in chans])
                 try:
-                    (idx
-                     for idx in range(len(palette))
-                     if palette[idx] == current_col).next()
+                    next(idx
+                         for idx in range(len(palette))
+                         if palette[idx] == current_col)
                 except StopIteration:
                     idx = color_nb
                     palette.append(current_col)
@@ -508,9 +509,9 @@ class Image(object):
                 current_col = tuple(self.fill_value)
                 fill_alpha = []
             try:
-                (idx
-                 for idx in range(len(palette))
-                 if palette[idx] == current_col).next()
+                next(idx
+                     for idx in range(len(palette))
+                     if palette[idx] == current_col)
             except StopIteration:
                 idx = color_nb
                 palette.append(current_col)
@@ -753,7 +754,7 @@ class Image(object):
                 chn = chn.repeat([factor[0]] * chn.shape[0], axis=0)
             else:
                 chn = chn[[idx * factor[0]
-                           for idx in range(self.height / factor[0])],
+                           for idx in range(int(self.height / factor[0]))],
                           :]
             if zoom[1]:
                 self.channels[i] = chn.repeat([factor[1]] * chn.shape[1],
@@ -761,8 +762,8 @@ class Image(object):
             else:
                 self.channels[i] = chn[:,
                                        [idx * factor[1]
-                                        for idx in range(self.width /
-                                                         factor[1])]]
+                                        for idx in range(int(self.width /
+                                                             factor[1]))]]
 
             i = i + 1
 
@@ -1033,7 +1034,9 @@ class Image(object):
         if self.mode != img.mode:
             raise ValueError("Cannot merge image of different modes.")
 
-        selfmask = reduce(np.ma.mask_or, [chn.mask for chn in self.channels])
+        selfmask = self.channels[0].mask
+        for chn in self.channels[1:]:
+            selfmask = np.ma.mask_or(selfmask, chn.mask)
 
         for i in range(len(self.channels)):
             self.channels[i] = np.ma.where(selfmask,

@@ -27,9 +27,7 @@ import random
 import unittest
 
 import numpy as np
-
 from trollimage import image
-
 
 EPSILON = 0.0001
 
@@ -130,7 +128,7 @@ class TestEmptyImage(unittest.TestCase):
             self.assertEqual(self.img.channels, [])
 
             # input a tuple
-            self.assertRaises(ValueError, self.img.gamma, range(10))
+            self.assertRaises(ValueError, self.img.gamma, list(range(10)))
             self.assertRaises(ValueError, self.img.gamma, (0.2, 3.5))
 
         self.img.convert(oldmode)
@@ -493,7 +491,7 @@ class TestRegularImage(unittest.TestCase):
             #                                old_channels[i]) < EPSILON))
 
             # input a tuple
-            self.assertRaises(ValueError, self.img.gamma, range(10))
+            self.assertRaises(ValueError, self.img.gamma, list(range(10)))
             self.assertRaises(ValueError, self.img.gamma, (0.2, 3., 8., 1., 9.))
 
         self.img.convert(oldmode)
