@@ -1098,6 +1098,33 @@ class Image(object):
         return b.getvalue()
 
 
+class XRImage(object):
+
+    modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
+
+    def __init__(self, data, mode="RGB", color_range=None):
+
+        try:
+            dims = data.dims
+        except AttributeError:
+            raise TypeError("Data must be a xr.DataArray.")
+
+        if "bands" not in dims:
+            self.data = data.expand_dims('bands')
+            self.data['bands'] = 'L'
+        else:
+            self.data = data
+
+    def save(self, filename, compression=6, fformat=None,
+             thumbnail_name=None, thumbnail_size=None):
+        """Save the image to the given *filename*. For some formats like jpg
+        and png, the work is delegated to :meth:`pil_save`, which doesn't
+        support the *compression* option.
+        """
+        self.pil_save(filename, compression, fformat,
+                      thumbnail_name, thumbnail_size)
+
+
 def _areinstances(the_list, types):
     """Check if all the elements of the list are of given type.
     """
