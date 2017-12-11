@@ -27,6 +27,7 @@ import random
 import unittest
 
 import numpy as np
+
 from trollimage import image
 
 EPSILON = 0.0001
@@ -734,3 +735,29 @@ def suite():
     mysuite.addTest(loader.loadTestsFromTestCase(TestNoDataImage))
 
     return mysuite
+
+
+class TestXRImage(unittest.TestCase):
+
+    def test_init(self):
+        try:
+            import xarray as xr
+        except ImportError:
+            xr = None
+        data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
+        img = image.XRImage(data)
+        self.assertEqual(img.mode, 'L')
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+                            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = image.XRImage(data)
+        self.assertEqual(img.mode, 'RGB')
+
+        data = xr.DataArray(np.arange(100).reshape(5, 5, 4), dims=[
+                            'y', 'x', 'bands'], coords={'bands': ['Y', 'Cb', 'Cr', 'A']})
+        img = image.XRImage(data)
+        self.assertEqual(img.mode, 'YCbCrA')
+
+
+if __name__ == '__main__':
+    unittest.main()
