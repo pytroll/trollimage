@@ -391,9 +391,7 @@ class Image(object):
         # JPEG images does not support transparency
         if fformat == 'jpeg' and not self.fill_value:
             self.fill_value = [0, 0, 0, 0]
-            logger.debug("No fill_value provided, setting it to 0!")
-            logger.debug("Image format jpeg does not support transparency!" +
-                         " Please specify a fill_value!")
+            logger.debug("No fill_value provided, setting it to 0.")
 
         img = self.pil_image()
         img.save(filename, fformat, **params)
