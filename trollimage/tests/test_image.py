@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2009-2015.
+# Copyright (c) 2009-2015, 2017.
 
 # Author(s):
 
@@ -439,7 +439,8 @@ class TestRegularImage(unittest.TestCase):
             self.img.stretch("crude")
             self.assert_(np.all((self.img.channels[0] - crude) < EPSILON))
             self.img.stretch("histogram")
-            self.assert_(np.all(np.abs(self.img.channels[0] - histo) < EPSILON))
+            self.assert_(
+                np.all(np.abs(self.img.channels[0] - histo) < EPSILON))
             self.img.stretch((0.05, 0.05))
             self.assert_(np.all((self.img.channels[0] - linear) < EPSILON))
             self.assertRaises(ValueError, self.img.stretch, (0.05, 0.05, 0.05))
@@ -492,7 +493,8 @@ class TestRegularImage(unittest.TestCase):
 
             # input a tuple
             self.assertRaises(ValueError, self.img.gamma, list(range(10)))
-            self.assertRaises(ValueError, self.img.gamma, (0.2, 3., 8., 1., 9.))
+            self.assertRaises(
+                ValueError, self.img.gamma, (0.2, 3., 8., 1., 9.))
 
         self.img.convert(oldmode)
 
@@ -587,6 +589,25 @@ class TestRegularImage(unittest.TestCase):
             self.assertRaises(IOError,
                               self.img.save,
                               os.path.join(self.tempdir, "test.png"))
+
+        self.img.convert(oldmode)
+
+    def test_save_jpeg(self):
+        """Save a jpeg image.
+        """
+        import os
+        import os.path
+
+        oldmode = self.img.mode
+        self.img.convert('L')
+        self.img.save("test.jpg")
+        self.assert_(os.path.exists("test.jpg"))
+        os.remove("test.jpg")
+
+        # permissions
+        self.assertRaises(IOError,
+                          self.img.save,
+                          os.path.join(self.tempdir, "test.jpg"))
 
         self.img.convert(oldmode)
 

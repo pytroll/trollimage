@@ -388,14 +388,12 @@ class Image(object):
             # Take care of GeoImage.tags (if any).
             params['pnginfo'] = self._pngmeta()
 
-        if fformat == 'jpeg':
-            # JPEG images does not support transparency
-            if not self.fill_value:
-                self.fill_value = [0, 0, 0, 0]
-                logger.warning("No fill_value provided, setting it to 0!")
-                logger.warning(
-                    "Image format jpeg does not support transparency!" +
-                    " Please specify a fill_value!")
+        # JPEG images does not support transparency
+        if fformat == 'jpeg' and not self.fill_value:
+            self.fill_value = [0, 0, 0, 0]
+            logger.debug("No fill_value provided, setting it to 0!")
+            logger.debug("Image format jpeg does not support transparency!" +
+                         " Please specify a fill_value!")
 
         img = self.pil_image()
         img.save(filename, fformat, **params)
