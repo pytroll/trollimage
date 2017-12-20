@@ -819,8 +819,8 @@ class Image(object):
         self.invert(inverse)
         if stretch_parameters is None:
             stretch_parameters = {}
-        for item in kwargs:
-            stretch_parameters[item] = kwargs[item]
+
+        stretch_parameters.update(kwargs)
         self.stretch(stretch, **stretch_parameters)
         self.gamma(gamma)
 
