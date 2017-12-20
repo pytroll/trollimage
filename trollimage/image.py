@@ -391,7 +391,7 @@ class Image(object):
         if fformat == 'jpeg':
             # JPEG images does not support transparency
             if not self.fill_value:
-                self.fill_value = [0]
+                self.fill_value = [0, 0, 0, 0]
                 logger.warning("No fill_value provided, setting it to 0!")
                 logger.warning(
                     "Image format jpeg does not support transparency!" +
