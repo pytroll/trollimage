@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2009-2015
+# Copyright (c) 2009-2017
 
 # Author(s):
 
@@ -130,7 +130,8 @@ class Image(object):
 
         if(isinstance(channels, (tuple, list)) and
            len(channels) != len(re.findall("[A-Z]", mode))):
-            raise ValueError("Number of channels (%s) does not match mode %s." % (len(channels), mode))
+            raise ValueError(
+                "Number of channels (%s) does not match mode %s." % (len(channels), mode))
 
         if copy and channels is not None:
             channels = deepcopy(channels)
@@ -384,6 +385,14 @@ class Image(object):
         if fformat == 'png':
             # Take care of GeoImage.tags (if any).
             params['pnginfo'] = self._pngmeta()
+
+        if fformat == 'jpeg':
+            # JPEG images does not support transparency
+            if not self.fill_value:
+                self.fill_value = [0]
+                logger.warning("No fill_value provided, setting it to 0!")
+                logger.warning(
+                    "Image format jpeg does not support transparency! Please specify a fill_value!")
 
         img = self.pil_image()
         img.save(filename, fformat, **params)
@@ -799,7 +808,8 @@ class Image(object):
             self.channels[0] = luminance
             self.convert(mode)
 
-    def enhance(self, inverse=False, gamma=1.0, stretch="no", stretch_parameters=None, **kwargs):
+    def enhance(self, inverse=False, gamma=1.0, stretch="no",
+                stretch_parameters=None, **kwargs):
         """Image enhancement function. It applies **in this order** inversion,
         gamma correction, and stretching to the current image, with parameters
         *inverse* (see :meth:`Image.invert`), *gamma* (see
@@ -808,6 +818,8 @@ class Image(object):
         self.invert(inverse)
         if stretch_parameters is None:
             stretch_parameters = {}
+        for item in kwargs:
+            stretch_parameters[item] = kwargs[item]
         self.stretch(stretch, **stretch_parameters)
         self.gamma(gamma)
 
@@ -866,7 +878,8 @@ class Image(object):
         range [0.0,1.0].
         """
 
-        logger.debug("Applying stretch %s with parameters %s", stretch, str(kwargs))
+        logger.debug(
+            "Applying stretch %s with parameters %s", stretch, str(kwargs))
 
         ch_len = len(self.channels)
         if self.mode.endswith("A"):
@@ -987,7 +1000,8 @@ class Image(object):
         logger.debug("Left and right percentiles: " +
                      str(cutoffs[0] * 100) + " " + str(cutoffs[1] * 100))
 
-        left, right = np.percentile(carr, [cutoffs[0] * 100, 100. - cutoffs[1] * 100])
+        left, right = np.percentile(
+            carr, [cutoffs[0] * 100, 100. - cutoffs[1] * 100])
 
         delta_x = (right - left)
         logger.debug("Interval: left=%f, right=%f width=%f",
