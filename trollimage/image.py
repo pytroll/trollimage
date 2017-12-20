@@ -130,8 +130,10 @@ class Image(object):
 
         if(isinstance(channels, (tuple, list)) and
            len(channels) != len(re.findall("[A-Z]", mode))):
-            raise ValueError(
-                "Number of channels (%s) does not match mode %s." % (len(channels), mode))
+            errmsg = ("Number of channels (" +
+                      "{n}) does not match mode {mode}.".format(
+                          n=len(channels), mode=mode))
+            raise ValueError(errmsg)
 
         if copy and channels is not None:
             channels = deepcopy(channels)
@@ -392,7 +394,8 @@ class Image(object):
                 self.fill_value = [0]
                 logger.warning("No fill_value provided, setting it to 0!")
                 logger.warning(
-                    "Image format jpeg does not support transparency! Please specify a fill_value!")
+                    "Image format jpeg does not support transparency!" +
+                    " Please specify a fill_value!")
 
         img = self.pil_image()
         img.save(filename, fformat, **params)
