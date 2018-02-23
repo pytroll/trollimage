@@ -1,4 +1,8 @@
 language: python
+addons:
+  apt:
+    packages:
+    - gdal-bin
 python:
 - '2.7'
 - '3.4'
@@ -6,6 +10,7 @@ python:
 - '3.6'
 install:
 - pip install .
+- pip install xarray dask rasterio
 - pip install coveralls
 script: coverage run --source=trollimage setup.py test
 after_success: coveralls
