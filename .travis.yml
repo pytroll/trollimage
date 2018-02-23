@@ -11,7 +11,7 @@ python:
 - '3.6'
 install:
 - pip install .
-- pip install xarray dask rasterio==1.0a12
+- pip install xarray dask toolz rasterio==1.0a12
 - pip install coveralls
 script: coverage run --source=trollimage setup.py test
 after_success: coveralls
