@@ -25,10 +25,11 @@
 """
 import random
 import unittest
+from tempfile import NamedTemporaryFile
 
 import numpy as np
 
-from trollimage import image
+from trollimage import image, xrimage
 
 EPSILON = 0.0001
 
@@ -744,20 +745,242 @@ class TestXRImage(unittest.TestCase):
             import xarray as xr
         except ImportError:
             xr = None
+            return
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
-        img = image.XRImage(data)
+        img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'L')
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
                             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
-        img = image.XRImage(data)
+        img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'RGB')
 
         data = xr.DataArray(np.arange(100).reshape(5, 5, 4), dims=[
                             'y', 'x', 'bands'], coords={'bands': ['Y', 'Cb', 'Cr', 'A']})
-        img = image.XRImage(data)
+        img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'YCbCrA')
 
+    def test_save(self):
+        try:
+            import xarray as xr
+        except ImportError:
+            xr = None
+            return
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
+                            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name)
+
+        import dask.array as da
+        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 75.,
+                                          chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name)
+        data = data.where(data > (10 / 75.0))
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name)
+
+
+    def test_gamma(self):
+        """Test gamma correction."""
+        try:
+            import xarray as xr
+        except ImportError:
+            xr = None
+            return
+
+        arr = np.arange(75).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.gamma(.5)
+        self.assert_(np.allclose(img.data.values, arr ** 2))
+
+        img.gamma([2., 2., 2.])
+        self.assert_(np.allclose(img.data.values, arr))
+
+    def test_crude_stretch(self):
+        try:
+            import xarray as xr
+        except ImportError:
+            xr = None
+            return
+
+        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.crude_stretch()
+        self.assert_(np.allclose(img.data.values, arr))
+
+
+    def test_invert(self):
+        """Check inversion of the image."""
+        try:
+            import xarray as xr
+        except ImportError:
+            xr = None
+            return
+
+        arr = np.arange(75).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+
+        img.invert(True)
+
+        self.assert_(np.allclose(img.data.values, 1 - arr))
+
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+
+        img.invert([True, False, True])
+        offset = xr.DataArray(np.array([1, 0, 1]), dims=['bands'],
+                              coords={'bands': ['R', 'G', 'B']})
+        scale = xr.DataArray(np.array([-1, 1, -1]), dims=['bands'],
+                             coords={'bands': ['R', 'G', 'B']})
+        self.assert_(np.allclose(img.data.values, (data * scale + offset).values))
+
+
+    def test_linear_stretch(self):
+        """Test linear stretching with cutoffs."""
+        try:
+            import xarray as xr
+        except ImportError:
+            xr = None
+            return
+
+        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.stretch_linear()
+        res = np.array([[[-0.005051, -0.005051, -0.005051],
+                         [ 0.037037,  0.037037,  0.037037],
+                         [ 0.079125,  0.079125,  0.079125],
+                         [ 0.121212,  0.121212,  0.121212],
+                         [ 0.1633  ,  0.1633  ,  0.1633  ]],
+                        [[ 0.205387,  0.205387,  0.205387],
+                         [ 0.247475,  0.247475,  0.247475],
+                         [ 0.289562,  0.289562,  0.289562],
+                         [ 0.33165 ,  0.33165 ,  0.33165 ],
+                         [ 0.373737,  0.373737,  0.373737]],
+                        [[ 0.415825,  0.415825,  0.415825],
+                         [ 0.457912,  0.457912,  0.457912],
+                         [ 0.5     ,  0.5     ,  0.5     ],
+                         [ 0.542088,  0.542088,  0.542088],
+                         [ 0.584175,  0.584175,  0.584175]],
+                        [[ 0.626263,  0.626263,  0.626263],
+                         [ 0.66835 ,  0.66835 ,  0.66835 ],
+                         [ 0.710438,  0.710438,  0.710438],
+                         [ 0.752525,  0.752525,  0.752525],
+                         [ 0.794613,  0.794613,  0.794613]],
+                        [[ 0.8367  ,  0.8367  ,  0.8367  ],
+                         [ 0.878788,  0.878788,  0.878788],
+                         [ 0.920875,  0.920875,  0.920875],
+                         [ 0.962963,  0.962963,  0.962963],
+                         [ 1.005051,  1.005051,  1.005051]]])
+
+        self.assert_(np.allclose(img.data.values, res, atol=1.e-6))
+
+    # def test_histogram_stretch(self):
+    #     try:
+    #         import xarray as xr
+    #     except ImportError:
+    #         xr = None
+    #         return
+    #
+    #     arr = np.arange(75).reshape(5, 5, 3) / 74.
+    #     data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+    #                         coords={'bands': ['R', 'G', 'B']})
+    #     img = xrimage.XRImage(data)
+    #     img.stretch('histogram')
+    #     res = np.array([[[-0.005051, -0.005051, -0.005051],
+    #                      [ 0.037037,  0.037037,  0.037037],
+    #                      [ 0.079125,  0.079125,  0.079125],
+    #                      [ 0.121212,  0.121212,  0.121212],
+    #                      [ 0.1633  ,  0.1633  ,  0.1633  ]],
+    #                     [[ 0.205387,  0.205387,  0.205387],
+    #                      [ 0.247475,  0.247475,  0.247475],
+    #                      [ 0.289562,  0.289562,  0.289562],
+    #                      [ 0.33165 ,  0.33165 ,  0.33165 ],
+    #                      [ 0.373737,  0.373737,  0.373737]],
+    #                     [[ 0.415825,  0.415825,  0.415825],
+    #                      [ 0.457912,  0.457912,  0.457912],
+    #                      [ 0.5     ,  0.5     ,  0.5     ],
+    #                      [ 0.542088,  0.542088,  0.542088],
+    #                      [ 0.584175,  0.584175,  0.584175]],
+    #                     [[ 0.626263,  0.626263,  0.626263],
+    #                      [ 0.66835 ,  0.66835 ,  0.66835 ],
+    #                      [ 0.710438,  0.710438,  0.710438],
+    #                      [ 0.752525,  0.752525,  0.752525],
+    #                      [ 0.794613,  0.794613,  0.794613]],
+    #                     [[ 0.8367  ,  0.8367  ,  0.8367  ],
+    #                      [ 0.878788,  0.878788,  0.878788],
+    #                      [ 0.920875,  0.920875,  0.920875],
+    #                      [ 0.962963,  0.962963,  0.962963],
+    #                      [ 1.005051,  1.005051,  1.005051]]])
+    #
+    #     self.assert_(np.allclose(img.data.values, res, atol=1.e-6))
+
+    def test_logarithmic_stretch(self):
+        pass
+
+    def test_weber_fechner_stretch(self):
+        """S=2.3klog10I+C """
+        pass
+
+    def test_jpeg_save(self):
+        pass
+
+    def test_gtiff_save(self):
+        pass
+
+    def test_save_masked(self):
+        pass
+
+    def test_LA_save(self):
+        pass
+
+    def test_L_save(self):
+        pass
+
+    def test_P_save(self):
+        pass
+
+    def test_PA_save(self):
+        pass
+
+    def test_convert_modes(self):
+        pass
+
+    def test_colorize(self):
+        pass
+
+    def test_palettize(self):
+        pass
+
+    def test_merge(self):
+        pass
+
+    def test_blend(self):
+        pass
+
+    def test_replace_luminance(self):
+        pass
+
+    def test_putalpha(self):
+        pass
+
+    def test_show(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
