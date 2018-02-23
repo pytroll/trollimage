@@ -41,11 +41,6 @@ try:
 except ImportError:
     ne = None
 
-try:
-    import numexpr as ne
-except ImportError:
-    ne = None
-
 logger = logging.getLogger(__name__)
 
 
