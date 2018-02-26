@@ -126,8 +126,7 @@ class XRImage(object):
                 raise ValueError("No 'bands' dimension provided.")
         else:
             self.data = data
-        # FIXME: Do this smarter
-        self.height, self.width = self.data.shape[-2:]
+        self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
 
     @property
     def mode(self):
