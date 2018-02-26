@@ -35,10 +35,18 @@ import six
 from PIL import Image as Pil
 
 import rasterio
-from rasterio.windows import Window
 import xarray as xr
 import xarray.ufuncs as xu
 import dask.array as da
+
+try:
+    # rasterio 1.0+
+    from rasterio.windows import Window
+except ImportError:
+    # raster 0.36.0
+    # remove this once rasterio 1.0+ is officially available
+    def Window(x_off, y_off, x_size, y_size):
+        return (y_off, y_off + y_size), (x_off, x_off + x_size)
 
 
 logger = logging.getLogger(__name__)
@@ -78,6 +86,18 @@ class RIOFile(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.rfile.close()
+
+    @property
+    def colorinterp(self):
+        return self.rfile.colorinterp
+
+    @colorinterp.setter
+    def colorinterp(self, val):
+        if rasterio.__version__.startswith("0."):
+            # not supported in older versions, set by PHOTOMETRIC tag
+            logger.warning("Rasterio 1.0+ required for setting colorinterp")
+        else:
+            self.rfile.colorinterp = val
 
 
 def color_interp(data):
@@ -181,7 +201,7 @@ class XRImage(object):
                      dtype=data.dtype.type,
                      crs=crs, transform=transform) as r_file:
 
-            r_file.rfile.colorinterp = color_interp(data)
+            r_file.colorinterp = color_interp(data)
 
             r_file.rfile.update_tags(**new_tags)
 
