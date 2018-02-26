@@ -44,21 +44,33 @@ import dask.array as da
 logger = logging.getLogger(__name__)
 
 
-
 class RIOFile(object):
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
         self.rfile = None
 
-
     def __setitem__(self, key, item):
-        chy_off = key[1].start
-        chy = key[1].stop - key[1].start
-        chx_off = key[2].start
-        chx = key[2].stop - key[2].start
+        if len(key) == 3:
+            indexes = list(range(
+                key[0].start + 1,
+                key[0].stop + 1,
+                key[0].step or 1
+            ))
+            y = key[1]
+            x = key[2]
+        else:
+            indexes = 1
+            y = key[0]
+            x = key[1]
+        chy_off = y.start
+        chy = y.stop - y.start
+        chx_off = x.start
+        chx = x.stop - x.start
 
-        self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy))
+        # band indexes
+        self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
+                         indexes=indexes)
 
     def __enter__(self):
         self.rfile = rasterio.open(*self.args, **self.kwargs)
@@ -66,6 +78,7 @@ class RIOFile(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.rfile.close()
+
 
 def color_interp(data):
     """Get the color interpretation for this image."""
@@ -93,6 +106,7 @@ def color_interp(data):
                   }
         return [colors[band] for band in data['bands'].values]
 
+
 class XRImage(object):
 
     modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
@@ -112,11 +126,12 @@ class XRImage(object):
                 raise ValueError("No 'bands' dimension provided.")
         else:
             self.data = data
+        # FIXME: Do this smarter
+        self.height, self.width = self.data.shape[-2:]
 
     @property
     def mode(self):
         return ''.join(self.data['bands'].values)
-
 
     def save(self, filename, compression=6, fformat=None, fill_value=None):
         """Save the image to the given *filename*.
@@ -171,12 +186,11 @@ class XRImage(object):
 
             r_file.rfile.update_tags(**new_tags)
 
-            try:
-                data = data.data.rechunk(chunks=(data.sizes['bands'],
-                                                 4096, 4096))
-            except AttributeError:
+            # 'data' is an XArray, get the data from it as a dask array
+            data = data.data
+            if not isinstance(data, da.Array):
                 data = da.from_array(data, chunks=(data.sizes['bands'],
-                                                 4096, 4096))
+                                                   4096, 4096))
             da.store(data, r_file, lock=False)
 
     def pil_save(self, filename, compression=6, fformat=None, fill_value=None):
@@ -372,9 +386,12 @@ class XRImage(object):
         if isinstance(max_stretch, (list, tuple)):
             max_stretch = self.xrify_tuples(max_stretch)
 
-        # FIXME this doesn't work on single values !
         delta = (max_stretch - min_stretch)
-        scale_factor = (1 / delta).fillna(0)
+        if isinstance(delta, xr.DataArray):
+            # fillna if delta is NaN
+            scale_factor = (1 / delta).fillna(0)
+        else:
+            scale_factor = 1 / delta
         attrs = self.data.attrs
         self.data -= min_stretch
         self.data *= scale_factor
