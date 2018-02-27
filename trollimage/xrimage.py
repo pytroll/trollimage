@@ -187,8 +187,8 @@ class XRImage(object):
                 if "start_time" in data.attrs:
                     new_tags = {'TIFFTAG_DATETIME': data.attrs["start_time"].strftime("%Y:%m:%d %H:%M:%S")}
 
-            except KeyError:
-                pass
+            except (KeyError, AttributeError):
+                logger.info("Couldn't create geotransform")
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
