@@ -387,9 +387,10 @@ class XRImage(object):
         logger.debug("Left and right quantiles: " +
                      str(cutoffs[0]) + " " + str(cutoffs[1]))
         # Quantile requires the data to be loaded, not supported on dask arrays
-        self.data.load()
-        left, right = self.data.quantile([cutoffs[0], 1. - cutoffs[1]],
-                                         dim=['x', 'y'])
+        data = self.data.copy()
+        data.load()
+        left, right = data.quantile([cutoffs[0], 1. - cutoffs[1]],
+                                     dim=['x', 'y'])
         logger.debug("Interval: left=%s, right=%s", str(left), str(right))
         self.crude_stretch(left, right)
 
