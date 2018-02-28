@@ -159,7 +159,7 @@ class XRImage(object):
         """Mode of the image."""
         return ''.join(self.data['bands'].values)
 
-    def save(self, filename, fformat=None, fill_value=None):
+    def save(self, filename, fformat=None, fill_value=None, format_kw=None):
         """Save the image to the given *filename*.
 
         For some formats like jpg and png, the work is delegated to
@@ -167,11 +167,11 @@ class XRImage(object):
         """
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         if fformat == 'tif' and rasterio:
-            self.rio_save(filename, fformat, fill_value)
+            self.rio_save(filename, fformat, fill_value, format_kw)
         else:
-            self.pil_save(filename, fformat, fill_value)
+            self.pil_save(filename, fformat, fill_value, format_kw)
 
-    def rio_save(self, filename, fformat=None, fill_value=None):
+    def rio_save(self, filename, fformat=None, fill_value=None, format_kw=None):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
@@ -209,9 +209,9 @@ class XRImage(object):
                      width=data.sizes['x'], height=data.sizes['y'],
                      count=data.sizes['bands'],
                      dtype=data.dtype.type,
-                     crs=crs, transform=transform) as r_file:
                      compress='DEFLATE',
                      nodata=fill_value,
+                     crs=crs, transform=transform, **format_kw) as r_file:
 
             r_file.colorinterp = color_interp(data)
 
@@ -224,7 +224,7 @@ class XRImage(object):
                                                    4096, 4096))
             da.store(data, r_file, lock=False)
 
-    def pil_save(self, filename, fformat=None, fill_value=None):
+    def pil_save(self, filename, fformat=None, fill_value=None, format_kw=None):
         """Save the image to the given *filename* using PIL.
 
         For now, the compression level [0-9] is ignored, due to PIL's lack of
@@ -233,7 +233,10 @@ class XRImage(object):
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         fformat = check_image_format(fformat)
 
-        params = {}
+        if format_kw is None:
+            params = {}
+        else:
+            params = format_kw.copy()
 
         if fformat == 'png':
             # Take care of GeoImage.tags (if any).
