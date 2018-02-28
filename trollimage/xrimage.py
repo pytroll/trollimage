@@ -31,13 +31,18 @@ import logging
 import os
 
 import numpy as np
-import six
 from PIL import Image as Pil
-
-import rasterio
 import xarray as xr
 import xarray.ufuncs as xu
 import dask.array as da
+
+from trollimage.image import check_image_format
+
+try:
+    import rasterio
+except ImportError:
+    rasterio = None
+
 
 try:
     # rasterio 1.0+
@@ -153,14 +158,17 @@ class XRImage(object):
     def mode(self):
         return ''.join(self.data['bands'].values)
 
-    def save(self, filename, compression=6, fformat=None, fill_value=None):
+    def save(self, filename, fformat=None, fill_value=None):
         """Save the image to the given *filename*.
 
         For some formats like jpg and png, the work is delegated to
         :meth:`pil_save`, which doesn't support the *compression* option.
         """
-        #self.pil_save(filename, compression, fformat, fill_value)
-        self.rio_save(filename, fformat, fill_value)
+        fformat = fformat or os.path.splitext(filename)[1][1:4]
+        if fformat == 'tif' and rasterio:
+            self.rio_save(filename, fformat, fill_value)
+        else:
+            self.pil_save(filename, fformat, fill_value)
 
     def rio_save(self, filename, fformat=None, fill_value=None):
         """Save the image using rasterio."""
@@ -170,7 +178,7 @@ class XRImage(object):
                    'tif': 'GTiff'}
         driver = drivers.get(fformat, fformat)
 
-        data, mode = self._finalize()
+        data, mode = self._finalize(fill_value)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -213,17 +221,12 @@ class XRImage(object):
                                                    4096, 4096))
             da.store(data, r_file, lock=False)
 
-    def pil_save(self, filename, compression=6, fformat=None, fill_value=None):
+    def pil_save(self, filename, fformat=None, fill_value=None):
         """Save the image to the given *filename* using PIL.
 
         For now, the compression level [0-9] is ignored, due to PIL's lack of
         support. See also :meth:`save`.
         """
-        # PIL does not support compression option.
-        del compression
-
-        if isinstance(filename, (str, six.text_type)):
-            ensure_dir(filename)
 
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         fformat = check_image_format(fformat)
