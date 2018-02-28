@@ -210,6 +210,8 @@ class XRImage(object):
                      count=data.sizes['bands'],
                      dtype=data.dtype.type,
                      crs=crs, transform=transform) as r_file:
+                     compress='DEFLATE',
+                     nodata=fill_value,
 
             r_file.colorinterp = color_interp(data)
 
