@@ -133,11 +133,11 @@ def color_interp(data):
 
 
 class XRImage(object):
-
+    """Image class using xarray as internal storage."""
     modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
 
-    def __init__(self, data, mode="RGB"):
-
+    def __init__(self, data):
+        """Initialize the image."""
         try:
             dims = data.dims
         except AttributeError:
@@ -156,6 +156,7 @@ class XRImage(object):
 
     @property
     def mode(self):
+        """Mode of the image."""
         return ''.join(self.data['bands'].values)
 
     def save(self, filename, fformat=None, fill_value=None):
@@ -227,7 +228,6 @@ class XRImage(object):
         For now, the compression level [0-9] is ignored, due to PIL's lack of
         support. See also :meth:`save`.
         """
-
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         fformat = check_image_format(fformat)
 
@@ -270,7 +270,6 @@ class XRImage(object):
         import xarray as xr
         nan_mask = xu.isnan(data).sum('bands').expand_dims('bands').astype(bool)
         nan_mask['bands'] = ['A']
-
         # if not any(nan_mask):
         #     return data
         if fill_value is None:
@@ -290,14 +289,13 @@ class XRImage(object):
         This sets the channels in unsigned 8bit format ([0,255] range)
         (if the *dtype* doesn't say otherwise).
         """
-
         # if self.mode == "P":
         #     self.convert("RGB")
         # if self.mode == "PA":
         #     self.convert("RGBA")
         #
         final_data = self.fill_or_alpha(self.data, fill_value)
-        #final_data = self.data
+
         if np.issubdtype(dtype, np.integer):
             final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
             final_data = final_data.round().astype(dtype)
