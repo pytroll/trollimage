@@ -138,14 +138,15 @@ class XRImage(object):
         except AttributeError:
             raise TypeError("Data must be a dims attribute.")
 
+        # doesn't actually copy the data underneath
+        # we don't want our operations to change the user's data
+        self.data = data.copy()
         if "bands" not in dims:
             if data.ndim <= 2:
                 self.data = data.expand_dims('bands')
                 self.data['bands'] = ['L']
             else:
                 raise ValueError("No 'bands' dimension provided.")
-        else:
-            self.data = data
         self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
 
     @property
