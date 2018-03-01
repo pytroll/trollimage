@@ -877,8 +877,8 @@ class Image(object):
         range [0.0,1.0].
         """
 
-        logger.debug(
-            "Applying stretch %s with parameters %s", stretch, str(kwargs))
+        logger.debug("Applying stretch %s with parameters %s",
+                     stretch, str(kwargs))
 
         ch_len = len(self.channels)
         if self.mode.endswith("A"):
