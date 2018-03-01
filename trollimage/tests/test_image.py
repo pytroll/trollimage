@@ -308,9 +308,9 @@ class TestImageCreation(unittest.TestCase):
                                          mode=mode)
 
             for nb_chan in range(self.modes_len[i]):
-                self.assert_(np.all(self.img[mode].channels[nb_chan] ==
+                self.assertTrue(np.all(self.img[mode].channels[nb_chan] ==
                                     one_channel))
-                self.assert_(isinstance(self.img[mode].channels[nb_chan],
+                self.assertTrue(isinstance(self.img[mode].channels[nb_chan],
                                         np.ma.core.MaskedArray))
 
             i = i + 1
@@ -376,8 +376,8 @@ class TestRegularImage(unittest.TestCase):
                 continue
             self.img.convert(mode)
             for chn in self.img.channels:
-                self.assert_(chn.max() <= 1.0)
-                self.assert_(chn.max() >= 0.0)
+                self.assertTrue(chn.max() <= 1.0)
+                self.assertTrue(chn.max() >= 0.0)
         self.img.convert(oldmode)
 
     def test_convert(self):
@@ -435,16 +435,16 @@ class TestRegularImage(unittest.TestCase):
             histo = np.array([[0.0, 0.99951171875, 0.99951171875],
                               [0.99951171875, 0.39990234375, 0.39990234375]])
             self.img.stretch()
-            self.assert_(np.all((self.img.channels[0] - crude) < EPSILON))
+            self.assertTrue(np.all((self.img.channels[0] - crude) < EPSILON))
             self.img.stretch("linear")
-            self.assert_(np.all((self.img.channels[0] - linear) < EPSILON))
+            self.assertTrue(np.all((self.img.channels[0] - linear) < EPSILON))
             self.img.stretch("crude")
-            self.assert_(np.all((self.img.channels[0] - crude) < EPSILON))
+            self.assertTrue(np.all((self.img.channels[0] - crude) < EPSILON))
             self.img.stretch("histogram")
-            self.assert_(
+            self.assertTrue(
                 np.all(np.abs(self.img.channels[0] - histo) < EPSILON))
             self.img.stretch((0.05, 0.05))
-            self.assert_(np.all((self.img.channels[0] - linear) < EPSILON))
+            self.assertTrue(np.all((self.img.channels[0] - linear) < EPSILON))
             self.assertRaises(ValueError, self.img.stretch, (0.05, 0.05, 0.05))
 
             # Generate a random string
@@ -476,21 +476,21 @@ class TestRegularImage(unittest.TestCase):
             # input a single value
             self.img.gamma()
             for i in range(len(self.img.channels)):
-                self.assert_(np.all(self.img.channels[i] == old_channels[i]))
+                self.assertTrue(np.all(self.img.channels[i] == old_channels[i]))
             self.img.gamma(0.5)
             for i in range(len(self.img.channels)):
-                self.assert_(np.all(self.img.channels[i] -
+                self.assertTrue(np.all(self.img.channels[i] -
                                     old_channels[i] ** 2 < EPSILON))
             self.img.gamma(1)
             for i in range(len(self.img.channels)):
-                self.assert_(np.all(self.img.channels[i] -
+                self.assertTrue(np.all(self.img.channels[i] -
                                     old_channels[i] ** 2 < EPSILON))
 
             # self.img.gamma(2)
             # for i in range(len(self.img.channels)):
             #     print self.img.channels[i]
             #     print old_channels[i]
-            #     self.assert_(np.all(np.abs(self.img.channels[i] -
+            #     self.assertTrue(np.all(np.abs(self.img.channels[i] -
             #                                old_channels[i]) < EPSILON))
 
             # input a tuple
@@ -513,11 +513,11 @@ class TestRegularImage(unittest.TestCase):
                 old_channels.append(chn)
             self.img.invert()
             for i in range(len(self.img.channels)):
-                self.assert_(np.all(self.img.channels[i] ==
+                self.assertTrue(np.all(self.img.channels[i] ==
                                     1 - old_channels[i]))
             self.img.invert(True)
             for i in range(len(self.img.channels)):
-                self.assert_(np.all(self.img.channels[i] -
+                self.assertTrue(np.all(self.img.channels[i] -
                                     old_channels[i] < EPSILON))
             self.assertRaises(ValueError, self.img.invert,
                               [True, False, True, False,
@@ -554,7 +554,7 @@ class TestRegularImage(unittest.TestCase):
                 continue
             self.img.convert(mode)
             self.img.putalpha(alpha)
-            self.assert_(np.all(self.img.channels[-1] == alpha))
+            self.assertTrue(np.all(self.img.channels[-1] == alpha))
             if mode.endswith("A"):
                 self.assertEqual(self.img.mode, mode)
             else:
@@ -584,7 +584,7 @@ class TestRegularImage(unittest.TestCase):
                 continue
             self.img.convert(mode)
             self.img.save("test.png")
-            self.assert_(os.path.exists("test.png"))
+            self.assertTrue(os.path.exists("test.png"))
             os.remove("test.png")
 
             # permissions
@@ -603,7 +603,7 @@ class TestRegularImage(unittest.TestCase):
         oldmode = self.img.mode
         self.img.convert('L')
         self.img.save("test.jpg")
-        self.assert_(os.path.exists("test.jpg"))
+        self.assertTrue(os.path.exists("test.jpg"))
         os.remove("test.jpg")
 
         # permissions
@@ -631,7 +631,7 @@ class TestRegularImage(unittest.TestCase):
             else:
                 chans = self.img.channels
             for chn in chans:
-                self.assert_(np.all(chn - luma < EPSILON))
+                self.assertTrue(np.all(chn - luma < EPSILON))
         self.img.convert(oldmode)
 
     def test_resize(self):
@@ -644,11 +644,11 @@ class TestRegularImage(unittest.TestCase):
                         [0.5, 0.5, 0.25, 0.25, 0.25, 0.25],
                         [0.5, 0.5, 0.25, 0.25, 0.25, 0.25],
                         [0.5, 0.5, 0.25, 0.25, 0.25, 0.25]])
-        self.assert_(np.all(res == self.img.channels[0]))
+        self.assertTrue(np.all(res == self.img.channels[0]))
         self.img.resize((2, 3))
         res = np.array([[0, 0.5, 0.5],
                         [0.5, 0.25, 0.25]])
-        self.assert_(np.all(res == self.img.channels[0]))
+        self.assertTrue(np.all(res == self.img.channels[0]))
 
     def test_merge(self):
         """Merging of an image with another.
@@ -665,7 +665,7 @@ class TestRegularImage(unittest.TestCase):
 
         self.img.convert("L")
         newimg.merge(self.img)
-        self.assert_(np.all(np.abs(newimg.channels[0] -
+        self.assertTrue(np.all(np.abs(newimg.channels[0] -
                                    np.array([[0, 2, 3], [0.5, 0.25, 6]])) <
                             EPSILON))
 
@@ -692,19 +692,19 @@ class TestFlatImage(unittest.TestCase):
         """Stretch a flat image.
         """
         self.img.stretch()
-        self.assert_(self.img.channels[0].shape == (2, 3) and
+        self.assertTrue(self.img.channels[0].shape == (2, 3) and
                      np.ma.count_masked(self.img.channels[0]) == 5)
         self.img.stretch("crude")
-        self.assert_(self.img.channels[0].shape == (2, 3) and
+        self.assertTrue(self.img.channels[0].shape == (2, 3) and
                      np.ma.count_masked(self.img.channels[0]) == 5)
         self.img.crude_stretch(1, 2)
-        self.assert_(self.img.channels[0].shape == (2, 3) and
+        self.assertTrue(self.img.channels[0].shape == (2, 3) and
                      np.ma.count_masked(self.img.channels[0]) == 5)
         self.img.stretch("linear")
-        self.assert_(self.img.channels[0].shape == (2, 3) and
+        self.assertTrue(self.img.channels[0].shape == (2, 3) and
                      np.ma.count_masked(self.img.channels[0]) == 5)
         self.img.stretch("histogram")
-        self.assert_(self.img.channels[0].shape == (2, 3) and
+        self.assertTrue(self.img.channels[0].shape == (2, 3) and
                      np.ma.count_masked(self.img.channels[0]) == 5)
 
 
@@ -724,15 +724,15 @@ class TestNoDataImage(unittest.TestCase):
         """Stretch a no data image.
         """
         self.img.stretch()
-        self.assert_(self.img.channels[0].shape == (2, 3))
+        self.assertTrue(self.img.channels[0].shape == (2, 3))
         self.img.stretch("crude")
-        self.assert_(self.img.channels[0].shape == (2, 3))
+        self.assertTrue(self.img.channels[0].shape == (2, 3))
         self.img.crude_stretch(1, 2)
-        self.assert_(self.img.channels[0].shape == (2, 3))
+        self.assertTrue(self.img.channels[0].shape == (2, 3))
         self.img.stretch("linear")
-        self.assert_(self.img.channels[0].shape == (2, 3))
+        self.assertTrue(self.img.channels[0].shape == (2, 3))
         self.img.stretch("histogram")
-        self.assert_(self.img.channels[0].shape == (2, 3))
+        self.assertTrue(self.img.channels[0].shape == (2, 3))
 
 
 def random_string(length,
@@ -797,10 +797,10 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.gamma(.5)
-        self.assert_(np.allclose(img.data.values, arr ** 2))
+        self.assertTrue(np.allclose(img.data.values, arr ** 2))
 
         img.gamma([2., 2., 2.])
-        self.assert_(np.allclose(img.data.values, arr))
+        self.assertTrue(np.allclose(img.data.values, arr))
 
     def test_crude_stretch(self):
         import xarray as xr
@@ -811,7 +811,7 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.crude_stretch()
-        self.assert_(np.allclose(img.data.values, arr))
+        self.assertTrue(np.allclose(img.data.values, arr))
 
     def test_invert(self):
         """Check inversion of the image."""
@@ -825,7 +825,7 @@ class TestXRImage(unittest.TestCase):
 
         img.invert(True)
 
-        self.assert_(np.allclose(img.data.values, 1 - arr))
+        self.assertTrue(np.allclose(img.data.values, 1 - arr))
 
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -836,7 +836,7 @@ class TestXRImage(unittest.TestCase):
                               coords={'bands': ['R', 'G', 'B']})
         scale = xr.DataArray(np.array([-1, 1, -1]), dims=['bands'],
                              coords={'bands': ['R', 'G', 'B']})
-        self.assert_(np.allclose(img.data.values, (data * scale + offset).values))
+        self.assertTrue(np.allclose(img.data.values, (data * scale + offset).values))
 
     def test_linear_stretch(self):
         """Test linear stretching with cutoffs."""
@@ -874,47 +874,48 @@ class TestXRImage(unittest.TestCase):
                          [ 0.962963,  0.962963,  0.962963],
                          [ 1.005051,  1.005051,  1.005051]]])
 
-        self.assert_(np.allclose(img.data.values, res, atol=1.e-6))
+        self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
 
-    # def test_histogram_stretch(self):
-    #     try:
-    #         import xarray as xr
-    #     except ImportError:
-    #         xr = None
-    #         return
-    #
-    #     arr = np.arange(75).reshape(5, 5, 3) / 74.
-    #     data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
-    #                         coords={'bands': ['R', 'G', 'B']})
-    #     img = xrimage.XRImage(data)
-    #     img.stretch('histogram')
-    #     res = np.array([[[-0.005051, -0.005051, -0.005051],
-    #                      [ 0.037037,  0.037037,  0.037037],
-    #                      [ 0.079125,  0.079125,  0.079125],
-    #                      [ 0.121212,  0.121212,  0.121212],
-    #                      [ 0.1633  ,  0.1633  ,  0.1633  ]],
-    #                     [[ 0.205387,  0.205387,  0.205387],
-    #                      [ 0.247475,  0.247475,  0.247475],
-    #                      [ 0.289562,  0.289562,  0.289562],
-    #                      [ 0.33165 ,  0.33165 ,  0.33165 ],
-    #                      [ 0.373737,  0.373737,  0.373737]],
-    #                     [[ 0.415825,  0.415825,  0.415825],
-    #                      [ 0.457912,  0.457912,  0.457912],
-    #                      [ 0.5     ,  0.5     ,  0.5     ],
-    #                      [ 0.542088,  0.542088,  0.542088],
-    #                      [ 0.584175,  0.584175,  0.584175]],
-    #                     [[ 0.626263,  0.626263,  0.626263],
-    #                      [ 0.66835 ,  0.66835 ,  0.66835 ],
-    #                      [ 0.710438,  0.710438,  0.710438],
-    #                      [ 0.752525,  0.752525,  0.752525],
-    #                      [ 0.794613,  0.794613,  0.794613]],
-    #                     [[ 0.8367  ,  0.8367  ,  0.8367  ],
-    #                      [ 0.878788,  0.878788,  0.878788],
-    #                      [ 0.920875,  0.920875,  0.920875],
-    #                      [ 0.962963,  0.962963,  0.962963],
-    #                      [ 1.005051,  1.005051,  1.005051]]])
-    #
-    #     self.assert_(np.allclose(img.data.values, res, atol=1.e-6))
+    def test_histogram_stretch(self):
+        import xarray as xr
+        from trollimage import xrimage
+
+        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.stretch('histogram')
+        res = np.array([[[ 0.        ,  0.        ,  0.        ],
+                         [ 0.04166667,  0.04166667,  0.04166667],
+                         [ 0.08333333,  0.08333333,  0.08333333],
+                         [ 0.125     ,  0.125     ,  0.125     ],
+                         [ 0.16666667,  0.16666667,  0.16666667]],
+
+                        [[ 0.20833333,  0.20833333,  0.20833333],
+                         [ 0.25      ,  0.25      ,  0.25      ],
+                         [ 0.29166667,  0.29166667,  0.29166667],
+                         [ 0.33333333,  0.33333333,  0.33333333],
+                         [ 0.375     ,  0.375     ,  0.375     ]],
+
+                        [[ 0.41666667,  0.41666667,  0.41666667],
+                         [ 0.45833333,  0.45833333,  0.45833333],
+                         [ 0.5       ,  0.5       ,  0.5       ],
+                         [ 0.54166667,  0.54166667,  0.54166667],
+                         [ 0.58333333,  0.58333333,  0.58333333]],
+
+                        [[ 0.625     ,  0.625     ,  0.625     ],
+                         [ 0.66666667,  0.66666667,  0.66666667],
+                         [ 0.70833333,  0.70833333,  0.70833333],
+                         [ 0.75      ,  0.75      ,  0.75      ],
+                         [ 0.79166667,  0.79166667,  0.79166667]],
+
+                        [[ 0.83333333,  0.83333333,  0.83333333],
+                         [ 0.875     ,  0.875     ,  0.875     ],
+                         [ 0.91666667,  0.91666667,  0.91666667],
+                         [ 0.95833333,  0.95833333,  0.95833333],
+                         [ 0.99951172,  0.99951172,  0.99951172]]])
+
+        self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
 
     def test_logarithmic_stretch(self):
         pass

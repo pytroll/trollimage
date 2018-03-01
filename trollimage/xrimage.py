@@ -34,6 +34,7 @@ import numpy as np
 from PIL import Image as Pil
 import xarray as xr
 import xarray.ufuncs as xu
+import dask
 import dask.array as da
 
 from trollimage.image import check_image_format
@@ -429,23 +430,52 @@ class XRImage(object):
         self.data *= scale_factor
         self.data.attrs = attrs
 
-    def stretch_hist_equalize(self):
-        """Stretch the current image's colors through histogram equalization."""
+    def stretch_hist_equalize(self, approximate=False):
+        """Stretch the current image's colors through histogram equalization.
+
+        Args:
+            approximate (bool): Use a faster less-accurate percentile
+                                calculation. At the time of writing the dask
+                                version of `percentile` is not as accurate as
+                                the numpy version. This will likely change in
+                                the future. Current dask version 0.17.
+
+        """
         logger.info("Perform a histogram equalized contrast stretch.")
 
-        arr = self.data
-        d_arr = arr.data
-        nwidth = 2048.0
-
-        cdf = np.arange(0.0, 1.0, 1 / nwidth)
+        nwidth = 2048.
         logger.debug("Make histogram bins having equal amount of data, " +
                      "using numpy percentile function:")
-        # FIXME: Use da.percentile...somehow
-        bins = np.percentile(carr, list(cdf * 100))
 
-        res = np.ma.empty_like(arr)
-        res.mask = np.ma.getmaskarray(arr)
-        res[~res.mask] = np.interp(carr, bins, cdf)
+        def _band_hist(band_data):
+            cdf = da.arange(0., 1., 1. / nwidth, chunks=nwidth)
+            if approximate:
+                # need a 1D array
+                flat_data = band_data.ravel()
+                # replace with nanpercentile in the future, if available
+                # dask < 0.17 returns all NaNs for this
+                bins = da.percentile(flat_data[da.notnull(flat_data)],
+                                     cdf * 100.)
+            else:
+                bins = dask.delayed(np.nanpercentile)(band_data, cdf * 100.)
+                bins = da.from_delayed(bins, shape=(nwidth,), dtype=cdf.dtype)
+            res = dask.delayed(np.interp)(band_data, bins, cdf)
+            res = da.from_delayed(res, shape=band_data.shape,
+                                  dtype=band_data.dtype)
+            return res
+
+        band_results = []
+        for band in self.data['bands'].values:
+            if band == 'A':
+                continue
+            band_data = self.data.sel(bands=band)
+            res = _band_hist(band_data.data)
+            band_results.append(res)
+
+        if 'A' in self.data.coords['bands']:
+            band_results.append(self.data.sel(bands='A'))
+        self.data.data = da.stack(band_results,
+                                  axis=self.data.dims.index('bands'))
 
     def stretch_logarithmic(self, ch_nb, factor=100.):
         """Move data into range [1:factor] and do a normalized logarithmic
