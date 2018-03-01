@@ -477,26 +477,34 @@ class XRImage(object):
         self.data.data = da.stack(band_results,
                                   axis=self.data.dims.index('bands'))
 
-    def stretch_logarithmic(self, ch_nb, factor=100.):
+    def stretch_logarithmic(self, factor=100.):
         """Move data into range [1:factor] and do a normalized logarithmic
         enhancement.
         """
         logger.debug("Perform a logarithmic contrast stretch.")
-        if ((self.channels[ch_nb].size ==
-             np.ma.count_masked(self.channels[ch_nb])) or
-                (self.channels[ch_nb].min() == self.channels[ch_nb].max())):
-            logger.warning("Nothing to stretch !")
-            return
-
         crange = (0., 1.0)
 
-        arr = self.channels[ch_nb]
         b__ = float(crange[1] - crange[0]) / np.log(factor)
         c__ = float(crange[0])
-        slope = (factor - 1.) / float(arr.max() - arr.min())
-        arr = 1. + (arr - arr.min()) * slope
-        arr = c__ + b__ * np.log(arr)
-        self.channels[ch_nb] = arr
+
+        def _band_log(arr):
+            slope = (factor - 1.) / float(arr.max() - arr.min())
+            arr = 1. + (arr - arr.min()) * slope
+            arr = c__ + b__ * da.log(arr)
+            return arr
+
+        band_results = []
+        for band in self.data['bands'].values:
+            if band == 'A':
+                continue
+            band_data = self.data.sel(bands=band)
+            res = _band_log(band_data.data)
+            band_results.append(res)
+
+        if 'A' in self.data.coords['bands']:
+            band_results.append(self.data.sel(bands='A'))
+        self.data.data = da.stack(band_results,
+                                  axis=self.data.dims.index('bands'))
 
     def stretch_weber_fechner(self, k, s0):
         """Stretch according to the Weber-Fechner law.
