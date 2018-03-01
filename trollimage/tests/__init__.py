@@ -28,6 +28,7 @@ from trollimage.tests import test_image, test_colormap
 import unittest
 import doctest
 
+
 def suite():
     """The global test suite.
     """
@@ -41,6 +42,10 @@ def suite():
     mysuite.addTests(test_colormap.suite())
     
     return mysuite
+
+
+def load_tests(loader, tests, pattern):
+    return suite()
 
 if __name__ == '__main__':
     unittest.TextTestRunner(verbosity=2).run(suite())

@@ -29,7 +29,7 @@ from tempfile import NamedTemporaryFile
 
 import numpy as np
 
-from trollimage import image, xrimage
+from trollimage import image
 
 EPSILON = 0.0001
 
@@ -745,28 +745,11 @@ def random_string(length,
                     for dummy in range(length)])
 
 
-def suite():
-    """The suite for test_image
-    """
-    loader = unittest.TestLoader()
-    mysuite = unittest.TestSuite()
-    mysuite.addTest(loader.loadTestsFromTestCase(TestEmptyImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestImageCreation))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestRegularImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestFlatImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestNoDataImage))
-
-    return mysuite
-
-
 class TestXRImage(unittest.TestCase):
 
     def test_init(self):
-        try:
-            import xarray as xr
-        except ImportError:
-            xr = None
-            return
+        import xarray as xr
+        from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'L')
@@ -782,11 +765,9 @@ class TestXRImage(unittest.TestCase):
         self.assertEqual(img.mode, 'YCbCrA')
 
     def test_save(self):
-        try:
-            import xarray as xr
-        except ImportError:
-            xr = None
-            return
+        import xarray as xr
+        import dask.array as da
+        from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
                             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -794,7 +775,6 @@ class TestXRImage(unittest.TestCase):
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
-        import dask.array as da
         data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 75.,
                                           chunks=5),
                             dims=['y', 'x', 'bands'],
@@ -807,14 +787,10 @@ class TestXRImage(unittest.TestCase):
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
-
     def test_gamma(self):
         """Test gamma correction."""
-        try:
-            import xarray as xr
-        except ImportError:
-            xr = None
-            return
+        import xarray as xr
+        from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
@@ -827,11 +803,8 @@ class TestXRImage(unittest.TestCase):
         self.assert_(np.allclose(img.data.values, arr))
 
     def test_crude_stretch(self):
-        try:
-            import xarray as xr
-        except ImportError:
-            xr = None
-            return
+        import xarray as xr
+        from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
@@ -840,14 +813,10 @@ class TestXRImage(unittest.TestCase):
         img.crude_stretch()
         self.assert_(np.allclose(img.data.values, arr))
 
-
     def test_invert(self):
         """Check inversion of the image."""
-        try:
-            import xarray as xr
-        except ImportError:
-            xr = None
-            return
+        import xarray as xr
+        from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
@@ -869,14 +838,10 @@ class TestXRImage(unittest.TestCase):
                              coords={'bands': ['R', 'G', 'B']})
         self.assert_(np.allclose(img.data.values, (data * scale + offset).values))
 
-
     def test_linear_stretch(self):
         """Test linear stretching with cutoffs."""
-        try:
-            import xarray as xr
-        except ImportError:
-            xr = None
-            return
+        import xarray as xr
+        from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
@@ -1002,6 +967,21 @@ class TestXRImage(unittest.TestCase):
 
     def test_show(self):
         pass
+
+
+def suite():
+    """The suite for test_image."""
+    loader = unittest.TestLoader()
+    mysuite = unittest.TestSuite()
+    mysuite.addTest(loader.loadTestsFromTestCase(TestEmptyImage))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestImageCreation))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestRegularImage))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestFlatImage))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestNoDataImage))
+    mysuite.addTest(loader.loadTestsFromTestCase(TestXRImage))
+
+    return mysuite
+
 
 if __name__ == '__main__':
     unittest.main()

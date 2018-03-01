@@ -145,13 +145,21 @@ class XRImage(object):
 
         # doesn't actually copy the data underneath
         # we don't want our operations to change the user's data
-        self.data = data.copy()
+        data = data.copy()
         if "bands" not in dims:
             if data.ndim <= 2:
-                self.data = data.expand_dims('bands')
-                self.data['bands'] = ['L']
+                data = data.expand_dims('bands')
+                data['bands'] = ['L']
             else:
                 raise ValueError("No 'bands' dimension provided.")
+
+        # 'data' is an XArray, get the data from it as a dask array
+        if not isinstance(data.data, da.Array):
+            logger.debug("Convert image data to dask array")
+            data.data = da.from_array(data.data, chunks=(data.sizes['bands'],
+                                                         4096, 4096))
+
+        self.data = data
         self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
 
     @property
@@ -171,9 +179,11 @@ class XRImage(object):
         else:
             self.pil_save(filename, fformat, fill_value, format_kw)
 
-    def rio_save(self, filename, fformat=None, fill_value=None, format_kw=None):
+    def rio_save(self, filename, fformat=None, fill_value=None,
+                 format_kw=None):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
+        format_kw = format_kw or {}
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
                    'tif': 'GTiff'}
@@ -187,6 +197,8 @@ class XRImage(object):
         crs = None
         transform = None
         if driver == 'GTiff':
+            format_kw.setdefault('compress', 'DEFLATE')
+
             try:
                 crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
                 west, south, east, north = data.attrs['area'].area_extent
@@ -209,20 +221,12 @@ class XRImage(object):
                      width=data.sizes['x'], height=data.sizes['y'],
                      count=data.sizes['bands'],
                      dtype=data.dtype.type,
-                     compress='DEFLATE',
                      nodata=fill_value,
                      crs=crs, transform=transform, **format_kw) as r_file:
 
             r_file.colorinterp = color_interp(data)
-
             r_file.rfile.update_tags(**new_tags)
-
-            # 'data' is an XArray, get the data from it as a dask array
-            data = data.data
-            if not isinstance(data, da.Array):
-                data = da.from_array(data, chunks=(data.sizes['bands'],
-                                                   4096, 4096))
-            da.store(data, r_file, lock=False)
+            da.store(data.data, r_file, lock=False)
 
     def pil_save(self, filename, fformat=None, fill_value=None, format_kw=None):
         """Save the image to the given *filename* using PIL.
@@ -271,8 +275,7 @@ class XRImage(object):
         return meta
 
     def fill_or_alpha(self, data, fill_value=None):
-        import xarray.ufuncs as xu
-        import xarray as xr
+        # FIXME: Use any/and over dims instead of sum
         nan_mask = xu.isnan(data).sum('bands').expand_dims('bands').astype(bool)
         nan_mask['bands'] = ['A']
         # if not any(nan_mask):
@@ -284,8 +287,7 @@ class XRImage(object):
                 data = xr.concat([data, (1 - nan_mask).astype(data.dtype)],
                                  dim="bands")
         else:
-            # FIXME: is this inplace ???
-            data.fillna(fill_value)
+            data = data.fillna(fill_value)
         return data
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
@@ -312,7 +314,9 @@ class XRImage(object):
     def pil_image(self, fill_value=None):
         """Return a PIL image from the current image."""
         channels, mode = self._finalize(fill_value)
-        return Pil.fromarray(np.asanyarray(channels.transpose('y', 'x', 'bands')), mode)
+        return Pil.fromarray(
+            np.asanyarray(channels.transpose('y', 'x', 'bands').values),
+            mode)
 
     def xrify_tuples(self, tup):
         return xr.DataArray(tup,
@@ -425,31 +429,23 @@ class XRImage(object):
         self.data *= scale_factor
         self.data.attrs = attrs
 
-    # def stretch_hist_equalize(self):
-    #     """Stretch the current image's colors through histogram equalization."""
-    #     logger.info("Perform a histogram equalized contrast stretch.")
-    #
-    #     if(self.channels[ch_nb].size ==
-    #        np.ma.count_masked(self.channels[ch_nb])):
-    #         logger.warning("Nothing to stretch !")
-    #         return
-    #
-    #     arr = self.data
-    #
-    #     nwidth = 2048.0
-    #
-    #     carr = arr.compressed()
-    #
-    #     cdf = np.arange(0.0, 1.0, 1 / nwidth)
-    #     logger.debug("Make histogram bins having equal amount of data, " +
-    #                  "using numpy percentile function:")
-    #     bins = np.percentile(carr, list(cdf * 100))
-    #
-    #     res = np.ma.empty_like(arr)
-    #     res.mask = np.ma.getmaskarray(arr)
-    #     res[~res.mask] = np.interp(carr, bins, cdf)
-    #
-    #     self.channels[ch_nb] = res
+    def stretch_hist_equalize(self):
+        """Stretch the current image's colors through histogram equalization."""
+        logger.info("Perform a histogram equalized contrast stretch.")
+
+        arr = self.data
+        d_arr = arr.data
+        nwidth = 2048.0
+
+        cdf = np.arange(0.0, 1.0, 1 / nwidth)
+        logger.debug("Make histogram bins having equal amount of data, " +
+                     "using numpy percentile function:")
+        # FIXME: Use da.percentile...somehow
+        bins = np.percentile(carr, list(cdf * 100))
+
+        res = np.ma.empty_like(arr)
+        res.mask = np.ma.getmaskarray(arr)
+        res[~res.mask] = np.interp(carr, bins, cdf)
 
     def stretch_logarithmic(self, ch_nb, factor=100.):
         """Move data into range [1:factor] and do a normalized logarithmic
