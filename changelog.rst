@@ -2,6 +2,64 @@ Changelog
 =========
 
 
+v1.2.0 (2018-03-01)
+-------------------
+- Update changelog. [davidh-ssec]
+- Bump version: 1.1.0 → 1.2.0. [davidh-ssec]
+- Merge pull request #4 from pytroll/feature-xarray-support. [David
+  Hoese]
+
+  Add XArray DataArray support via XRImage
+- Update logarithmic stretch to work with xarray. [davidh-ssec]
+- Fix histogram stretch in XRImage. [davidh-ssec]
+- Clean up XRImage tests. [davidh-ssec]
+- Do not dump data after linear stretch computation. [Martin Raspaud]
+- Pass extra format keywords to the underlying writing lib. [Martin
+  Raspaud]
+- Add compression and nodata to geotiff. [Martin Raspaud]
+- Clean up. [Martin Raspaud]
+- Do not keep data in memory after computing a linear stretch. [Martin
+  Raspaud]
+- Use pillow for saving images other than tif. [Martin Raspaud]
+- Force copying of xarray structure so original data shouldn't change.
+  [davidh-ssec]
+
+  Not sure if this applies to numpy arrays but it seems to work for dask.
+
+- Add better handling of failing to generate a geotiff geotransform.
+  [davidh-ssec]
+- Add workaround for rasterio 0.36.0. [davidh-ssec]
+
+  Color interpretation set is not supported. We will have to depend on the
+  defaults.
+
+- Use dimension names to get the shape of the image. [Martin Raspaud]
+- Fix XRImage to write to the proper band/channel index. [davidh-ssec]
+- Add toolz to installation in travis. [Martin Raspaud]
+- Fix rasterio version for travis. [Martin Raspaud]
+- Add gdal-dev for rasterio installation on travis. [Martin Raspaud]
+- Add a few dependencies to travis for testing. [Martin Raspaud]
+- Remove duplicated code. [Martin Raspaud]
+- Merge branch 'develop' into feature-xarray-support. [Martin Raspaud]
+- Merge pull request #7 from pytroll/jpeg_does_not_support_transparency.
+  [David Hoese]
+
+  Check for format=jpeg and set fill_value to zero if not set and print…
+- Less verbose on debug message when saving to jpeg. [Adam.Dybbroe]
+- Pep8: Update keyword arguments using "{}.update()" instead of
+  iterating over members. [Adam.Dybbroe]
+- Combine if statement and only make a debug info when trying to save an
+  LA mode image as jpeg. [Adam.Dybbroe]
+- Set fill_value to a list of four zeros, so it also works for RGBs!
+  [Adam.Dybbroe]
+- Make pep8/pylint/flake happy. [Adam.Dybbroe]
+- Check for format=jpeg and set fill_value to zero if not set and print
+  warning. [Adam.Dybbroe]
+- Move XRImage to it's own module. [Martin Raspaud]
+- More work on xarray support. [Martin Raspaud]
+- Start working on trollimage for xarrays. [Martin Raspaud]
+
+
 v1.1.0 (2017-12-11)
 -------------------
 - Update changelog. [Martin Raspaud]
@@ -128,6 +186,7 @@ v0.2.0 (2013-12-04)
 
    * __add__
    * reverse
+
 - Added documentation to colormap. [Martin Raspaud]
 - Unwrap hue when interpolating. [Martin Raspaud]
 - Change development status to beta. [Martin Raspaud]
@@ -142,6 +201,5 @@ v0.2.0 (2013-12-04)
 - Split between colorspaces and colormap stuff. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
-
 
 
