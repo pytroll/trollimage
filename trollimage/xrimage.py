@@ -151,7 +151,10 @@ class XRImage(object):
         try:
             dims = data.dims
         except AttributeError:
-            raise TypeError("Data must be a dims attribute.")
+            raise TypeError("Data must have a 'dims' attribute.")
+
+        if 'y' not in dims or 'x' not in dims:
+            raise ValueError("Data must have a 'y' and 'x' dimension")
 
         # doesn't actually copy the data underneath
         # we don't want our operations to change the user's data
