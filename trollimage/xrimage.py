@@ -422,9 +422,9 @@ class XRImage(object):
         delta = (max_stretch - min_stretch)
         if isinstance(delta, xr.DataArray):
             # fillna if delta is NaN
-            scale_factor = (1 / delta).fillna(0)
+            scale_factor = (1.0 / delta).fillna(0)
         else:
-            scale_factor = 1 / delta
+            scale_factor = 1.0 / delta
         attrs = self.data.attrs
         self.data -= min_stretch
         self.data *= scale_factor
