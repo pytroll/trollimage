@@ -803,6 +803,7 @@ class TestXRImage(unittest.TestCase):
         self.assertTrue(np.allclose(img.data.values, arr))
 
     def test_crude_stretch(self):
+        """Check crude stretching."""
         import xarray as xr
         from trollimage import xrimage
 
@@ -812,6 +813,13 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         img.crude_stretch()
         self.assertTrue(np.allclose(img.data.values, arr))
+
+        arr = np.arange(75).reshape(5, 5, 3).astype(float)
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.crude_stretch(0, 74)
+        self.assertTrue(np.allclose(img.data.values, arr / 74.))
 
     def test_invert(self):
         """Check inversion of the image."""
