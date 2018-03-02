@@ -52,6 +52,7 @@ except ImportError:
     # raster 0.36.0
     # remove this once rasterio 1.0+ is officially available
     def Window(x_off, y_off, x_size, y_size):
+        """Replace the missing Window object in rasterio < 1.0."""
         return (y_off, y_off + y_size), (x_off, x_off + x_size)
 
 
@@ -59,12 +60,16 @@ logger = logging.getLogger(__name__)
 
 
 class RIOFile(object):
+    """Rasterio wrapper to allow da.store to do window saving."""
+
     def __init__(self, *args, **kwargs):
+        """Initialize the object."""
         self.args = args
         self.kwargs = kwargs
         self.rfile = None
 
     def __setitem__(self, key, item):
+        """Put the data chunk in the image."""
         if len(key) == 3:
             indexes = list(range(
                 key[0].start + 1,
@@ -87,14 +92,17 @@ class RIOFile(object):
                          indexes=indexes)
 
     def __enter__(self):
+        """Enter method."""
         self.rfile = rasterio.open(*self.args, **self.kwargs)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """Exit method."""
         self.rfile.close()
 
     @property
     def colorinterp(self):
+        """Return the color interpretation of the image."""
         return self.rfile.colorinterp
 
     @colorinterp.setter
@@ -135,6 +143,7 @@ def color_interp(data):
 
 class XRImage(object):
     """Image class using xarray as internal storage."""
+
     modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
 
     def __init__(self, data):
@@ -251,7 +260,7 @@ class XRImage(object):
         img.save(filename, fformat, **params)
 
     def _pngmeta(self):
-        """It will return GeoImage.tags as a PNG metadata object.
+        """Return GeoImage.tags as a PNG metadata object.
 
         Inspired by:
         public domain, Nick Galbreath
@@ -276,6 +285,7 @@ class XRImage(object):
         return meta
 
     def fill_or_alpha(self, data, fill_value=None):
+        """Fill the data with fill_value, or create an alpha channels."""
         # FIXME: Use any/and over dims instead of sum
         nan_mask = xu.isnan(data).sum('bands').expand_dims('bands').astype(bool)
         nan_mask['bands'] = ['A']
@@ -320,6 +330,7 @@ class XRImage(object):
             mode)
 
     def xrify_tuples(self, tup):
+        """Make xarray.DataArray from tuple."""
         return xr.DataArray(tup,
                             dims=['bands'],
                             coords={'bands': self.data['bands']})
@@ -334,7 +345,6 @@ class XRImage(object):
         are several channels in the image. The behaviour of :func:`gamma` is
         undefined outside the normal [0,1] range of the channels.
         """
-
         if isinstance(gamma, (list, tuple)):
            gamma = self.xrify_tuples(gamma)
         elif gamma == 1.0:
@@ -347,17 +357,17 @@ class XRImage(object):
         self.data.attrs = attrs
 
     def stretch(self, stretch="crude", **kwargs):
-        """Apply stretching to the current image. The value of *stretch* sets
-        the type of stretching applied. The values "histogram", "linear",
-        "crude" (or "crude-stretch") perform respectively histogram
-        equalization, contrast stretching (with 5% cutoff on both sides), and
-        contrast stretching without cutoff. The value "logarithmic" or "log"
-        will do a logarithmic enhancement towards white. If a tuple or a list
-        of two values is given as input, then a contrast stretching is performed
-        with the values as cutoff. These values should be normalized in the
-        range [0.0,1.0].
-        """
+        """Apply stretching to the current image.
 
+        The value of *stretch* sets the type of stretching applied. The values
+        "histogram", "linear", "crude" (or "crude-stretch") perform respectively
+        histogram equalization, contrast stretching (with 5% cutoff on both
+        sides), and contrast stretching without cutoff. The value "logarithmic"
+        or "log" will do a logarithmic enhancement towards white. If a tuple or
+        a list of two values is given as input, then a contrast stretching is
+        performed with the values as cutoff. These values should be normalized
+        in the range [0.0,1.0].
+        """
         logger.debug("Applying stretch %s with parameters %s",
                      stretch, str(kwargs))
 
@@ -478,9 +488,7 @@ class XRImage(object):
                                   axis=self.data.dims.index('bands'))
 
     def stretch_logarithmic(self, factor=100.):
-        """Move data into range [1:factor] and do a normalized logarithmic
-        enhancement.
-        """
+        """Move data into range [1:factor] through normalized logarithm."""
         logger.debug("Perform a logarithmic contrast stretch.")
         crange = (0., 1.0)
 
