@@ -2,6 +2,15 @@ Changelog
 =========
 
 
+v1.2.1 (2018-03-02)
+-------------------
+- Update changelog. [Martin Raspaud]
+- Bump version: 1.2.0 → 1.2.1. [Martin Raspaud]
+- Add test for bugfix on crude stretch using ints. [Martin Raspaud]
+- Style cleanup and docstrings for XRImage. [Martin Raspaud]
+- Bugfix crude stretch when kwargs are ints. [Martin Raspaud]
+
+
 v1.2.0 (2018-03-01)
 -------------------
 - Update changelog. [davidh-ssec]
@@ -186,7 +195,6 @@ v0.2.0 (2013-12-04)
 
    * __add__
    * reverse
-
 - Added documentation to colormap. [Martin Raspaud]
 - Unwrap hue when interpolating. [Martin Raspaud]
 - Change development status to beta. [Martin Raspaud]
@@ -201,5 +209,6 @@ v0.2.0 (2013-12-04)
 - Split between colorspaces and colormap stuff. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
+
 
 
