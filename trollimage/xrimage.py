@@ -623,7 +623,7 @@ class XRImage(object):
         l_data = self.data.sel(bands=['L'])
 
         def _palettize(data):
-            arr, palette = colormap.palettize(data.reshape((5, 15)))
+            arr, palette = colormap.palettize(data.reshape(data.shape[1:]))
             new_shape = (1, arr.shape[0], arr.shape[1])
             arr = arr.reshape(new_shape)
             return arr, palette
