@@ -174,6 +174,7 @@ class XRImage(object):
 
         self.data = data
         self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
+        self.palette = None
 
     @property
     def mode(self):
@@ -548,6 +549,119 @@ class XRImage(object):
         attrs = self.data.attrs
         self.data = self.data * scale + offset
         self.data.attrs = attrs
+
+    def merge(self, img):
+        """Use the provided image as background for the current *img* image,
+        that is if the current image has missing data.
+        """
+        raise NotImplementedError("This method has not be implemented for "
+                                  "xarray support.")
+        if self.is_empty():
+            raise ValueError("Cannot merge an empty image.")
+
+        if self.mode != img.mode:
+            raise ValueError("Cannot merge image of different modes.")
+
+        selfmask = self.channels[0].mask
+        for chn in self.channels[1:]:
+            selfmask = np.ma.mask_or(selfmask, chn.mask)
+
+        for i in range(len(self.channels)):
+            self.channels[i] = np.ma.where(selfmask,
+                                           img.channels[i],
+                                           self.channels[i])
+            self.channels[i].mask = np.logical_and(selfmask,
+                                                   img.channels[i].mask)
+
+    def colorize(self, colormap):
+        """Colorize the current image using
+        *colormap*. Works only on"L" or "LA" images.
+        """
+
+        if self.mode not in ("L", "LA"):
+            raise ValueError("Image should be grayscale to colorize")
+
+        if self.mode == "LA":
+            alpha = self.data.sel(bands=['A'])
+        else:
+            alpha = None
+
+        l_data = self.data.sel(bands=['L'])
+
+        # TODO: dask-ify colorize
+        def _colorize(colormap, l_data):
+            channels = colormap.colorize(l_data.data)
+            return np.concatenate(channels, axis=0)
+
+        # TODO: xarray-ify colorize
+        # delayed = dask.delayed(colormap.colorize)(l_data.data)
+        delayed = dask.delayed(_colorize)(colormap, l_data)
+        shape = (3, l_data.sizes['y'], l_data.sizes['x'])
+        new_data = da.from_delayed(delayed, shape=shape, dtype=np.float64)
+
+        if alpha is not None:
+            new_data = da.stack(new_data, alpha.data)
+            mode = "RGBA"
+        else:
+            mode = "RGB"
+
+        coords = self.data.coords
+        coords['bands'] = list(mode)
+        attrs = self.data.attrs
+        dims = self.data.dims
+        self.data = xr.DataArray(new_data, coords=coords, attrs=attrs,
+                                 dims=dims)
+
+    def palettize(self, colormap):
+        """Palettize the current image using
+        *colormap*. Works only on"L" or "LA" images.
+        """
+
+        if self.mode not in ("L", "LA"):
+            raise ValueError("Image should be grayscale to colorize")
+
+        l_data = self.data.sel(bands=['L'])
+
+        def _palettize(data):
+            arr, palette = colormap.palettize(data.reshape((5, 15)))
+            new_shape = (1, arr.shape[0], arr.shape[1])
+            arr = arr.reshape(new_shape)
+            return arr, palette
+
+        delayed = dask.delayed(_palettize)(l_data.data)
+        new_data, palette = delayed[0], delayed[1]
+        new_data = da.from_delayed(new_data, shape=l_data.shape,
+                                   dtype=l_data.dtype)
+        # XXX: Can we complete this method without computing the data?
+        new_data, self.palette = da.compute(new_data, palette)
+        new_data = da.from_array(new_data,
+                                 chunks=self.data.data.chunks)
+
+        if self.mode == "L":
+            mode = "P"
+        else:
+            mode = "PA"
+
+        self.data.data = new_data
+        self.data.coords['bands'] = list(mode)
+
+    def blend(self, other):
+        """Alpha blend *other* on top of the current image.
+        """
+        raise NotImplementedError("This method has not be implemented for "
+                                  "xarray support.")
+
+        if self.mode != "RGBA" or other.mode != "RGBA":
+            raise ValueError("Images must be in RGBA")
+        src = other
+        dst = self
+        outa = src.channels[3] + dst.channels[3] * (1 - src.channels[3])
+        for i in range(3):
+            dst.channels[i] = (src.channels[i] * src.channels[3] +
+                               dst.channels[i] * dst.channels[3] *
+                               (1 - src.channels[3])) / outa
+            dst.channels[i][outa == 0] = 0
+        dst.channels[3] = outa
 
     def show(self):
         """Display the image on screen."""
