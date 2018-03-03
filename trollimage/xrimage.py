@@ -144,8 +144,6 @@ def color_interp(data):
 class XRImage(object):
     """Image class using xarray as internal storage."""
 
-    modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
-
     def __init__(self, data):
         """Initialize the image."""
         try:
@@ -194,16 +192,17 @@ class XRImage(object):
             self.pil_save(filename, fformat, fill_value, format_kw)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 format_kw=None):
+                 dtype=None, format_kw=None):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
+        dtype = dtype or np.uint8
         format_kw = format_kw or {}
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
                    'tif': 'GTiff'}
         driver = drivers.get(fformat, fformat)
 
-        data, mode = self._finalize(fill_value)
+        data, mode = self._finalize(fill_value, dtype=dtype)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -211,7 +210,19 @@ class XRImage(object):
         crs = None
         transform = None
         if driver == 'GTiff':
-            format_kw.setdefault('compress', 'DEFLATE')
+            if not np.issubdtype(data.dtype, np.floating):
+                format_kw.setdefault('compress', 'DEFLATE')
+            photometric_map = {
+                'RGB': 'RGB',
+                'RGBA': 'RGB',
+                'CMYK': 'CMYK',
+                'CMYKA': 'CMYK',
+                'YCBCR': 'YCBCR',
+                'YCBCRA': 'YCBCR',
+            }
+            if mode.upper() in photometric_map:
+                format_kw.setdefault('photometric',
+                                     photometric_map[mode.upper()])
 
             try:
                 crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
@@ -228,19 +239,18 @@ class XRImage(object):
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
-        # FIXME photometric works only for GTiff
         # FIXME add png metadata
 
         with RIOFile(filename, 'w', driver=driver,
                      width=data.sizes['x'], height=data.sizes['y'],
                      count=data.sizes['bands'],
-                     dtype=data.dtype.type,
+                     dtype=dtype,
                      nodata=fill_value,
                      crs=crs, transform=transform, **format_kw) as r_file:
 
             r_file.colorinterp = color_interp(data)
             r_file.rfile.update_tags(**new_tags)
-            da.store(data.data, r_file, lock=False)
+            da.store(data.data, r_file, lock=True)
 
     def pil_save(self, filename, fformat=None, fill_value=None, format_kw=None):
         """Save the image to the given *filename* using PIL.
@@ -290,17 +300,18 @@ class XRImage(object):
 
     def fill_or_alpha(self, data, fill_value=None):
         """Fill the data with fill_value, or create an alpha channels."""
-        # FIXME: Use any/and over dims instead of sum
-        nan_mask = xu.isnan(data).sum('bands').expand_dims('bands').astype(bool)
-        nan_mask['bands'] = ['A']
-        # if not any(nan_mask):
-        #     return data
         if fill_value is None:
+            not_alpha = [b for b in data.coords['bands'].values if b != 'A']
+            # if any of the bands are valid, we don't want transparency
+            null_mask = data.sel(bands=not_alpha).notnull().any(dim='bands')
+            null_mask = null_mask.expand_dims('bands')
+            null_mask['bands'] = ['A']
+
             if self.mode.endswith("A"):
-                data.sel(bands='A')[nan_mask] = 0
-            else:
-                data = xr.concat([data, (1 - nan_mask).astype(data.dtype)],
-                                 dim="bands")
+                null_mask = data.sel(bands='A').where(null_mask, 0)
+                data = data.sel(bands=not_alpha)
+            data = xr.concat([data, null_mask.astype(data.dtype)],
+                             dim="bands")
         else:
             data = data.fillna(fill_value)
         return data
@@ -316,11 +327,19 @@ class XRImage(object):
         # if self.mode == "PA":
         #     self.convert("RGBA")
         #
+
+        if np.issubdtype(dtype, np.floating) and fill_value is None:
+            logger.warning("Image with floats cannot be transparent, so "
+                           "setting fill_value to 0")
+            fill_value = 0
+
         final_data = self.fill_or_alpha(self.data, fill_value)
 
         if np.issubdtype(dtype, np.integer):
             final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
             final_data = final_data.round().astype(dtype)
+        else:
+            final_data = final_data.astype(dtype)
 
         final_data.attrs = self.data.attrs
 
