@@ -252,7 +252,8 @@ class XRImage(object):
             r_file.rfile.update_tags(**new_tags)
             da.store(data.data, r_file, lock=True)
 
-    def pil_save(self, filename, fformat=None, fill_value=None, format_kw=None):
+    def pil_save(self, filename, fformat=None, fill_value=None,
+                 format_kw=None):
         """Save the image to the given *filename* using PIL.
 
         For now, the compression level [0-9] is ignored, due to PIL's lack of
