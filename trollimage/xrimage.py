@@ -301,19 +301,16 @@ class XRImage(object):
 
     def fill_or_alpha(self, data, fill_value=None):
         """Fill the data with fill_value, or create an alpha channels."""
-        if fill_value is None:
+        if fill_value is None and not self.mode.endswith("A"):
             not_alpha = [b for b in data.coords['bands'].values if b != 'A']
             # if any of the bands are valid, we don't want transparency
             null_mask = data.sel(bands=not_alpha).notnull().any(dim='bands')
             null_mask = null_mask.expand_dims('bands')
             null_mask['bands'] = ['A']
 
-            if self.mode.endswith("A"):
-                null_mask = data.sel(bands='A').where(null_mask, 0)
-                data = data.sel(bands=not_alpha)
             data = xr.concat([data, null_mask.astype(data.dtype)],
                              dim="bands")
-        else:
+        elif fill_value is not None:
             data = data.fillna(fill_value)
         return data
 
