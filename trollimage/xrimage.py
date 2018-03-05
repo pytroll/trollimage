@@ -144,14 +144,15 @@ def color_interp(data):
 class XRImage(object):
     """Image class using xarray as internal storage."""
 
-    modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
-
     def __init__(self, data):
         """Initialize the image."""
         try:
             dims = data.dims
         except AttributeError:
-            raise TypeError("Data must be a dims attribute.")
+            raise TypeError("Data must have a 'dims' attribute.")
+
+        if 'y' not in dims or 'x' not in dims:
+            raise ValueError("Data must have a 'y' and 'x' dimension")
 
         # doesn't actually copy the data underneath
         # we don't want our operations to change the user's data
@@ -171,6 +172,7 @@ class XRImage(object):
 
         self.data = data
         self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
+        self.palette = None
 
     @property
     def mode(self):
@@ -190,7 +192,7 @@ class XRImage(object):
             self.pil_save(filename, fformat, fill_value, format_kw)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 format_kw=None):
+                 dtype=np.uint8, format_kw=None):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         format_kw = format_kw or {}
@@ -199,7 +201,7 @@ class XRImage(object):
                    'tif': 'GTiff'}
         driver = drivers.get(fformat, fformat)
 
-        data, mode = self._finalize(fill_value)
+        data, mode = self._finalize(fill_value, dtype=dtype)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -207,7 +209,19 @@ class XRImage(object):
         crs = None
         transform = None
         if driver == 'GTiff':
-            format_kw.setdefault('compress', 'DEFLATE')
+            if not np.issubdtype(data.dtype, np.floating):
+                format_kw.setdefault('compress', 'DEFLATE')
+            photometric_map = {
+                'RGB': 'RGB',
+                'RGBA': 'RGB',
+                'CMYK': 'CMYK',
+                'CMYKA': 'CMYK',
+                'YCBCR': 'YCBCR',
+                'YCBCRA': 'YCBCR',
+            }
+            if mode.upper() in photometric_map:
+                format_kw.setdefault('photometric',
+                                     photometric_map[mode.upper()])
 
             try:
                 crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
@@ -224,21 +238,21 @@ class XRImage(object):
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
-        # FIXME photometric works only for GTiff
         # FIXME add png metadata
 
         with RIOFile(filename, 'w', driver=driver,
                      width=data.sizes['x'], height=data.sizes['y'],
                      count=data.sizes['bands'],
-                     dtype=data.dtype.type,
+                     dtype=dtype,
                      nodata=fill_value,
                      crs=crs, transform=transform, **format_kw) as r_file:
 
             r_file.colorinterp = color_interp(data)
             r_file.rfile.update_tags(**new_tags)
-            da.store(data.data, r_file, lock=False)
+            da.store(data.data, r_file, lock=True)
 
-    def pil_save(self, filename, fformat=None, fill_value=None, format_kw=None):
+    def pil_save(self, filename, fformat=None, fill_value=None,
+                 format_kw=None):
         """Save the image to the given *filename* using PIL.
 
         For now, the compression level [0-9] is ignored, due to PIL's lack of
@@ -286,18 +300,16 @@ class XRImage(object):
 
     def fill_or_alpha(self, data, fill_value=None):
         """Fill the data with fill_value, or create an alpha channels."""
-        # FIXME: Use any/and over dims instead of sum
-        nan_mask = xu.isnan(data).sum('bands').expand_dims('bands').astype(bool)
-        nan_mask['bands'] = ['A']
-        # if not any(nan_mask):
-        #     return data
-        if fill_value is None:
-            if self.mode.endswith("A"):
-                data.sel(bands='A')[nan_mask] = 0
-            else:
-                data = xr.concat([data, (1 - nan_mask).astype(data.dtype)],
-                                 dim="bands")
-        else:
+        if fill_value is None and not self.mode.endswith("A"):
+            not_alpha = [b for b in data.coords['bands'].values if b != 'A']
+            # if any of the bands are valid, we don't want transparency
+            null_mask = data.sel(bands=not_alpha).notnull().any(dim='bands')
+            null_mask = null_mask.expand_dims('bands')
+            null_mask['bands'] = ['A']
+
+            data = xr.concat([data, null_mask.astype(data.dtype)],
+                             dim="bands")
+        elif fill_value is not None:
             data = data.fillna(fill_value)
         return data
 
@@ -312,11 +324,19 @@ class XRImage(object):
         # if self.mode == "PA":
         #     self.convert("RGBA")
         #
+
+        if np.issubdtype(dtype, np.floating) and fill_value is None:
+            logger.warning("Image with floats cannot be transparent, so "
+                           "setting fill_value to 0")
+            fill_value = 0
+
         final_data = self.fill_or_alpha(self.data, fill_value)
 
         if np.issubdtype(dtype, np.integer):
             final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
             final_data = final_data.round().astype(dtype)
+        else:
+            final_data = final_data.astype(dtype)
 
         final_data.attrs = self.data.attrs
 
@@ -482,7 +502,7 @@ class XRImage(object):
             res = _band_hist(band_data.data)
             band_results.append(res)
 
-        if 'A' in self.data.coords['bands']:
+        if 'A' in self.data.coords['bands'].values:
             band_results.append(self.data.sel(bands='A'))
         self.data.data = da.stack(band_results,
                                   axis=self.data.dims.index('bands'))
@@ -509,7 +529,7 @@ class XRImage(object):
             res = _band_log(band_data.data)
             band_results.append(res)
 
-        if 'A' in self.data.coords['bands']:
+        if 'A' in self.data.coords['bands'].values:
             band_results.append(self.data.sel(bands='A'))
         self.data.data = da.stack(band_results,
                                   axis=self.data.dims.index('bands'))
@@ -545,6 +565,119 @@ class XRImage(object):
         attrs = self.data.attrs
         self.data = self.data * scale + offset
         self.data.attrs = attrs
+
+    def merge(self, img):
+        """Use the provided image as background for the current *img* image,
+        that is if the current image has missing data.
+        """
+        raise NotImplementedError("This method has not be implemented for "
+                                  "xarray support.")
+        if self.is_empty():
+            raise ValueError("Cannot merge an empty image.")
+
+        if self.mode != img.mode:
+            raise ValueError("Cannot merge image of different modes.")
+
+        selfmask = self.channels[0].mask
+        for chn in self.channels[1:]:
+            selfmask = np.ma.mask_or(selfmask, chn.mask)
+
+        for i in range(len(self.channels)):
+            self.channels[i] = np.ma.where(selfmask,
+                                           img.channels[i],
+                                           self.channels[i])
+            self.channels[i].mask = np.logical_and(selfmask,
+                                                   img.channels[i].mask)
+
+    def colorize(self, colormap):
+        """Colorize the current image using
+        *colormap*. Works only on"L" or "LA" images.
+        """
+
+        if self.mode not in ("L", "LA"):
+            raise ValueError("Image should be grayscale to colorize")
+
+        if self.mode == "LA":
+            alpha = self.data.sel(bands=['A'])
+        else:
+            alpha = None
+
+        l_data = self.data.sel(bands=['L'])
+
+        # TODO: dask-ify colorize
+        def _colorize(colormap, l_data):
+            channels = colormap.colorize(l_data.data)
+            return np.concatenate(channels, axis=0)
+
+        # TODO: xarray-ify colorize
+        # delayed = dask.delayed(colormap.colorize)(l_data.data)
+        delayed = dask.delayed(_colorize)(colormap, l_data)
+        shape = (3, l_data.sizes['y'], l_data.sizes['x'])
+        new_data = da.from_delayed(delayed, shape=shape, dtype=np.float64)
+
+        if alpha is not None:
+            new_data = da.stack(new_data, alpha.data)
+            mode = "RGBA"
+        else:
+            mode = "RGB"
+
+        coords = self.data.coords
+        coords['bands'] = list(mode)
+        attrs = self.data.attrs
+        dims = self.data.dims
+        self.data = xr.DataArray(new_data, coords=coords, attrs=attrs,
+                                 dims=dims)
+
+    def palettize(self, colormap):
+        """Palettize the current image using
+        *colormap*. Works only on"L" or "LA" images.
+        """
+
+        if self.mode not in ("L", "LA"):
+            raise ValueError("Image should be grayscale to colorize")
+
+        l_data = self.data.sel(bands=['L'])
+
+        def _palettize(data):
+            arr, palette = colormap.palettize(data.reshape(data.shape[1:]))
+            new_shape = (1, arr.shape[0], arr.shape[1])
+            arr = arr.reshape(new_shape)
+            return arr, palette
+
+        delayed = dask.delayed(_palettize)(l_data.data)
+        new_data, palette = delayed[0], delayed[1]
+        new_data = da.from_delayed(new_data, shape=l_data.shape,
+                                   dtype=l_data.dtype)
+        # XXX: Can we complete this method without computing the data?
+        new_data, self.palette = da.compute(new_data, palette)
+        new_data = da.from_array(new_data,
+                                 chunks=self.data.data.chunks)
+
+        if self.mode == "L":
+            mode = "P"
+        else:
+            mode = "PA"
+
+        self.data.data = new_data
+        self.data.coords['bands'] = list(mode)
+
+    def blend(self, other):
+        """Alpha blend *other* on top of the current image.
+        """
+        raise NotImplementedError("This method has not be implemented for "
+                                  "xarray support.")
+
+        if self.mode != "RGBA" or other.mode != "RGBA":
+            raise ValueError("Images must be in RGBA")
+        src = other
+        dst = self
+        outa = src.channels[3] + dst.channels[3] * (1 - src.channels[3])
+        for i in range(3):
+            dst.channels[i] = (src.channels[i] * src.channels[3] +
+                               dst.channels[i] * dst.channels[3] *
+                               (1 - src.channels[3])) / outa
+            dst.channels[i][outa == 0] = 0
+        dst.channels[3] = outa
 
     def show(self):
         """Display the image on screen."""
