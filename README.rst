@@ -1,11 +1,11 @@
 Trollimage
 ==========
 
-.. image:: https://pypip.in/d/trollimage/badge.png
+.. image:: https://img.shields.io/pypi/dm/trollimage.svg
     :target: https://pypi.python.org/pypi/trollimage/
     :alt: Downloads
 
-.. image:: https://pypip.in/v/trollimage/badge.png
+.. image:: https://img.shields.io/pypi/v/trollimage.svg
     :target: https://pypi.python.org/pypi/trollimage/
     :alt: Version
 
