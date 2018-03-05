@@ -2,6 +2,23 @@ Changelog
 =========
 
 
+v1.3.0 (2018-03-05)
+-------------------
+- Update changelog. [davidh-ssec]
+- Bump version: 1.2.1 → 1.3.0. [davidh-ssec]
+- Merge pull request #8 from pytroll/feature-float-geotiffs. [David
+  Hoese]
+
+  Feature float geotiffs
+- Fix xarray warnings about using contains with coords. [davidh-ssec]
+- Change xrimage to not modify user provided alpha band. [davidh-ssec]
+- Fix line too long in xrimage. [davidh-ssec]
+- Add float geotiff writing to rio_save. [davidh-ssec]
+- Fix left over hack from tests. [davidh-ssec]
+- Add colorize and palettize to xrimage. [davidh-ssec]
+- Add dimension checks to XRImage. [davidh-ssec]
+
+
 v1.2.1 (2018-03-02)
 -------------------
 - Update changelog. [Martin Raspaud]
@@ -195,6 +212,7 @@ v0.2.0 (2013-12-04)
 
    * __add__
    * reverse
+
 - Added documentation to colormap. [Martin Raspaud]
 - Unwrap hue when interpolating. [Martin Raspaud]
 - Change development status to beta. [Martin Raspaud]
@@ -209,6 +227,5 @@ v0.2.0 (2013-12-04)
 - Split between colorspaces and colormap stuff. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
-
 
 
