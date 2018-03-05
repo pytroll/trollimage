@@ -192,10 +192,9 @@ class XRImage(object):
             self.pil_save(filename, fformat, fill_value, format_kw)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=None, format_kw=None):
+                 dtype=np.uint8, format_kw=None):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
-        dtype = dtype or np.uint8
         format_kw = format_kw or {}
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
@@ -503,7 +502,7 @@ class XRImage(object):
             res = _band_hist(band_data.data)
             band_results.append(res)
 
-        if 'A' in self.data.coords['bands']:
+        if 'A' in self.data.coords['bands'].values:
             band_results.append(self.data.sel(bands='A'))
         self.data.data = da.stack(band_results,
                                   axis=self.data.dims.index('bands'))
@@ -530,7 +529,7 @@ class XRImage(object):
             res = _band_log(band_data.data)
             band_results.append(res)
 
-        if 'A' in self.data.coords['bands']:
+        if 'A' in self.data.coords['bands'].values:
             band_results.append(self.data.sel(bands='A'))
         self.data.data = da.stack(band_results,
                                   axis=self.data.dims.index('bands'))
