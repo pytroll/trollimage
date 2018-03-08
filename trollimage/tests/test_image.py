@@ -767,6 +767,7 @@ class TestXRImage(unittest.TestCase):
     def test_save(self):
         import xarray as xr
         import dask.array as da
+        from dask.delayed import Delayed
         from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
@@ -786,6 +787,12 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
+
+        # dask delayed save
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            delay = img.save(tmp.name, compute=False)
+            self.assertIsInstance(delay, Delayed)
+            delay.compute()
 
     def test_gamma(self):
         """Test gamma correction."""

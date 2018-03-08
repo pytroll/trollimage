@@ -186,9 +186,10 @@ class XRImage(object):
         For some formats like jpg and png, the work is delegated to
         :meth:`pil_save`, which doesn't support the *compression* option.
 
-        The `compute` keyword is only used when saving GeoTIFFS and is passed
-        directly to the `rio_save` method. See that documentation for more
-        details.
+        The `compute` keyword argument controls dask delayed operations. If
+        `True` (default) all operations are computed immediately. If `False`
+        then a Dask Delayed object is returned and can be computed later with
+        `delayed.compute()`.
 
         """
         fformat = fformat or os.path.splitext(filename)[1][1:4]
@@ -197,7 +198,8 @@ class XRImage(object):
                                  fill_value=fill_value, compute=compute,
                                  format_kw=format_kw)
         else:
-            return self.pil_save(filename, fformat, fill_value, format_kw)
+            return self.pil_save(filename, fformat, fill_value,
+                                 compute=compute, format_kw=format_kw)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, format_kw=None):
@@ -262,7 +264,7 @@ class XRImage(object):
             return da.store(data.data, r_file, lock=True, compute=compute)
 
     def pil_save(self, filename, fformat=None, fill_value=None,
-                 format_kw=None):
+                 compute=True, format_kw=None):
         """Save the image to the given *filename* using PIL.
 
         For now, the compression level [0-9] is ignored, due to PIL's lack of
@@ -280,8 +282,15 @@ class XRImage(object):
             # Take care of GeoImage.tags (if any).
             params['pnginfo'] = self._pngmeta()
 
-        img = self.pil_image(fill_value)
-        img.save(filename, fformat, **params)
+        def _create_save_image(fill_value, filename, fformat, params):
+            img = self.pil_image(fill_value)
+            img.save(filename, fformat, **params)
+        delay = dask.delayed(_create_save_image)(
+            fill_value, filename, fformat, params)
+        if compute:
+            return delay.compute()
+        else:
+            return delay
 
     def _pngmeta(self):
         """Return GeoImage.tags as a PNG metadata object.
