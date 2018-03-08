@@ -794,6 +794,36 @@ class TestXRImage(unittest.TestCase):
             self.assertIsInstance(delay, Delayed)
             delay.compute()
 
+    def test_save_geotiff(self):
+        import xarray as xr
+        import dask.array as da
+        from dask.delayed import Delayed
+        from trollimage import xrimage
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+
+        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 75.,
+                                          chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+        data = data.where(data > (10 / 75.0))
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+
+        # dask delayed save
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            delay = img.save(tmp.name, compute=False)
+            self.assertIsInstance(delay, Delayed)
+            delay.compute()
+
     def test_gamma(self):
         """Test gamma correction."""
         import xarray as xr

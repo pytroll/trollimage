@@ -67,6 +67,7 @@ class RIOFile(object):
         self.args = args
         self.kwargs = kwargs
         self.rfile = None
+        self._closed = True
 
     def __setitem__(self, key, item):
         """Put the data chunk in the image."""
@@ -91,14 +92,21 @@ class RIOFile(object):
         self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
                          indexes=indexes)
 
+    def open(self):
+        self.rfile = rasterio.open(*self.args, **self.kwargs)
+
+    def close(self):
+        if not self._closed:
+            self.rfile.close()
+
     def __enter__(self):
         """Enter method."""
-        self.rfile = rasterio.open(*self.args, **self.kwargs)
+        self.open()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit method."""
-        self.rfile.close()
+        self.close()
 
     @property
     def colorinterp(self):
@@ -252,16 +260,23 @@ class XRImage(object):
 
         # FIXME add png metadata
 
-        with RIOFile(filename, 'w', driver=driver,
+        r_file = RIOFile(filename, 'w', driver=driver,
                      width=data.sizes['x'], height=data.sizes['y'],
                      count=data.sizes['bands'],
                      dtype=dtype,
                      nodata=fill_value,
-                     crs=crs, transform=transform, **format_kw) as r_file:
+                     crs=crs, transform=transform, **format_kw)
+        r_file.open()
+        r_file.colorinterp = color_interp(data)
+        r_file.rfile.update_tags(**new_tags)
 
-            r_file.colorinterp = color_interp(data)
-            r_file.rfile.update_tags(**new_tags)
-            return da.store(data.data, r_file, lock=True, compute=compute)
+        res = da.store(data.data, r_file, compute=compute)
+        if compute:
+            r_file.close()
+            return res
+        else:
+            # hopefully the file gets closed
+            return res
 
     def pil_save(self, filename, fformat=None, fill_value=None,
                  compute=True, format_kw=None):
