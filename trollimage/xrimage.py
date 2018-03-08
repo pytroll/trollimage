@@ -179,20 +179,28 @@ class XRImage(object):
         """Mode of the image."""
         return ''.join(self.data['bands'].values)
 
-    def save(self, filename, fformat=None, fill_value=None, format_kw=None):
+    def save(self, filename, fformat=None, fill_value=None, compute=True,
+             format_kw=None):
         """Save the image to the given *filename*.
 
         For some formats like jpg and png, the work is delegated to
         :meth:`pil_save`, which doesn't support the *compression* option.
+
+        The `compute` keyword is only used when saving GeoTIFFS and is passed
+        directly to the `rio_save` method. See that documentation for more
+        details.
+
         """
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         if fformat == 'tif' and rasterio:
-            self.rio_save(filename, fformat, fill_value, format_kw)
+            return self.rio_save(filename, fformat=fformat,
+                                 fill_value=fill_value, compute=compute,
+                                 format_kw=format_kw)
         else:
-            self.pil_save(filename, fformat, fill_value, format_kw)
+            return self.pil_save(filename, fformat, fill_value, format_kw)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, format_kw=None):
+                 dtype=np.uint8, compute=True, format_kw=None):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         format_kw = format_kw or {}
@@ -231,7 +239,9 @@ class XRImage(object):
                                                            east, north,
                                                            width, height)
                 if "start_time" in data.attrs:
-                    new_tags = {'TIFFTAG_DATETIME': data.attrs["start_time"].strftime("%Y:%m:%d %H:%M:%S")}
+                    stime = data.attrs['start_time']
+                    stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
+                    new_tags = {'TIFFTAG_DATETIME': stime_str}
 
             except (KeyError, AttributeError):
                 logger.info("Couldn't create geotransform")
@@ -249,7 +259,7 @@ class XRImage(object):
 
             r_file.colorinterp = color_interp(data)
             r_file.rfile.update_tags(**new_tags)
-            da.store(data.data, r_file, lock=True)
+            return da.store(data.data, r_file, lock=True, compute=compute)
 
     def pil_save(self, filename, fformat=None, fill_value=None,
                  format_kw=None):
