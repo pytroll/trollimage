@@ -458,13 +458,27 @@ class XRImage(object):
         logger.debug("Calculate the histogram quantiles: ")
         logger.debug("Left and right quantiles: " +
                      str(cutoffs[0]) + " " + str(cutoffs[1]))
+
         # Quantile requires the data to be loaded, not supported on dask arrays
-        chunks = self.data.data.chunks
-        self.data.load()
-        left, right = self.data.quantile([cutoffs[0], 1. - cutoffs[1]],
-                                          dim=['x', 'y'])
-        self.data.data = da.from_array(self.data.data, chunks=chunks)
-        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+        def _compute_quantile(data, cutoffs):
+            # delayed will provide us the fully computed xarray with ndarray
+            left, right = data.quantile([cutoffs[0], 1. - cutoffs[1]],
+                                        dim=['x', 'y'])
+            logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+            return left.data, right.data
+
+        left, right = dask.delayed(_compute_quantile, nout=2)(self.data, cutoffs)
+        left_data = da.from_delayed(left,
+                                    shape=(self.data.sizes['bands'],),
+                                    dtype=np.float64)
+        left = xr.DataArray(left_data, dims=('bands',),
+                            coords={'bands': self.data['bands']})
+        right_data = da.from_delayed(right,
+                                     shape=(self.data.sizes['bands'],),
+                                     dtype=np.float64)
+        right = xr.DataArray(right_data, dims=('bands',),
+                             coords={'bands': self.data['bands']})
+
         self.crude_stretch(left, right)
 
     def crude_stretch(self, min_stretch=None, max_stretch=None):
