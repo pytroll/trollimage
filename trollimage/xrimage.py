@@ -195,13 +195,31 @@ class XRImage(object):
              format_kw=None):
         """Save the image to the given *filename*.
 
-        For some formats like jpg and png, the work is delegated to
-        :meth:`pil_save`, which doesn't support the *compression* option.
+        Args:
+            filename (str): Output filename
+            fformat (str): File format of output file (optional). Can be
+                           one of many image formats supported by the
+                           `rasterio` or `PIL` libraries ('jpg', 'png',
+                           'tif'). By default this is deteremined by the
+                           extension of the provided filename.
+            fill_value (float): Replace invalid data values with this value
+                                and do not produce an Alpha band. Default
+                                behavior is to create an alpha band.
+            compute (bool): If True (default) write the data to the file
+                            immediately. If False the return value is either
+                            a `dask.Delayed` object or a tuple of
+                            ``(source, target)`` to be passed to
+                            `dask.array.store`.
+            format_kw (dict): Additional format options to pass to `rasterio`
+                              or `PIL` saving methods.
 
-        The `compute` keyword argument controls dask delayed operations. If
-        `True` (default) all operations are computed immediately. If `False`
-        then a Dask Delayed object is returned and can be computed later with
-        `delayed.compute()`.
+        Returns:
+            Either `None` if `compute` is True or a `dask.Delayed` object or
+            ``(source, target)`` pair to be passed to `dask.array.store`.
+            If compute is False the return value depends on format and how
+            the image backend is used. If ``(source, target)`` is provided
+            then target is an open file-like object that must be closed by
+            the caller.
 
         """
         fformat = fformat or os.path.splitext(filename)[1][1:4]
