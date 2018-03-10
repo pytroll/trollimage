@@ -824,6 +824,7 @@ class TestXRImage(unittest.TestCase):
             self.assertIsInstance(delay[0], da.Array)
             self.assertIsInstance(delay[1], xrimage.RIOFile)
             da.store(*delay)
+            delay[1].close()
 
     def test_gamma(self):
         """Test gamma correction."""

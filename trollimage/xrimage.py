@@ -62,9 +62,10 @@ logger = logging.getLogger(__name__)
 class RIOFile(object):
     """Rasterio wrapper to allow da.store to do window saving."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, path, mode='w', **kwargs):
         """Initialize the object."""
-        self.args = args
+        self.path = path
+        self.mode = mode
         self.kwargs = kwargs
         self.rfile = None
         self._closed = True
@@ -92,10 +93,10 @@ class RIOFile(object):
         self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
                          indexes=indexes)
 
-    def open(self, mode='w'):
+    def open(self, mode=None):
+        mode = mode or self.mode
         if self._closed:
-            args = [x if x != 'w' else mode for x in self.args]
-            self.rfile = rasterio.open(*args, **self.kwargs)
+            self.rfile = rasterio.open(self.path, mode, **self.kwargs)
             self._closed = False
 
     def close(self):
@@ -293,9 +294,12 @@ class XRImage(object):
 
         if compute:
             # write data to the file now
-            return da.store(data.data, r_file)
+            res = da.store(data.data, r_file)
+            r_file.close()
+            return res
         # provide the data object and the opened file so the caller can
-        # store them when they would like
+        # store them when they would like. Caller is responsible for
+        # closing the file
         return data.data, r_file
 
     def pil_save(self, filename, fformat=None, fill_value=None,
@@ -487,15 +491,21 @@ class XRImage(object):
             logger.debug("Interval: left=%s, right=%s", str(left), str(right))
             return left.data, right.data
 
+        cutoff_type = np.float64
+        # numpy percentile (which quantile calls) returns 64-bit floats
+        # unless the value is a higher order float
+        if np.issubdtype(self.data.dtype, np.floating) and \
+                np.dtype(self.data.dtype).itemsize > 8:
+            cutoff_type = self.data.dtype
         left, right = dask.delayed(_compute_quantile, nout=2)(self.data, cutoffs)
         left_data = da.from_delayed(left,
                                     shape=(self.data.sizes['bands'],),
-                                    dtype=np.float64)
+                                    dtype=cutoff_type)
         left = xr.DataArray(left_data, dims=('bands',),
                             coords={'bands': self.data['bands']})
         right_data = da.from_delayed(right,
                                      shape=(self.data.sizes['bands'],),
-                                     dtype=np.float64)
+                                     dtype=cutoff_type)
         right = xr.DataArray(right_data, dims=('bands',),
                              coords={'bands': self.data['bands']})
 
