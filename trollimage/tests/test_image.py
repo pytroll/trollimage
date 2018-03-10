@@ -797,7 +797,6 @@ class TestXRImage(unittest.TestCase):
     def test_save_geotiff(self):
         import xarray as xr
         import dask.array as da
-        from dask.delayed import Delayed
         from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
@@ -821,8 +820,10 @@ class TestXRImage(unittest.TestCase):
         # dask delayed save
         with NamedTemporaryFile(suffix='.tif') as tmp:
             delay = img.save(tmp.name, compute=False)
-            self.assertIsInstance(delay, Delayed)
-            delay.compute()
+            self.assertIsInstance(delay, tuple)
+            self.assertIsInstance(delay[0], da.Array)
+            self.assertIsInstance(delay[1], xrimage.RIOFile)
+            da.store(*delay)
 
     def test_gamma(self):
         """Test gamma correction."""

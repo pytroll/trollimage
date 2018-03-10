@@ -92,12 +92,16 @@ class RIOFile(object):
         self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
                          indexes=indexes)
 
-    def open(self):
-        self.rfile = rasterio.open(*self.args, **self.kwargs)
+    def open(self, mode='w'):
+        if self._closed:
+            args = [x if x != 'w' else mode for x in self.args]
+            self.rfile = rasterio.open(*args, **self.kwargs)
+            self._closed = False
 
     def close(self):
         if not self._closed:
             self.rfile.close()
+            self._closed = True
 
     def __enter__(self):
         """Enter method."""
@@ -259,24 +263,22 @@ class XRImage(object):
             raise ValueError('JPEG does not support alpha')
 
         # FIXME add png metadata
-
         r_file = RIOFile(filename, 'w', driver=driver,
-                     width=data.sizes['x'], height=data.sizes['y'],
-                     count=data.sizes['bands'],
-                     dtype=dtype,
-                     nodata=fill_value,
-                     crs=crs, transform=transform, **format_kw)
+                         width=data.sizes['x'], height=data.sizes['y'],
+                         count=data.sizes['bands'],
+                         dtype=dtype,
+                         nodata=fill_value,
+                         crs=crs, transform=transform, **format_kw)
         r_file.open()
         r_file.colorinterp = color_interp(data)
         r_file.rfile.update_tags(**new_tags)
 
-        res = da.store(data.data, r_file, compute=compute)
         if compute:
-            r_file.close()
-            return res
-        else:
-            # hopefully the file gets closed
-            return res
+            # write data to the file now
+            return da.store(data.data, r_file)
+        # provide the data object and the opened file so the caller can
+        # store them when they would like
+        return data.data, r_file
 
     def pil_save(self, filename, fformat=None, fill_value=None,
                  compute=True, format_kw=None):
