@@ -113,6 +113,12 @@ class RIOFile(object):
         """Exit method."""
         self.close()
 
+    def __del__(self):
+        try:
+            self.close()
+        except (IOError, OSError):
+            pass
+
     @property
     def colorinterp(self):
         """Return the color interpretation of the image."""
