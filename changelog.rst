@@ -2,6 +2,45 @@ Changelog
 =========
 
 
+v1.4.0 (2018-03-12)
+-------------------
+- Update changelog. [davidh-ssec]
+- Bump version: 1.3.0 → 1.4.0. [davidh-ssec]
+- Merge pull request #11 from pytroll/bugfix-geotiff-extra. [David
+  Hoese]
+
+  Add setup.py extra for 'geotiff' so 'rasterio' is installed
+- Add setup.py extra for 'geotiff' so 'rasterio' is installed. [davidh-
+  ssec]
+- Merge pull request #10 from pytroll/feature-compute-rio-save. [David
+  Hoese]
+
+  Add 'compute' keyword to `rio_save` for delayed dask storing
+- Add __del__ method to RIOFile as a last resort. [davidh-ssec]
+- Fix RIOFile mode handling and other small fixes. [davidh-ssec]
+- Update save method documentation in XRImage. [davidh-ssec]
+- Fix xrimage delaying computation from rio_save. [davidh-ssec]
+
+  Changes interface to return (source, target) if delayed
+
+- Fix linear stretch so it doesn't have to compute input before save.
+  [davidh-ssec]
+- Add test for saving a geotiff with compute=False (WIP) [davidh-ssec]
+
+  Required modifying how RIOFile is opened and closed. It is a WIP on how
+  to close the file explicity when compute=False. See
+  https://github.com/dask/dask/issues/3255
+
+- Add 'compute' to PIL save to allow for delayed image saving and test.
+  [davidh-ssec]
+- Add 'compute' keyword to `rio_save` for delayed dask storing. [davidh-
+  ssec]
+- Merge pull request #9 from movermeyer/fix_badges. [Martin Raspaud]
+
+  Switched broken pypip.in badges to shields.io
+- Switched broken pypip.in badges to shields.io. [Michael Overmeyer]
+
+
 v1.3.0 (2018-03-05)
 -------------------
 - Update changelog. [davidh-ssec]
