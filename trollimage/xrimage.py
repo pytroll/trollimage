@@ -165,23 +165,7 @@ class XRImage(object):
 
     def __init__(self, data):
         """Initialize the image."""
-        try:
-            dims = data.dims
-        except AttributeError:
-            raise TypeError("Data must have a 'dims' attribute.")
-
-        if 'y' not in dims or 'x' not in dims:
-            raise ValueError("Data must have a 'y' and 'x' dimension")
-
-        # doesn't actually copy the data underneath
-        # we don't want our operations to change the user's data
-        data = data.copy()
-        if "bands" not in dims:
-            if data.ndim <= 2:
-                data = data.expand_dims('bands')
-                data['bands'] = ['L']
-            else:
-                raise ValueError("No 'bands' dimension provided.")
+        data = self._correct_dims(data)
 
         # 'data' is an XArray, get the data from it as a dask array
         if not isinstance(data.data, da.Array):
@@ -192,6 +176,40 @@ class XRImage(object):
         self.data = data
         self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
         self.palette = None
+
+    @staticmethod
+    def _correct_dims(data):
+        """Standardize dimensions to bands, y, and x."""
+        if not hasattr(data, 'dims'):
+            raise TypeError("Data must have a 'dims' attribute.")
+
+        # doesn't actually copy the data underneath
+        # we don't want our operations to change the user's data
+        data = data.copy()
+
+        if 'y' not in data.dims or 'x' not in data.dims:
+            if data.ndim != 2:
+                raise ValueError("Data must have a 'y' and 'x' dimension")
+
+            # rename dimensions so we can use them
+            # don't rename 'x' or 'y' if they already exist
+            if 'y' not in data.dims:
+                # find a dimension that isn't 'x'
+                old_dim = [d for d in data.dims if d != 'x'][0]
+                data = data.rename({old_dim: 'y'})
+            if 'x' not in data.dims:
+                # find a dimension that isn't 'y'
+                old_dim = [d for d in data.dims if d != 'y'][0]
+                data = data.rename({old_dim: 'x'})
+
+        if "bands" not in data.dims:
+            if data.ndim <= 2:
+                data = data.expand_dims('bands')
+                data['bands'] = ['L']
+            else:
+                raise ValueError("No 'bands' dimension provided.")
+
+        return data
 
     @property
     def mode(self):

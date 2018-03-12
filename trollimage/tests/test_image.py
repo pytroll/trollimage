@@ -754,6 +754,21 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'L')
 
+        data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]])
+        img = xrimage.XRImage(data)
+        self.assertEqual(img.mode, 'L')
+        self.assertTupleEqual(img.data.dims, ('bands', 'y', 'x'))
+
+        data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['x', 'y_2'])
+        img = xrimage.XRImage(data)
+        self.assertEqual(img.mode, 'L')
+        self.assertTupleEqual(img.data.dims, ('bands', 'x', 'y'))
+
+        data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['x_2', 'y'])
+        img = xrimage.XRImage(data)
+        self.assertEqual(img.mode, 'L')
+        self.assertTupleEqual(img.data.dims, ('bands', 'x', 'y'))
+
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
                             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
