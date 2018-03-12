@@ -46,5 +46,6 @@ setup(name="trollimage",
       packages=['trollimage'],
       zip_safe=False,
       install_requires=['numpy >=1.6', 'pillow', 'six'],
+      extras_require={'geotiff': ['rasterio']},
       test_suite='trollimage.tests.suite',
       )
