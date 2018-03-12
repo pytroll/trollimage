@@ -2,6 +2,29 @@ Changelog
 =========
 
 
+v1.5.0 (2018-03-12)
+-------------------
+- Update changelog. [davidh-ssec]
+- Bump version: 1.4.0 → 1.5.0. [davidh-ssec]
+- Merge pull request #13 from pytroll/feature-correct-dims. [David
+  Hoese]
+
+  Add ability to rename dimensions on 2D arrays passed to XRImage
+- Add ability to rename dimensions on 2D arrays passed to XRImage.
+  [davidh-ssec]
+- Merge pull request #12 from pytroll/bugfix-format-kwargs. [David
+  Hoese]
+
+  Rename format_kw to **format_kwargs in XRImage
+- Remove unneeded else statement in xrimage. [davidh-ssec]
+- Fix mismatch signature between save and pil/rio save methods. [davidh-
+  ssec]
+- Change XRImage format_kw parameter to **format_kwargs. [davidh-ssec]
+- Added some utilities functions (#2) [lorenzo clementi]
+
+  Added some utilities functions
+
+
 v1.4.0 (2018-03-12)
 -------------------
 - Update changelog. [davidh-ssec]
