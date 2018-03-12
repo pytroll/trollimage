@@ -199,7 +199,7 @@ class XRImage(object):
         return ''.join(self.data['bands'].values)
 
     def save(self, filename, fformat=None, fill_value=None, compute=True,
-             format_kw=None):
+             **format_kwargs):
         """Save the image to the given *filename*.
 
         Args:
@@ -217,8 +217,8 @@ class XRImage(object):
                             a `dask.Delayed` object or a tuple of
                             ``(source, target)`` to be passed to
                             `dask.array.store`.
-            format_kw (dict): Additional format options to pass to `rasterio`
-                              or `PIL` saving methods.
+            **format_kwargs: Additional format options to pass to `rasterio`
+                             or `PIL` saving methods.
 
         Returns:
             Either `None` if `compute` is True or a `dask.Delayed` object or
@@ -233,16 +233,15 @@ class XRImage(object):
         if fformat == 'tif' and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
-                                 format_kw=format_kw)
+                                 **format_kwargs)
         else:
             return self.pil_save(filename, fformat, fill_value,
-                                 compute=compute, format_kw=format_kw)
+                                 compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, compute=True, format_kw=None):
+                 dtype=np.uint8, compute=True, **format_kwargs):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
-        format_kw = format_kw or {}
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
                    'tif': 'GTiff'}
@@ -257,7 +256,7 @@ class XRImage(object):
         transform = None
         if driver == 'GTiff':
             if not np.issubdtype(data.dtype, np.floating):
-                format_kw.setdefault('compress', 'DEFLATE')
+                format_kwargs.setdefault('compress', 'DEFLATE')
             photometric_map = {
                 'RGB': 'RGB',
                 'RGBA': 'RGB',
@@ -267,8 +266,8 @@ class XRImage(object):
                 'YCBCRA': 'YCBCR',
             }
             if mode.upper() in photometric_map:
-                format_kw.setdefault('photometric',
-                                     photometric_map[mode.upper()])
+                format_kwargs.setdefault('photometric',
+                                         photometric_map[mode.upper()])
 
             try:
                 crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
@@ -293,7 +292,7 @@ class XRImage(object):
                          count=data.sizes['bands'],
                          dtype=dtype,
                          nodata=fill_value,
-                         crs=crs, transform=transform, **format_kw)
+                         crs=crs, transform=transform, **format_kwargs)
         r_file.open()
         r_file.colorinterp = color_interp(data)
         r_file.rfile.update_tags(**new_tags)
@@ -309,7 +308,7 @@ class XRImage(object):
         return data.data, r_file
 
     def pil_save(self, filename, fformat=None, fill_value=None,
-                 compute=True, format_kw=None):
+                 compute=True, **format_kwargs):
         """Save the image to the given *filename* using PIL.
 
         For now, the compression level [0-9] is ignored, due to PIL's lack of
@@ -318,24 +317,18 @@ class XRImage(object):
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         fformat = check_image_format(fformat)
 
-        if format_kw is None:
-            params = {}
-        else:
-            params = format_kw.copy()
-
         if fformat == 'png':
             # Take care of GeoImage.tags (if any).
-            params['pnginfo'] = self._pngmeta()
+            format_kwargs['pnginfo'] = self._pngmeta()
 
-        def _create_save_image(fill_value, filename, fformat, params):
+        def _create_save_image(fill_value, filename, fformat, format_kwargs):
             img = self.pil_image(fill_value)
-            img.save(filename, fformat, **params)
+            img.save(filename, fformat, **format_kwargs)
         delay = dask.delayed(_create_save_image)(
-            fill_value, filename, fformat, params)
+            fill_value, filename, fformat, format_kwargs)
         if compute:
             return delay.compute()
-        else:
-            return delay
+        return delay
 
     def _pngmeta(self):
         """Return GeoImage.tags as a PNG metadata object.
