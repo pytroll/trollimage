@@ -328,8 +328,7 @@ class XRImage(object):
             fill_value, filename, fformat, format_kwargs)
         if compute:
             return delay.compute()
-        else:
-            return delay
+        return delay
 
     def _pngmeta(self):
         """Return GeoImage.tags as a PNG metadata object.
