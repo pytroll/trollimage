@@ -199,7 +199,7 @@ class XRImage(object):
         return ''.join(self.data['bands'].values)
 
     def save(self, filename, fformat=None, fill_value=None, compute=True,
-             format_kw=None):
+             **format_kwargs):
         """Save the image to the given *filename*.
 
         Args:
@@ -217,8 +217,8 @@ class XRImage(object):
                             a `dask.Delayed` object or a tuple of
                             ``(source, target)`` to be passed to
                             `dask.array.store`.
-            format_kw (dict): Additional format options to pass to `rasterio`
-                              or `PIL` saving methods.
+            **format_kwargs: Additional format options to pass to `rasterio`
+                             or `PIL` saving methods.
 
         Returns:
             Either `None` if `compute` is True or a `dask.Delayed` object or
@@ -233,10 +233,10 @@ class XRImage(object):
         if fformat == 'tif' and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
-                                 format_kwargs=format_kw)
+                                 **format_kwargs)
         else:
             return self.pil_save(filename, fformat, fill_value,
-                                 compute=compute, format_kwargs=format_kw)
+                                 compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, **format_kwargs):
