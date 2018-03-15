@@ -57,22 +57,23 @@ def palettize(arr, colors, values):
     """
     new_arr = np.digitize(arr.ravel(),
                           np.concatenate((values,
-                                          [max(arr.max(),
+                                          [max(np.nanmax(arr),
                                                values.max()) + 1])))
     new_arr -= 1
+    new_arr = new_arr.clip(min=0, max=len(values) - 1)
     try:
         new_arr = np.ma.array(new_arr.reshape(arr.shape), mask=arr.mask)
     except AttributeError:
         new_arr = new_arr.reshape(arr.shape)
-    
+
     return new_arr, tuple(colors)
-    
+
 
 class Colormap(object):
     """The colormap object.
 
     Initialize with tuples of (value, (colors)), like this::
-    
+
       Colormap((-75.0, (1.0, 1.0, 0.0)),
                (-40.0001, (0.0, 1.0, 1.0)),
                (-40.0, (1, 1, 1)),
@@ -122,7 +123,7 @@ class Colormap(object):
         self.values = (((self.values * 1.0 - self.values.min()) /
                         (self.values.max() - self.values.min()))
                         * (max_val - min_val) + min_val)
-        
+
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
 # "#FF7F00", "red", "#7F0000"
 
@@ -447,7 +448,7 @@ def colorbar(height, length, colormap):
     cbar = np.tile(np.arange(length)*1.0/(length-1), (height, 1))
     cbar = (cbar * (colormap.values.max() - colormap.values.min())
             + colormap.values.min())
-    
+
     return colormap.colorize(cbar)
 
 def palettebar(height, length, colormap):
@@ -456,7 +457,5 @@ def palettebar(height, length, colormap):
     cbar = np.tile(np.arange(length)*1.0/(length-1), (height, 1))
     cbar = (cbar * (colormap.values.max() + 1 - colormap.values.min())
             + colormap.values.min())
-    
+
     return colormap.palettize(cbar)
-
-
