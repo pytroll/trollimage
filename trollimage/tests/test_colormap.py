@@ -61,6 +61,26 @@ class TestColormapClass(unittest.TestCase):
         self.assertTrue(np.allclose(colors, cm_.colors))
         self.assertTrue(all(channels == [0, 1, 2, 3]))
 
+        cm_ = colormap.Colormap((0, (0.0, 0.0, 0.0)),
+                                (1, (1.0, 1.0, 1.0)),
+                                (2, (2, 2, 2)),
+                                (3, (3, 3, 3)))
+
+        data = np.arange(-1, 5)
+
+        channels, colors = cm_.palettize(data)
+        self.assertTrue(np.allclose(colors, cm_.colors))
+        self.assertTrue(all(channels == [0, 0, 1, 2, 3, 3]))
+
+        data = np.arange(-1.0, 5.0)
+        data[-1] = np.nan
+
+        channels, colors = cm_.palettize(data)
+        self.assertTrue(np.allclose(colors, cm_.colors))
+        self.assertTrue(all(channels == [0, 0, 1, 2, 3, 3]))
+
+
+
     def test_set_range(self):
         """Test set_range
         """
@@ -94,7 +114,7 @@ class TestColormapClass(unittest.TestCase):
                                 (4, (0, 0, 0)))
         colors = cm_.colors
         cm_.reverse()
-        self.assertTrue(np.allclose(np.flipud(colors), cm_.colors)) 
+        self.assertTrue(np.allclose(np.flipud(colors), cm_.colors))
 
     def test_add(self):
         """Test adding colormaps
@@ -113,7 +133,7 @@ class TestColormapClass(unittest.TestCase):
 
         self.assertTrue(np.allclose(cm3.colors, cm_.colors))
         self.assertTrue(np.allclose(cm3.values, cm_.values))
-        
+
     def test_colorbar(self):
         """Test colorbar
         """
@@ -140,7 +160,7 @@ class TestColormapClass(unittest.TestCase):
 
         self.assertTrue(np.allclose(channel, np.arange(4)))
         self.assertTrue(np.allclose(palette, cm_.colors))
-        
+
 
 def suite():
     """The suite for test_colormap.
@@ -148,5 +168,5 @@ def suite():
     loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(TestColormapClass))
-    
+
     return mysuite
