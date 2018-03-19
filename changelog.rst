@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+v1.5.1 (2018-03-19)
+-------------------
+- Update changelog. [Martin Raspaud]
+- Bump version: 1.5.0 → 1.5.1. [Martin Raspaud]
+- Adding .stickler.yml (#15) [Stickler Bot]
+- Fix problems with palettize (#14) [Martin Raspaud]
+
+
 v1.5.0 (2018-03-12)
 -------------------
 - Update changelog. [davidh-ssec]
@@ -274,7 +282,6 @@ v0.2.0 (2013-12-04)
 
    * __add__
    * reverse
-
 - Added documentation to colormap. [Martin Raspaud]
 - Unwrap hue when interpolating. [Martin Raspaud]
 - Change development status to beta. [Martin Raspaud]
@@ -289,5 +296,6 @@ v0.2.0 (2013-12-04)
 - Split between colorspaces and colormap stuff. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
+
 
 
