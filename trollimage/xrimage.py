@@ -711,7 +711,7 @@ class XRImage(object):
         new_data = da.from_delayed(delayed, shape=shape, dtype=np.float64)
 
         if alpha is not None:
-            new_data = da.stack(new_data, alpha.data)
+            new_data = da.concatenate([new_data, alpha.data], axis=0)
             mode = "RGBA"
         else:
             mode = "RGB"

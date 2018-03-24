@@ -1179,6 +1179,20 @@ class TestXRImage(unittest.TestCase):
 
         np.testing.assert_allclose(values, expected)
 
+        # try it with an RGB
+        arr = np.arange(75).reshape(5, 15) / 74.
+        alpha = arr > 40.
+        data = xr.DataArray([arr.copy(), alpha],
+                            dims=['bands', 'y', 'x'],
+                            coords={'bands': ['L', 'A']})
+        img = xrimage.XRImage(data)
+        img.colorize(brbg)
+
+        values = img.data.values
+        expected = np.concatenate((expected,
+                                   alpha.reshape((1, *alpha.shape))))
+        np.testing.assert_allclose(values, expected)
+
     def test_palettize(self):
         import xarray as xr
         from trollimage import xrimage
