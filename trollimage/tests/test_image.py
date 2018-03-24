@@ -1190,7 +1190,7 @@ class TestXRImage(unittest.TestCase):
 
         values = img.data.values
         expected = np.concatenate((expected,
-                                   alpha.reshape((1, *alpha.shape))))
+                                   alpha.reshape((1,) + alpha.shape)))
         np.testing.assert_allclose(values, expected)
 
     def test_palettize(self):
