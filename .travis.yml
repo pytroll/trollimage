@@ -1,27 +1,33 @@
 language: python
-addons:
-  apt:
-    packages:
-    - gdal-bin
-    - libgdal-dev
 python:
 - '2.7'
-- '3.5'
 - '3.6'
+env:
+    global:
+        # Set defaults to avoid repeating in most cases
+        - PYTHON_VERSION=$TRAVIS_PYTHON_VERSION
+        - NUMPY_VERSION=stable
+        - MAIN_CMD='python setup.py'
+        - CONDA_DEPENDENCIES='pillow gdal xarray dask toolz coverage coveralls codecov'
+        - SETUP_XVFB=False
+        - EVENT_TYPE='push pull_request'
+        - SETUP_CMD='test'
+        - CONDA_CHANNELS='conda-forge'
 install:
-- pip install .
-- pip install xarray dask toolz rasterio==1.0a12
-- pip install coveralls
+# Get rasterio 1.0
+- conda install -c conda-forge/label/dev rasterio
 script: coverage run --source=trollimage setup.py test
-after_success: coveralls
+after_success:
+- if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then coveralls; fi
 deploy:
   provider: pypi
-  user: Martin.Raspaud
+  user: dhoese
   password:
-    secure: RuQzdaLTY4sryIzG8Hz1KWEsyYRxrLvbyfm7DurXDPcj2vsujRwJicNwBrJajIBkzZWwdmWE8db55BPWZwCsJtVUbE53vc742wSAcci2zzCgizSb/jjlDkwk1CE/PoMl4t3JsuIU6bklgw1Y1d4Xn4+BeZe8Blol5PD/FUovxfo=
+    secure: "Cpo7kPgjbyWKNRjnzWDggxo5dqG8KdtcrBxYWwBpkkhgly/ngN9EkjIdscrwmp8sCqfjTd0RGyR811k6dzU7kKJVbc6V309+4mG8O0w4IvfHCn+NaHymAMrHleRIqyxbo5kvrBZoX+eB7YWOUppF6ofeohbrNWWgMQv+/d+Mufs="
   on:
-    tags: true
     repo: pytroll/trollimage
-sudo: false
+    tags: true
+    python: 3.6
+    distributions: sdist bdist_wheel
 notifications:
   slack: pytroll:96mNSYSI1dBjGyzVXkBT6qFt
