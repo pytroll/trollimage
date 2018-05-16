@@ -1,4 +1,3 @@
-Please make the PR against the `develop` branch.
 
  - [ ] Closes #xxxx (remove if there is no corresponding issue, which should only be the case for minor changes)
  - [ ] Tests added (for all bug fixes or enhancements)
