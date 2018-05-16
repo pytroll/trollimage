@@ -25,7 +25,6 @@
 """
 import os
 import sys
-import stat
 import random
 import unittest
 import tempfile
@@ -351,11 +350,7 @@ class TestRegularImage(unittest.TestCase):
         # create an unusable directory for permission error checking
 
         self.tempdir = tempfile.mkdtemp()
-        # read-only
-        if 'win' in sys.platform:
-            os.chmod(self.tempdir, stat.S_IREAD)
-        else:
-            os.chmod(self.tempdir, 0o444)
+        os.chmod(self.tempdir, 0o444)
 
     def test_shape(self):
         """Shape of an image.
@@ -575,12 +570,11 @@ class TestRegularImage(unittest.TestCase):
 
         self.img.convert(oldmode)
 
+    @unittest.skipIf('win' in sys.platform,
+                     "Read-only tmp dir not working under Windows")
     def test_save(self):
         """Save an image.
         """
-        import os
-        import os.path
-
         oldmode = self.img.mode
         for mode in self.modes:
             if (mode == "YCbCr" or
@@ -600,12 +594,11 @@ class TestRegularImage(unittest.TestCase):
 
         self.img.convert(oldmode)
 
+    @unittest.skipIf('win' in sys.platform,
+                     "Read-only tmp dir not working under Windows")
     def test_save_jpeg(self):
         """Save a jpeg image.
         """
-        import os
-        import os.path
-
         oldmode = self.img.mode
         self.img.convert('L')
         self.img.save("test.jpg")
@@ -678,11 +671,7 @@ class TestRegularImage(unittest.TestCase):
     def tearDown(self):
         """Clean up the mess.
         """
-        # read-only
-        if 'win' in sys.platform:
-            os.chmod(self.tempdir, stat.S_IWRITE)
-        else:
-            os.chmod(self.tempdir, 0o777)
+        os.chmod(self.tempdir, 0o777)
         os.rmdir(self.tempdir)
 
 
@@ -789,6 +778,8 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'YCbCrA')
 
+    @unittest.skipIf('win' in sys.platform,
+                     "'NamedTemporaryFile' not supported on Windows")
     def test_save(self):
         import xarray as xr
         import dask.array as da
@@ -819,6 +810,8 @@ class TestXRImage(unittest.TestCase):
             self.assertIsInstance(delay, Delayed)
             delay.compute()
 
+    @unittest.skipIf('win' in sys.platform,
+                     "'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff(self):
         import xarray as xr
         import dask.array as da
