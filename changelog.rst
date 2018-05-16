@@ -2,6 +2,26 @@ Changelog
 =========
 
 
+v1.5.2 (2018-05-16)
+-------------------
+- Update changelog. [davidh-ssec]
+- Bump version: 1.5.1 → 1.5.2. [davidh-ssec]
+- Update badges to include appveyor. [davidh-ssec]
+- Skip bad file permission tests on Windows. [davidh-ssec]
+- Fix Windows permissions, try again. [davidh-ssec]
+- Update image saving tests to use permissions that Windows might like.
+  [davidh-ssec]
+- Fix travis actually loading ci-helpers. [davidh-ssec]
+- Update travis to use ci-helpers and add appveyor. [davidh-ssec]
+- Merge pull request #16 from pytroll/bugfix-colorize-alpha. [David
+  Hoese]
+
+  Fix bug in alpha band handling of xrimage colorize
+- Fix python 2 incompatible tuple expansion. [davidh-ssec]
+- Fixing style errors. [stickler-ci]
+- Fix bug in alpha band handling of xrimage colorize. [davidh-ssec]
+
+
 v1.5.1 (2018-03-19)
 -------------------
 - Update changelog. [Martin Raspaud]
@@ -282,6 +302,7 @@ v0.2.0 (2013-12-04)
 
    * __add__
    * reverse
+
 - Added documentation to colormap. [Martin Raspaud]
 - Unwrap hue when interpolating. [Martin Raspaud]
 - Change development status to beta. [Martin Raspaud]
@@ -296,6 +317,5 @@ v0.2.0 (2013-12-04)
 - Split between colorspaces and colormap stuff. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
-
 
 
