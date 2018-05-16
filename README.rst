@@ -7,15 +7,15 @@ Trollimage
 
 .. image:: https://travis-ci.org/pytroll/trollimage.svg?branch=master
     :target: https://travis-ci.org/pytroll/trollimage
-   :alt: Travis CI
+    :alt: Travis CI
 
 .. image:: https://ci.appveyor.com/api/projects/status/9ux7hgi8rry971fn/branch/master?svg=true
     :target: https://ci.appveyor.com/project/pytroll/trollimage
-   :alt: Appveyor
+    :alt: Appveyor
 
 .. image:: https://coveralls.io/repos/pytroll/trollimage/badge.png?branch=master
     :target: https://coveralls.io/r/pytroll/trollimage?branch=master
-   :alt: Coverage
+    :alt: Coverage
 
 Imaging package for pytroll packages like
 `SatPy <https://github.com/pytroll/satpy>`_.
