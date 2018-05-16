@@ -23,8 +23,12 @@
 # along with mpop.  If not, see <http://www.gnu.org/licenses/>.
 """Module for testing the imageo.image module.
 """
+import os
+import sys
+import stat
 import random
 import unittest
+import tempfile
 from tempfile import NamedTemporaryFile
 
 import numpy as np
@@ -324,8 +328,6 @@ class TestRegularImage(unittest.TestCase):
     def setUp(self):
         """Setup the test.
         """
-        import os
-        import tempfile
         one_channel = np.random.rand(random.randint(1, 10),
                                      random.randint(1, 10))
         self.rand_img = image.Image(channels=[one_channel] * 3,
@@ -350,7 +352,10 @@ class TestRegularImage(unittest.TestCase):
 
         self.tempdir = tempfile.mkdtemp()
         # read-only
-        os.chmod(self.tempdir, 0o444)
+        if 'win' in sys.platform:
+            os.chmod(self.tempdir, stat.S_IREAD)
+        else:
+            os.chmod(self.tempdir, 0o444)
 
     def test_shape(self):
         """Shape of an image.
@@ -673,8 +678,11 @@ class TestRegularImage(unittest.TestCase):
     def tearDown(self):
         """Clean up the mess.
         """
-        import os
-        os.chmod(self.tempdir, 0o777)
+        # read-only
+        if 'win' in sys.platform:
+            os.chmod(self.tempdir, stat.S_IWRITE)
+        else:
+            os.chmod(self.tempdir, 0o777)
         os.rmdir(self.tempdir)
 
 
