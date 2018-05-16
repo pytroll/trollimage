@@ -349,7 +349,8 @@ class TestRegularImage(unittest.TestCase):
         # create an unusable directory for permission error checking
 
         self.tempdir = tempfile.mkdtemp()
-        os.chmod(self.tempdir, 0000)
+        # read-only
+        os.chmod(self.tempdir, 0o444)
 
     def test_shape(self):
         """Shape of an image.
@@ -673,6 +674,7 @@ class TestRegularImage(unittest.TestCase):
         """Clean up the mess.
         """
         import os
+        os.chmod(self.tempdir, 0o777)
         os.rmdir(self.tempdir)
 
 
