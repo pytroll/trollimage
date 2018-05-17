@@ -716,7 +716,8 @@ class XRImage(object):
         else:
             mode = "RGB"
 
-        coords = self.data.coords
+        # copy the coordinates so we don't affect the original
+        coords = dict(self.data.coords)
         coords['bands'] = list(mode)
         attrs = self.data.attrs
         dims = self.data.dims
