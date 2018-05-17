@@ -22,14 +22,14 @@ script: coverage run --source=trollimage setup.py test
 after_success:
     - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then coveralls; fi
 deploy:
-  provider: pypi
-  user: dhoese
-  password:
-    secure: "Cpo7kPgjbyWKNRjnzWDggxo5dqG8KdtcrBxYWwBpkkhgly/ngN9EkjIdscrwmp8sCqfjTd0RGyR811k6dzU7kKJVbc6V309+4mG8O0w4IvfHCn+NaHymAMrHleRIqyxbo5kvrBZoX+eB7YWOUppF6ofeohbrNWWgMQv+/d+Mufs="
-  on:
-    repo: pytroll/trollimage
-    tags: true
-    python: 3.6
+  - provider: pypi
+    user: dhoese
+    password:
+      secure: "Cpo7kPgjbyWKNRjnzWDggxo5dqG8KdtcrBxYWwBpkkhgly/ngN9EkjIdscrwmp8sCqfjTd0RGyR811k6dzU7kKJVbc6V309+4mG8O0w4IvfHCn+NaHymAMrHleRIqyxbo5kvrBZoX+eB7YWOUppF6ofeohbrNWWgMQv+/d+Mufs="
     distributions: sdist bdist_wheel
+    on:
+      repo: pytroll/trollimage
+      tags: true
+      python: 3.6
 notifications:
   slack: pytroll:96mNSYSI1dBjGyzVXkBT6qFt
