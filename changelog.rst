@@ -2,6 +2,21 @@ Changelog
 =========
 
 
+v1.5.3 (2018-05-17)
+-------------------
+- Update changelog. [davidh-ssec]
+- Bump version: 1.5.2 → 1.5.3. [davidh-ssec]
+- Fix colorize to work with xarray 0.10.4. [davidh-ssec]
+- Add LICENSE.txt to source dist manifest. [davidh-ssec]
+- Fix develop branch usage in PR template. [davidh-ssec]
+- Update setup.py to include xarray and dask optional dependencies.
+  [davidh-ssec]
+- Fix badge formatting. [davidh-ssec]
+- Reorganize readme. [davidh-ssec]
+- Remove unsupported downloads badge. [davidh-ssec]
+- Update PR template to not mention develop branch. [davidh-ssec]
+
+
 v1.5.2 (2018-05-16)
 -------------------
 - Update changelog. [davidh-ssec]
