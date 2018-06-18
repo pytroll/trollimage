@@ -778,3 +778,9 @@ class XRImage(object):
     def show(self):
         """Display the image on screen."""
         self.pil_image().show()
+
+    def _repr_png_(self):
+        import io
+        b = io.BytesIO()
+        self.pil_image().save(b, format='png')
+        return b.getvalue()
