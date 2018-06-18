@@ -12,6 +12,7 @@
 # serve to show the default.
 
 import sys
+from trollimage import __version__
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -75,8 +76,6 @@ copyright = u'2018, The Pytroll Team'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-
-from trollimage import __version__
 
 # The short X.Y version.
 short_version = ".".join(__version__.split(".")[:2])
