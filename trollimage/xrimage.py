@@ -265,7 +265,7 @@ class XRImage(object):
                    'tif': 'GTiff'}
         driver = drivers.get(fformat, fformat)
 
-        data, mode = self._finalize(fill_value, dtype=dtype)
+        data, mode = self.finalize(fill_value, dtype=dtype)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -389,6 +389,13 @@ class XRImage(object):
         return data
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
+        """Wrapper around 'finalize' method for backwards compatibility."""
+        import warnings
+        warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
+                      DeprecationWarning)
+        return super(XRImage, self).finalize(fill_value, dtype)
+
+    def finalize(self, fill_value=None, dtype=np.uint8):
         """Finalize the image.
 
         This sets the channels in unsigned 8bit format ([0,255] range)
@@ -419,7 +426,7 @@ class XRImage(object):
 
     def pil_image(self, fill_value=None):
         """Return a PIL image from the current image."""
-        channels, mode = self._finalize(fill_value)
+        channels, mode = self.finalize(fill_value)
         return Pil.fromarray(
             np.asanyarray(channels.transpose('y', 'x', 'bands').values),
             mode)
