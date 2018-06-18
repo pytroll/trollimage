@@ -23,7 +23,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """This module defines the image class. It overlaps largely the PIL library,
-but has the advandage of using masked arrays as pixel arrays, so that data
+but has the advantage of using masked arrays as pixel arrays, so that data
 arrays containing invalid values may be properly handled.
 """
 

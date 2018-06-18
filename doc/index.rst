@@ -18,6 +18,7 @@ Contents:
    :maxdepth: 2
 
    image
+   xrimage
    colorspaces
    colormap
 
