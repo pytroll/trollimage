@@ -1233,8 +1233,6 @@ class TestXRImage(unittest.TestCase):
     def test_show(self):
         """Test that the show commands calls PIL.show"""
         import xarray as xr
-        import dask.array as da
-        from dask.delayed import Delayed
         from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
