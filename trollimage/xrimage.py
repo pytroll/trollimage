@@ -34,7 +34,7 @@ import logging
 import os
 
 import numpy as np
-from PIL import Image as Pil
+from PIL import Image as PILImage
 import xarray as xr
 import xarray.ufuncs as xu
 import dask
@@ -396,7 +396,7 @@ class XRImage(object):
         import warnings
         warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
                       DeprecationWarning)
-        return super(XRImage, self).finalize(fill_value, dtype)
+        return self.finalize(fill_value, dtype)
 
     def finalize(self, fill_value=None, dtype=np.uint8):
         """Finalize the image.
@@ -430,7 +430,7 @@ class XRImage(object):
     def pil_image(self, fill_value=None):
         """Return a PIL image from the current image."""
         channels, mode = self.finalize(fill_value)
-        return Pil.fromarray(
+        return PILImage.fromarray(
             np.asanyarray(channels.transpose('y', 'x', 'bands').values),
             mode)
 

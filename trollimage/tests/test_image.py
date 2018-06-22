@@ -29,10 +29,13 @@ import random
 import unittest
 import tempfile
 from tempfile import NamedTemporaryFile
-
 import numpy as np
-
 from trollimage import image
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 EPSILON = 0.0001
 
@@ -1228,7 +1231,19 @@ class TestXRImage(unittest.TestCase):
         pass
 
     def test_show(self):
-        pass
+        """Test that the show commands calls PIL.show"""
+        import xarray as xr
+        import dask.array as da
+        from dask.delayed import Delayed
+        from trollimage import xrimage
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        with mock.patch.object(
+                xrimage.PILImage.Image, 'save', return_value=None) as s:
+            img.show()
+            s.assert_called_once()
 
 
 def suite():
