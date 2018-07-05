@@ -1,37 +1,40 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-# Copyright (c) 2009-2015
-
+#
+# Copyright (c) 2017-2018
+#
 # Author(s):
-
+#
 #   Martin Raspaud <martin.raspaud@smhi.se>
 #   Adam Dybbroe <adam.dybbroe@smhi.se>
 #   Esben S. Nielsen <esn@dmi.dk>
-
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""This module defines the XRImage class. It overlaps largely with the PIL
+library, but has the advantage of using :class:`~xarray.DataArray` objects
+backed by :class:`dask arrays <dask.array.Array>` as pixel arrays. This
+allows for invalid values to be tracked, metadata to be assigned, and
+stretching to be lazy evaluated. With the optional ``rasterio`` library
+installed dask array chunks can be saved in parallel.
 
-"""This module defines the image class. It overlaps largely the PIL library,
-but has the advandage of using masked arrays as pixel arrays, so that data
-arrays containing invalid values may be properly handled.
 """
 
 import logging
 import os
 
 import numpy as np
-from PIL import Image as Pil
+from PIL import Image as PILImage
 import xarray as xr
 import xarray.ufuncs as xu
 import dask
@@ -225,7 +228,7 @@ class XRImage(object):
             fformat (str): File format of output file (optional). Can be
                            one of many image formats supported by the
                            `rasterio` or `PIL` libraries ('jpg', 'png',
-                           'tif'). By default this is deteremined by the
+                           'tif'). By default this is determined by the
                            extension of the provided filename.
             fill_value (float): Replace invalid data values with this value
                                 and do not produce an Alpha band. Default
@@ -235,8 +238,8 @@ class XRImage(object):
                             a `dask.Delayed` object or a tuple of
                             ``(source, target)`` to be passed to
                             `dask.array.store`.
-            **format_kwargs: Additional format options to pass to `rasterio`
-                             or `PIL` saving methods.
+            format_kwargs: Additional format options to pass to `rasterio`
+                           or `PIL` saving methods.
 
         Returns:
             Either `None` if `compute` is True or a `dask.Delayed` object or
@@ -265,7 +268,7 @@ class XRImage(object):
                    'tif': 'GTiff'}
         driver = drivers.get(fformat, fformat)
 
-        data, mode = self._finalize(fill_value, dtype=dtype)
+        data, mode = self.finalize(fill_value, dtype=dtype)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -389,6 +392,13 @@ class XRImage(object):
         return data
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
+        """Wrapper around 'finalize' method for backwards compatibility."""
+        import warnings
+        warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
+                      DeprecationWarning)
+        return self.finalize(fill_value, dtype)
+
+    def finalize(self, fill_value=None, dtype=np.uint8):
         """Finalize the image.
 
         This sets the channels in unsigned 8bit format ([0,255] range)
@@ -419,8 +429,8 @@ class XRImage(object):
 
     def pil_image(self, fill_value=None):
         """Return a PIL image from the current image."""
-        channels, mode = self._finalize(fill_value)
-        return Pil.fromarray(
+        channels, mode = self.finalize(fill_value)
+        return PILImage.fromarray(
             np.asanyarray(channels.transpose('y', 'x', 'bands').values),
             mode)
 
@@ -778,3 +788,9 @@ class XRImage(object):
     def show(self):
         """Display the image on screen."""
         self.pil_image().show()
+
+    def _repr_png_(self):
+        import io
+        b = io.BytesIO()
+        self.pil_image().save(b, format='png')
+        return b.getvalue()

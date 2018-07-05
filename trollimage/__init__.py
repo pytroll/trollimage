@@ -22,3 +22,5 @@
 
 """The trollimage package
 """
+
+from trollimage.version import __version__  # noqa
