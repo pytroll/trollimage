@@ -2,6 +2,23 @@ Changelog
 =========
 
 
+v1.5.4 (2018-07-24)
+-------------------
+- Update changelog. [David Hoese]
+- Bump version: 1.5.3 → 1.5.4. [David Hoese]
+- Merge pull request #20 from pytroll/feature-finalize-public. [David
+  Hoese]
+
+  Feature finalize public
+- Remove unused imports in show test. [davidh-ssec]
+- Add test for XRImage.show. [davidh-ssec]
+- Fix styling issues. [davidh-ssec]
+- Fixing style errors. [stickler-ci]
+- Fix sphinx documentation including adding xrimage docs. [davidh-ssec]
+- Deprecate _finalize in favor of finalize. [davidh-ssec]
+- Add `_repr_png_` to XRImage. [davidh-ssec]
+
+
 v1.5.3 (2018-05-17)
 -------------------
 - Update changelog. [davidh-ssec]
