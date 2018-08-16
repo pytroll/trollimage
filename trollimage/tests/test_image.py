@@ -795,6 +795,18 @@ class TestXRImage(unittest.TestCase):
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
+        # Single band image
+        data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 75., dims=[
+                            'y', 'x', 'bands'], coords={'bands': ['L']})
+        # Single band image to JPEG
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.jpg') as tmp:
+            img.save(tmp.name, fill_value=0)
+        # As PNG that support alpha channel
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name)
+
         data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 75.,
                                           chunks=5),
                             dims=['y', 'x', 'bands'],
@@ -802,6 +814,7 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
+
         data = data.where(data > (10 / 75.0))
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
