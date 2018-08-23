@@ -299,7 +299,7 @@ class XRImage(object):
                 if "start_time" in data.attrs:
                     stime = data.attrs['start_time']
                     stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
-                    tags.setdefault('TIFFTAG_DATETIME', stime_str})
+                    tags.setdefault('TIFFTAG_DATETIME', stime_str)
 
             except (KeyError, AttributeError):
                 logger.info("Couldn't create geotransform")
