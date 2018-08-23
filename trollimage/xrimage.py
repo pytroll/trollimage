@@ -430,9 +430,8 @@ class XRImage(object):
     def pil_image(self, fill_value=None):
         """Return a PIL image from the current image."""
         channels, mode = self.finalize(fill_value)
-        return PILImage.fromarray(
-            np.asanyarray(channels.transpose('y', 'x', 'bands').values),
-            mode)
+        res = np.asanyarray(channels.transpose('y', 'x', 'bands').values)
+        return PILImage.fromarray(np.squeeze(res), mode)
 
     def xrify_tuples(self, tup):
         """Make xarray.DataArray from tuple."""
