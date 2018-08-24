@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+v1.5.6 (2018-08-24)
+-------------------
+- Update changelog. [David Hoese]
+- Bump version: 1.5.5 → 1.5.6. [David Hoese]
+- Revert broken change to Colormap. [David Hoese]
+- Update version to v1.5.6a0.dev0. [David Hoese]
+
+
 v1.5.5 (2018-08-24)
 -------------------
 - Update changelog. [David Hoese]
