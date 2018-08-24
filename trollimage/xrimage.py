@@ -260,7 +260,7 @@ class XRImage(object):
                                  compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, compute=True, **format_kwargs):
+                 dtype=np.uint8, compute=True, tags={}, **format_kwargs):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
@@ -272,7 +272,6 @@ class XRImage(object):
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
-        new_tags = {}
         crs = None
         transform = None
         if driver == 'GTiff':
@@ -300,14 +299,14 @@ class XRImage(object):
                 if "start_time" in data.attrs:
                     stime = data.attrs['start_time']
                     stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
-                    new_tags = {'TIFFTAG_DATETIME': stime_str}
+                    tags.setdefault('TIFFTAG_DATETIME', stime_str)
 
             except (KeyError, AttributeError):
                 logger.info("Couldn't create geotransform")
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
-        # FIXME add png metadata
+        # FIXME add metadata
         r_file = RIOFile(filename, 'w', driver=driver,
                          width=data.sizes['x'], height=data.sizes['y'],
                          count=data.sizes['bands'],
@@ -316,7 +315,7 @@ class XRImage(object):
                          crs=crs, transform=transform, **format_kwargs)
         r_file.open()
         r_file.colorinterp = color_interp(data)
-        r_file.rfile.update_tags(**new_tags)
+        r_file.rfile.update_tags(**tags)
 
         if compute:
             # write data to the file now
