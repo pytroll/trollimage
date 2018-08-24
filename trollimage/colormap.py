@@ -87,7 +87,8 @@ class Colormap(object):
     """
 
     def __init__(self, *tuples):
-        values, colors = zip(*tuples)
+        values = [a for (a, b) in tuples]
+        colors = [b for (a, b) in tuples]
         self.values = np.array(values)
         self.colors = np.array(colors)
 
