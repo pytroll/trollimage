@@ -2,6 +2,28 @@ Changelog
 =========
 
 
+v1.5.5 (2018-08-24)
+-------------------
+- Update changelog. [David Hoese]
+- Bump version: 1.5.4 → 1.5.5. [David Hoese]
+- Make small code cleanup in Colormap. [David Hoese]
+- Merge pull request #25 from yufeizhu600/master. [David Hoese]
+
+  Add support for custom rasterio 'tags' when saving geotiffs
+- Fix typo in xrimage. [David Hoese]
+
+  This is what I get for using the github editor
+- Change TIFFTAG_DATETIME to only overwrite if not specified. [David
+  Hoese]
+- Add support of customized tags to rasterio image saving. [Yufei Zhu]
+- Merge pull request #24 from pytroll/bugfix-L-mode. [David Hoese]
+
+  Fix writing 'L' mode images with extra dimensions
+- Add tests for saving single band images. [Panu Lahtinen]
+- Remove extra dimension from the image array. [Panu Lahtinen]
+- Update version to 1.5.5a0.dev0. [David Hoese]
+
+
 v1.5.4 (2018-07-24)
 -------------------
 - Update changelog. [David Hoese]
