@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+v1.5.7 (2018-08-28)
+-------------------
+- Update changelog. [David Hoese]
+- Bump version: 1.5.6 → 1.5.7. [David Hoese]
+- Change default value of `tags` kwarg to `None` (#26) [Panu Lahtinen]
+- Update to version v1.5.7a0.dev0. [David Hoese]
+
+
 v1.5.6 (2018-08-24)
 -------------------
 - Update changelog. [David Hoese]
