@@ -260,13 +260,16 @@ class XRImage(object):
                                  compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, compute=True, tags={}, **format_kwargs):
+                 dtype=np.uint8, compute=True, tags=None, **format_kwargs):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
                    'tif': 'GTiff'}
         driver = drivers.get(fformat, fformat)
+
+        if tags is None:
+            tags = {}
 
         data, mode = self.finalize(fill_value, dtype=dtype)
         data = data.transpose('bands', 'y', 'x')
