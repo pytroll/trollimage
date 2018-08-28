@@ -23,4 +23,4 @@
 """Version file.
 """
 
-__version__ = "v1.5.7a0.dev0"
+__version__ = "v1.5.7"
