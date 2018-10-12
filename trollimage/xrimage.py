@@ -717,7 +717,7 @@ class XRImage(object):
 
         # TODO: xarray-ify colorize
         # delayed = dask.delayed(colormap.colorize)(l_data.data)
-        delayed = dask.delayed(_colorize)(colormap, l_data)
+        delayed = dask.delayed(_colorize)(colormap, l_data.data)
         shape = (3, l_data.sizes['y'], l_data.sizes['x'])
         new_data = da.from_delayed(delayed, shape=shape, dtype=np.float64)
 
