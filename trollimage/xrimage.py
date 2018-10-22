@@ -393,6 +393,74 @@ class XRImage(object):
             data = data.fillna(fill_value)
         return data
 
+    def _check_modes(self, modes):
+        """Check that the image is in on of the given *modes*, raise an
+        exception otherwise.
+        """
+        if not isinstance(modes, (tuple, list, set)):
+            modes = [modes]
+        if self.mode not in modes:
+            raise ValueError("Image not in suitable mode: %s" % modes)
+
+    def _from_p(self, mode):
+        """Convert the image from P or PA mode to RGB or RGBA
+        """
+        self._check_modes(("P", "PA"))
+
+        if self.mode.endswith("A"):
+            alpha = self.data.sel(bands=['A'])
+        else:
+            alpha = None
+                
+        pal = np.array(self.palette)
+    
+        chan = []
+        new_data = []
+
+        for i in range(len(self.palette[0])):
+            chan = np.interp(self.data.values[0], np.arange(len(self.palette)), pal[:, i]) 
+            new_data.append(chan)
+        color_data = np.array(new_data)
+         
+        dims = (str(color_data.shape[0]), str(color_data.shape[1]), str(color_data.shape[2]))        
+        coords = dict(self.data.coords)
+        coords['bands'] = list(mode)
+
+        new_data = xr.DataArray(color_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+
+        self.data = new_data
+
+        if alpha is not None:
+            self.channels.append(alpha)
+            self.mode = self.mode + "A"
+
+        self.convert(mode)
+        
+    
+    def convert(self, mode):
+        if mode == self.mode:
+            return
+        
+        if mode not in ["RGB", "RGBA"]:
+            raise ValueError("Mode %s not recognized." % (mode)) 
+        elif mode.endswith("A") and not self.mode.endswith("A"):
+            self.convert(self.mode + "A")
+            self.convert(mode)
+        elif self.mode.endswith("A") and not mode.endswith("A"):
+            self.convert(self.mode[:-1])
+            self.convert(mode)
+        else:
+            cases = {
+                "P": {"RGB": self._from_p},
+                "PA": {"RGBA": self._from_p}
+            }
+            try:
+                cases[self.mode][mode](mode)
+            except KeyError:
+                raise ValueError("Conversion from %s to %s not implemented !"
+                                 % (self.mode, mode))
+
+
     def _finalize(self, fill_value=None, dtype=np.uint8):
         """Wrapper around 'finalize' method for backwards compatibility."""
         import warnings
@@ -406,11 +474,10 @@ class XRImage(object):
         This sets the channels in unsigned 8bit format ([0,255] range)
         (if the *dtype* doesn't say otherwise).
         """
-        # if self.mode == "P":
-        #     self.convert("RGB")
-        # if self.mode == "PA":
-        #     self.convert("RGBA")
-        #
+        if self.mode == "P":
+            self.convert("RGB")
+        if self.mode == "PA":
+            self.convert("RGBA")
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
