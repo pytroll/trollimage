@@ -411,22 +411,25 @@ class XRImage(object):
             alpha = self.data.sel(bands=['A'])
         else:
             alpha = None
-                
+
         pal = np.array(self.palette)
-    
+
         chan = []
         new_data = []
 
         for i in range(len(self.palette[0])):
-            chan = np.interp(self.data.values[0], np.arange(len(self.palette)), pal[:, i]) 
+            chan = np.interp(self.data.values[0], np.arange(
+                len(self.palette)), pal[:, i])
             new_data.append(chan)
         color_data = np.array(new_data)
-         
-        dims = (str(color_data.shape[0]), str(color_data.shape[1]), str(color_data.shape[2]))        
+
+        dims = (str(color_data.shape[0]), str(
+            color_data.shape[1]), str(color_data.shape[2]))
         coords = dict(self.data.coords)
         coords['bands'] = list(mode)
 
-        new_data = xr.DataArray(color_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        new_data = xr.DataArray(color_data, coords=coords,
+                                attrs=self.data.attrs, dims=self.data.dims)
 
         self.data = new_data
 
@@ -435,14 +438,13 @@ class XRImage(object):
             self.mode = self.mode + "A"
 
         self.convert(mode)
-        
-    
+
     def convert(self, mode):
         if mode == self.mode:
             return
-        
+
         if mode not in ["RGB", "RGBA"]:
-            raise ValueError("Mode %s not recognized." % (mode)) 
+            raise ValueError("Mode %s not recognized." % (mode))
         elif mode.endswith("A") and not self.mode.endswith("A"):
             self.convert(self.mode + "A")
             self.convert(mode)
@@ -459,7 +461,6 @@ class XRImage(object):
             except KeyError:
                 raise ValueError("Conversion from %s to %s not implemented !"
                                  % (self.mode, mode))
-
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
         """Wrapper around 'finalize' method for backwards compatibility."""
