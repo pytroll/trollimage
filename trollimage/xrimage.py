@@ -411,31 +411,52 @@ class XRImage(object):
             alpha = self.data.sel(bands=['A'])
         else:
             alpha = None
-                
+
         pal = np.array(self.palette)
-    
-        chan = []
-        new_data = []
+        new_data2 = []
 
-        for i in range(len(self.palette[0])):
-            chan = np.interp(self.data.values[0], np.arange(len(self.palette)), pal[:, i]) 
-            new_data.append(chan)
-        color_data = np.array(new_data)
-         
-        dims = (str(color_data.shape[0]), str(color_data.shape[1]), str(color_data.shape[2]))        
+        for i in range(3):
+            new_data2.append(pal[self.data.values[0].ravel(), i].reshape((1,) + self.data.shape[1:3]))
+
+        new_data2 = np.squeeze(np.array(new_data2))
         coords = dict(self.data.coords)
-        coords['bands'] = list(mode)
-
-        new_data = xr.DataArray(color_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
-
-        self.data = new_data
 
         if alpha is not None:
-            self.channels.append(alpha)
-            self.mode = self.mode + "A"
+            mode = mode + "A"
+        coords['bands'] = list(mode)
+
+        new_data = xr.DataArray(new_data2, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        self.data = new_data
 
         self.convert(mode)
+   
+    def _l2rgb(self, mode):
+        """Convert from L (black and white) to RGB.
+        """
+        self._check_modes(("L", "LA"))
+       
+#        # increases dim size
+#        self.channels.append(self.channels[0].copy())
+#        self.channels.append(self.channels[0].copy())
+#
+#        # prob don't need fill value
+#        if self.fill_value is not None:
+#            self.fill_value = self.fill_value[:1] * 3 + self.fill_value[1:]
+#
+#        # switch alpha channel with last channel
+#        if self.mode == "LA":
+#            self.channels[1], self.channels[3] = \
+#                self.channels[3], self.channels[1]
+
+        #data = np.array([np.full(self.data.shape, 0.5) for _ in range(3)])
+        data = np.array([self.data.values for _ in range(len(self.data.values) + 2)])
         
+        data = np.squeeze(data)
+        
+        coords = dict(self.data.coords)
+        coords['bands'] = list(mode)
+        new_data = xr.DataArray(data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        self.data = new_data
     
     def convert(self, mode):
         if mode == self.mode:
@@ -451,8 +472,10 @@ class XRImage(object):
             self.convert(mode)
         else:
             cases = {
-                "P": {"RGB": self._from_p},
-                "PA": {"RGBA": self._from_p}
+                "P" : {"RGB" : self._from_p},
+                "PA": {"RGBA": self._from_p},
+                "L" : {"RGB" : self._l2rgb},
+                "LA": {"RGBA": self._l2rgb} 
             }
             try:
                 cases[self.mode][mode](mode)
@@ -474,10 +497,17 @@ class XRImage(object):
         This sets the channels in unsigned 8bit format ([0,255] range)
         (if the *dtype* doesn't say otherwise).
         """
+
+        print("got here")
+        print(self.data.values)    
+        print(self.data)
+
         if self.mode == "P":
             self.convert("RGB")
         if self.mode == "PA":
             self.convert("RGBA")
+        if self.mode == "L":
+            self.convert("RGB")
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
