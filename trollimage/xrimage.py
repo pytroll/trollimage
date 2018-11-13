@@ -413,20 +413,20 @@ class XRImage(object):
             alpha = None
 
         pal = np.array(self.palette)
-        new_data2 = []
+        new_data = []
 
         for i in range(3):
-            new_data2.append(pal[self.data.values[0].ravel(), i].reshape((1,) + self.data.shape[1:3]))
+            new_data.append(pal[self.data.values[0].ravel(), i].reshape((1,) + self.data.shape[1:3]))
 
-        new_data2 = np.squeeze(np.array(new_data2))
+        new_data = np.squeeze(np.array(new_data))
         coords = dict(self.data.coords)
 
         if alpha is not None:
             mode = mode + "A"
         coords['bands'] = list(mode)
 
-        new_data = xr.DataArray(new_data2, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
-        self.data = new_data
+        data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        self.data = data
 
         self.convert(mode)
    
@@ -449,14 +449,13 @@ class XRImage(object):
 #                self.channels[3], self.channels[1]
 
         #data = np.array([np.full(self.data.shape, 0.5) for _ in range(3)])
-        data = np.array([self.data.values for _ in range(len(self.data.values) + 2)])
         
-        data = np.squeeze(data)
-        
-        coords = dict(self.data.coords)
-        coords['bands'] = list(mode)
-        new_data = xr.DataArray(data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
-        self.data = new_data
+        bands = ['L'] * 3
+        if mode[-1] == 'A':
+            bands.append('A')
+        data = self.data.sel(bands=bands)
+        data['bands'] = list(mode)
+        self.data = data
     
     def convert(self, mode):
         if mode == self.mode:
@@ -478,10 +477,12 @@ class XRImage(object):
                 "LA": {"RGBA": self._l2rgb} 
             }
             try:
-                cases[self.mode][mode](mode)
+                data = cases[self.mode][mode](mode)
             except KeyError:
                 raise ValueError("Conversion from %s to %s not implemented !"
                                  % (self.mode, mode))
+
+            self.data = data
 
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
@@ -506,8 +507,6 @@ class XRImage(object):
             self.convert("RGB")
         if self.mode == "PA":
             self.convert("RGBA")
-        if self.mode == "L":
-            self.convert("RGB")
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
