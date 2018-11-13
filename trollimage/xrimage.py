@@ -416,7 +416,8 @@ class XRImage(object):
         new_data = []
 
         for i in range(3):
-            new_data.append(pal[self.data.values[0].ravel(), i].reshape((1,) + self.data.shape[1:3]))
+            new_data.append(pal[self.data.values[0].ravel(), i].reshape(
+                (1,) + self.data.shape[1:3]))
 
         new_data = np.squeeze(np.array(new_data))
         coords = dict(self.data.coords)
@@ -425,23 +426,24 @@ class XRImage(object):
             mode = mode + "A"
         coords['bands'] = list(mode)
 
-        data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        data = xr.DataArray(new_data, coords=coords,
+                            attrs=self.data.attrs, dims=self.data.dims)
         self.data = data
 
         self.convert(mode)
-   
+
     def _l2rgb(self, mode):
         """Convert from L (black and white) to RGB.
         """
         self._check_modes(("L", "LA"))
-       
+
         bands = ['L'] * 3
         if mode[-1] == 'A':
             bands.append('A')
         data = self.data.sel(bands=bands)
         data['bands'] = list(mode)
         self.data = data
-    
+
     def convert(self, mode):
         if mode == self.mode:
             return
@@ -456,17 +458,17 @@ class XRImage(object):
             self.convert(mode)
         else:
             cases = {
-                "P" : {"RGB" : self._from_p},
+                "P": {"RGB": self._from_p},
                 "PA": {"RGBA": self._from_p},
-                "L" : {"RGB" : self._l2rgb},
-                "LA": {"RGBA": self._l2rgb} 
+                "L": {"RGB": self._l2rgb},
+                "LA": {"RGBA": self._l2rgb}
             }
             try:
                 data = cases[self.mode][mode](mode)
             except KeyError:
                 raise ValueError("Conversion from %s to %s not implemented !"
                                  % (self.mode, mode))
-            
+
             self.data = data
 
     def _finalize(self, fill_value=None, dtype=np.uint8):

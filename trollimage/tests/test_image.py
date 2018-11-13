@@ -1210,7 +1210,8 @@ class TestXRImage(unittest.TestCase):
         values = img.data.values
         expected = np.concatenate((expected,
                                    alpha.reshape((1,) + alpha.shape)))
-        np.testing.assert_allclose(values, expected, rtol=2e-07)  # python 2 hates precision
+        # python 2 hates precision
+        np.testing.assert_allclose(values, expected, rtol=2e-07)
 
     def test_palettize(self):
         import xarray as xr
