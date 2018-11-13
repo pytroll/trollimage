@@ -435,21 +435,6 @@ class XRImage(object):
         """
         self._check_modes(("L", "LA"))
        
-#        # increases dim size
-#        self.channels.append(self.channels[0].copy())
-#        self.channels.append(self.channels[0].copy())
-#
-#        # prob don't need fill value
-#        if self.fill_value is not None:
-#            self.fill_value = self.fill_value[:1] * 3 + self.fill_value[1:]
-#
-#        # switch alpha channel with last channel
-#        if self.mode == "LA":
-#            self.channels[1], self.channels[3] = \
-#                self.channels[3], self.channels[1]
-
-        #data = np.array([np.full(self.data.shape, 0.5) for _ in range(3)])
-        
         bands = ['L'] * 3
         if mode[-1] == 'A':
             bands.append('A')
@@ -460,9 +445,9 @@ class XRImage(object):
     def convert(self, mode):
         if mode == self.mode:
             return
-        
+
         if mode not in ["RGB", "RGBA"]:
-            raise ValueError("Mode %s not recognized." % (mode)) 
+            raise ValueError("Mode %s not recognized." % (mode))
         elif mode.endswith("A") and not self.mode.endswith("A"):
             self.convert(self.mode + "A")
             self.convert(mode)
@@ -481,9 +466,8 @@ class XRImage(object):
             except KeyError:
                 raise ValueError("Conversion from %s to %s not implemented !"
                                  % (self.mode, mode))
-
+            
             self.data = data
-
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
         """Wrapper around 'finalize' method for backwards compatibility."""
@@ -498,11 +482,6 @@ class XRImage(object):
         This sets the channels in unsigned 8bit format ([0,255] range)
         (if the *dtype* doesn't say otherwise).
         """
-
-        print("got here")
-        print(self.data.values)    
-        print(self.data)
-
         if self.mode == "P":
             self.convert("RGB")
         if self.mode == "PA":
