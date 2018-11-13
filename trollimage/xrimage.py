@@ -426,7 +426,8 @@ class XRImage(object):
             mode = mode + "A"
         coords['bands'] = list(mode)
 
-        data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        data = xr.DataArray(new_data, coords=coords,
+                            attrs=self.data.attrs, dims=self.data.dims)
         return data
 
     def _l2rgb(self, mode):
@@ -440,7 +441,7 @@ class XRImage(object):
         data = self.data.sel(bands=bands)
         data['bands'] = list(mode)
         return data
-    
+
     def convert(self, mode):
         if mode == self.mode:
             return
