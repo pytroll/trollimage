@@ -1196,7 +1196,7 @@ class TestXRImage(unittest.TestCase):
               3.06445966e-01,   2.81566598e-01,   2.57302099e-01,
               2.33656886e-01,   2.10634733e-01,   1.88238767e-01]]])
 
-        np.testing.assert_allclose(values, expected)
+        np.testing.assert_allclose(values, expected. rtol=2e-07)
 
         # try it with an RGB
         arr = np.arange(75).reshape(5, 15) / 74.
@@ -1210,7 +1210,7 @@ class TestXRImage(unittest.TestCase):
         values = img.data.values
         expected = np.concatenate((expected,
                                    alpha.reshape((1,) + alpha.shape)))
-        np.testing.assert_allclose(values, expected, rtol=2e-07)  # python 2 hates precision
+        np.testing.assert_allclose(values, expected)
 
     def test_palettize(self):
         import xarray as xr
