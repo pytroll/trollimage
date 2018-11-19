@@ -1260,7 +1260,7 @@ class TestXRImage(unittest.TestCase):
         #      2.33656886e-01,   2.10634733e-01,   1.88238767e-01]]])
 
         np.testing.assert_allclose(values, expected, rtol=0.001)
-
+        print(repr(values))
         # try it with an RGB
         arr = np.arange(75).reshape(5, 15) / 74.
         alpha = arr > 40.
@@ -1269,6 +1269,7 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['L', 'A']})
         img = xrimage.XRImage(data)
         img.colorize(brbg)
+
 
         values = img.data.values
         expected = np.concatenate((expected,
