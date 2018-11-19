@@ -1272,7 +1272,6 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         img.colorize(brbg)
 
-
         values = img.data.values
         expected = np.concatenate((expected,
                                    alpha.reshape((1,) + alpha.shape)))
