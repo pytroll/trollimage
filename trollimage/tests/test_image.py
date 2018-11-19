@@ -1103,6 +1103,7 @@ class TestXRImage(unittest.TestCase):
         pass
 
     def test_convert_modes(self):
+        # test if calling convert methods actaully chnage the data to the right mode
         pass
 
     def test_colorize(self):
@@ -1259,8 +1260,9 @@ class TestXRImage(unittest.TestCase):
         #      3.06445966e-01,   2.81566598e-01,   2.57302099e-01,
         #      2.33656886e-01,   2.10634733e-01,   1.88238767e-01]]])
 
-        np.testing.assert_allclose(values, expected, rtol=0.001)
         print(repr(values))
+        np.testing.assert_allclose(values, expected, rtol=0.001)
+
         # try it with an RGB
         arr = np.arange(75).reshape(5, 15) / 74.
         alpha = arr > 40.
