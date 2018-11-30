@@ -1122,7 +1122,7 @@ class TestXRImage(unittest.TestCase):
         img = img.convert('LA')
         self.assertTrue(img.mode == 'LA')
         self.assertTrue(len(img.data.coords['bands']) == 2)
- 
+
         img = img.convert('L')
         self.assertTrue(img.mode == 'L')
         self.assertTrue(len(img.data.coords['bands']) == 1)
