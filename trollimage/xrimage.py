@@ -771,8 +771,12 @@ class XRImage(object):
                                                    img.channels[i].mask)
 
     def colorize(self, colormap):
-        """Colorize the current image using
-        *colormap*. Works only on"L" or "LA" images.
+        """Colorize the current image using *colormap*.
+
+        .. note::
+
+            Works only on "L" or "LA" images.
+
         """
 
         if self.mode not in ("L", "LA"):
@@ -787,11 +791,12 @@ class XRImage(object):
 
         # TODO: dask-ify colorize
         def _colorize(colormap, l_data):
-            channels = colormap.colorize(l_data.data)
+            # 'l_data' is (1, rows, cols)
+            # 'channels' will be a list of 3 (RGB) or 4 (RGBA) arrays
+            channels = colormap.colorize(l_data)
             return np.concatenate(channels, axis=0)
 
         # TODO: xarray-ify colorize
-        # delayed = dask.delayed(colormap.colorize)(l_data.data)
         delayed = dask.delayed(_colorize)(colormap, l_data.data)
         shape = (3, l_data.sizes['y'], l_data.sizes['x'])
         new_data = da.from_delayed(delayed, shape=shape, dtype=np.float64)
@@ -807,8 +812,7 @@ class XRImage(object):
         coords['bands'] = list(mode)
         attrs = self.data.attrs
         dims = self.data.dims
-        self.data = xr.DataArray(new_data, coords=coords, attrs=attrs,
-                                 dims=dims)
+        self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
 
     def palettize(self, colormap):
         """Palettize the current image using
@@ -844,8 +848,7 @@ class XRImage(object):
         self.data.coords['bands'] = list(mode)
 
     def blend(self, other):
-        """Alpha blend *other* on top of the current image.
-        """
+        """Alpha blend *other* on top of the current image."""
         raise NotImplementedError("This method has not be implemented for "
                                   "xarray support.")
 
