@@ -789,17 +789,14 @@ class XRImage(object):
 
         l_data = self.data.sel(bands=['L'])
 
-        # TODO: dask-ify colorize
-        def _colorize(colormap, l_data):
+        def _colorize(l_data, colormap):
             # 'l_data' is (1, rows, cols)
             # 'channels' will be a list of 3 (RGB) or 4 (RGBA) arrays
             channels = colormap.colorize(l_data)
             return np.concatenate(channels, axis=0)
 
-        # TODO: xarray-ify colorize
-        delayed = dask.delayed(_colorize)(colormap, l_data.data)
-        shape = (3, l_data.sizes['y'], l_data.sizes['x'])
-        new_data = da.from_delayed(delayed, shape=shape, dtype=np.float64)
+        new_data = l_data.data.map_blocks(_colorize, colormap,
+                                          chunks=(3,) + l_data.data.chunks[1:], dtype=np.float64)
 
         if alpha is not None:
             new_data = da.concatenate([new_data, alpha.data], axis=0)
