@@ -403,31 +403,38 @@ class XRImage(object):
             raise ValueError("Image not in suitable mode: %s" % modes)
 
     def _from_p(self, mode):
-        """Convert the image from P or PA mode to RGB or RGBA
+        """Convert the image from P or PA to RGB or RGBA.
         """
         self._check_modes(("P", "PA"))
 
         if self.mode.endswith("A"):
-            alpha = self.data.sel(bands=['A'])
+            alpha = np.array(self.data.sel(bands=["A"]).data)
+            mode = mode + "A" if not mode.endswith("A") else mode
         else:
             alpha = None
 
         pal = np.array(self.palette)
         new_data = []
 
+        data = self.data.data.compute()
+
         for i in range(3):
-            new_data.append(pal[self.data.values[0].ravel(), i].reshape(
+            new_data.append(pal[data[0].ravel().astype("int64"), i].reshape(
                 (1,) + self.data.shape[1:3]))
 
         new_data = np.squeeze(np.array(new_data))
+
         coords = dict(self.data.coords)
+        coords["bands"] = list(mode)
 
         if alpha is not None:
-            mode = mode + "A"
-        coords['bands'] = list(mode)
+            new_arr = np.append(new_data, alpha, axis=0)
+            data = xr.DataArray(new_arr, coords=coords, 
+                                attrs=self.data.attrs, dims=self.data.dims)
+        else:
+            data = xr.DataArray(new_data, coords=coords, 
+                                attrs=self.data.attrs, dims=self.data.dims)
 
-        data = xr.DataArray(new_data, coords=coords,
-                            attrs=self.data.attrs, dims=self.data.dims)
         return data
 
     def _l2rgb(self, mode):
@@ -435,25 +442,36 @@ class XRImage(object):
         """
         self._check_modes(("L", "LA"))
 
-        bands = ['L'] * 3
-        if mode[-1] == 'A':
-            bands.append('A')
+        bands = ["L"] * 3 
+        if mode[-1] == "A":
+            bands.append("A")
         data = self.data.sel(bands=bands)
-        data['bands'] = list(mode)
+        data["bands"] = list(mode)
         return data
 
     def convert(self, mode):
         if mode == self.mode:
             return
 
-        if mode not in ["RGB", "RGBA"]:
+        if mode not in ["P", "PA", "L", "LA", "RGB", "RGBA"]:
             raise ValueError("Mode %s not recognized." % (mode))
+        
+        if mode == self.mode + "A":
+            data = self.fill_or_alpha(self.data)
+            coords = dict(self.data.coords)
+            coords["bands"] = list(mode)
+            data = xr.DataArray(data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        elif mode + "A" == self.mode:
+            no_alpha = self.data.sel(bands=[b for b in self.data.coords["bands"].values if b != "A"])
+            coords = dict(self.data.coords)
+            coords["bands"] = list(mode)
+            data = xr.DataArray(no_alpha, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
         elif mode.endswith("A") and not self.mode.endswith("A"):
-            self.convert(self.mode + "A")
-            self.convert(mode)
+            self.data = self.convert(self.mode + "A").data
+            data = self.convert(mode).data
         elif self.mode.endswith("A") and not mode.endswith("A"):
-            self.convert(self.mode[:-1])
-            self.convert(mode)
+            self.data = self.convert(self.mode[:-1]).data
+            data = self.convert(mode).data
         else:
             cases = {
                 "P": {"RGB": self._from_p},
@@ -467,7 +485,7 @@ class XRImage(object):
                 raise ValueError("Conversion from %s to %s not implemented !"
                                  % (self.mode, mode))
 
-            self.data = data
+        return XRImage(data)
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
         """Wrapper around 'finalize' method for backwards compatibility."""
@@ -483,9 +501,9 @@ class XRImage(object):
         (if the *dtype* doesn't say otherwise).
         """
         if self.mode == "P":
-            self.convert("RGB")
+            return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype)
         if self.mode == "PA":
-            self.convert("RGBA")
+            return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
