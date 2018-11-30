@@ -432,7 +432,7 @@ class XRImage(object):
             data = xr.DataArray(new_arr, coords=coords,
                                 attrs=self.data.attrs, dims=self.data.dims)
         else:
-            data = xr.DataArray(new_data, coords=coords, 
+            data = xr.DataArray(new_data, coords=coords,
                                 attrs=self.data.attrs, dims=self.data.dims)
 
         return data
