@@ -429,7 +429,7 @@ class XRImage(object):
 
         if alpha is not None:
             new_arr = np.append(new_data, alpha, axis=0)
-            data = xr.DataArray(new_arr, coords=coords, 
+            data = xr.DataArray(new_arr, coords=coords,
                                 attrs=self.data.attrs, dims=self.data.dims)
         else:
             data = xr.DataArray(new_data, coords=coords, 
@@ -442,7 +442,7 @@ class XRImage(object):
         """
         self._check_modes(("L", "LA"))
 
-        bands = ["L"] * 3 
+        bands = ["L"] * 3
         if mode[-1] == "A":
             bands.append("A")
         data = self.data.sel(bands=bands)
@@ -455,7 +455,7 @@ class XRImage(object):
 
         if mode not in ["P", "PA", "L", "LA", "RGB", "RGBA"]:
             raise ValueError("Mode %s not recognized." % (mode))
-        
+
         if mode == self.mode + "A":
             data = self.fill_or_alpha(self.data)
             coords = dict(self.data.coords)
