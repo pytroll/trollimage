@@ -836,7 +836,7 @@ class XRImage(object):
             mode = "P"
         else:
             mode = "PA"
-            new_data = da.concatenate(new_data, self.data.sel(bands=['A']), axis=0)
+            new_data = da.concatenate([new_data, self.data.sel(bands=['A'])], axis=0)
 
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
