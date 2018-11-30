@@ -771,7 +771,7 @@ class XRImage(object):
                                                    img.channels[i].mask)
 
     def colorize(self, colormap):
-        """Colorize the current image using *colormap*.
+        """Colorize the current image using `colormap`.
 
         .. note::
 
@@ -812,8 +812,12 @@ class XRImage(object):
         self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
 
     def palettize(self, colormap):
-        """Palettize the current image using
-        *colormap*. Works only on"L" or "LA" images.
+        """Palettize the current image using `colormap`.
+
+        .. note::
+
+            Works only on "L" or "LA" images.
+
         """
 
         if self.mode not in ("L", "LA"):
@@ -822,24 +826,17 @@ class XRImage(object):
         l_data = self.data.sel(bands=['L'])
 
         def _palettize(data):
-            arr, palette = colormap.palettize(data.reshape(data.shape[1:]))
-            new_shape = (1, arr.shape[0], arr.shape[1])
-            arr = arr.reshape(new_shape)
-            return arr, palette
+            # returns data and palette, only need data
+            return colormap.palettize(data)[0]
 
-        delayed = dask.delayed(_palettize)(l_data.data)
-        new_data, palette = delayed[0], delayed[1]
-        new_data = da.from_delayed(new_data, shape=l_data.shape,
-                                   dtype=l_data.dtype)
-        # XXX: Can we complete this method without computing the data?
-        new_data, self.palette = da.compute(new_data, palette)
-        new_data = da.from_array(new_data,
-                                 chunks=self.data.data.chunks)
+        new_data = l_data.data.map_blocks(_palettize, dtype=l_data.dtype)
+        self.palette = tuple(colormap.colors)
 
         if self.mode == "L":
             mode = "P"
         else:
             mode = "PA"
+            new_data = da.concatenate(new_data, self.data.sel(bands=['A']), axis=0)
 
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
