@@ -164,10 +164,10 @@ def color_interp(data):
 
 
 class XRImage(object):
-    """Image class using xarray as internal storage."""
+    """Image class using an :class:`xarray.DataArray` as internal storage."""
 
     def __init__(self, data):
-        """Initialize the image."""
+        """Initialize the image with a :class:`~xarray.DataArray`."""
         data = self._correct_dims(data)
 
         # 'data' is an XArray, get the data from it as a dask array

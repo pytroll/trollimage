@@ -23,7 +23,6 @@ Contents:
    colormap
 
 
-
 Indices and tables
 ==================
 
