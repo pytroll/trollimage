@@ -1,5 +1,6 @@
+===========
 Colorspaces
------------
+===========
 
 .. automodule:: trollimage.colorspaces
    :members:
