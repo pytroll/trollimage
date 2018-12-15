@@ -40,6 +40,23 @@ except ImportError:
 EPSILON = 0.0001
 
 
+class CustomScheduler(object):
+    """Custom dask scheduler that raises an exception if dask is computed too many times."""
+
+    def __init__(self, max_computes=1):
+        """Set starting and maximum compute counts."""
+        self.max_computes = max_computes
+        self.total_computes = 0
+
+    def __call__(self, dsk, keys, **kwargs):
+        """Compute dask task and keep track of number of times we do so."""
+        import dask
+        self.total_computes += 1
+        if self.total_computes > self.max_computes:
+            raise RuntimeError("Too many dask computations were scheduled: {}".format(self.total_computes))
+        return dask.get(dsk, keys, **kwargs)
+
+
 class TestEmptyImage(unittest.TestCase):
 
     """Class for testing the mpop.imageo.image module
@@ -1103,6 +1120,7 @@ class TestXRImage(unittest.TestCase):
         pass
 
     def test_convert_modes(self):
+        import dask
         import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import brbg
@@ -1117,40 +1135,43 @@ class TestXRImage(unittest.TestCase):
         dataset3 = xr.DataArray(arr3.copy(), dims=['bands', 'x', 'y'],
                                 coords={'bands': ['P', 'A']})
 
-        img = xrimage.XRImage(dataset1)
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = xrimage.XRImage(dataset1)
 
-        img = img.convert('LA')
-        self.assertTrue(img.mode == 'LA')
-        self.assertTrue(len(img.data.coords['bands']) == 2)
+            img = img.convert('LA')
+            self.assertTrue(img.mode == 'LA')
+            self.assertTrue(len(img.data.coords['bands']) == 2)
 
-        img = img.convert('L')
-        self.assertTrue(img.mode == 'L')
-        self.assertTrue(len(img.data.coords['bands']) == 1)
+            img = img.convert('L')
+            self.assertTrue(img.mode == 'L')
+            self.assertTrue(len(img.data.coords['bands']) == 1)
 
-        img = img.convert('RGB')
-        self.assertTrue(img.mode == 'RGB')
-        self.assertTrue(len(img.data.coords['bands']) == 3)
+            img = img.convert('RGB')
+            self.assertTrue(img.mode == 'RGB')
+            self.assertTrue(len(img.data.coords['bands']) == 3)
 
-        img = xrimage.XRImage(dataset2)
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = xrimage.XRImage(dataset2)
+            img = img.convert('RGBA')
+            self.assertTrue(img.mode == 'RGBA')
+            self.assertTrue(len(img.data.coords['bands']) == 4)
 
-        img = img.convert('RGBA')
-        self.assertTrue(img.mode == 'RGBA')
-        self.assertTrue(len(img.data.coords['bands']) == 4)
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = xrimage.XRImage(dataset1)
+            img.palettize(brbg)
+            pal = img.palette
 
-        img = xrimage.XRImage(dataset1)
-        img.palettize(brbg)
-        pal = img.palette
-
-        img = img.convert('RGBA')
-        self.assertTrue(img.mode == 'RGBA')
-        self.assertTrue(len(img.data.coords['bands']) == 4)
+            img = img.convert('RGBA')
+            self.assertTrue(img.mode == 'RGBA')
+            self.assertTrue(len(img.data.coords['bands']) == 4)
 
         img = xrimage.XRImage(dataset3)
         img.palette = pal
 
-        img = img.convert('RGB')
-        self.assertTrue(img.mode == 'RGB')
-        self.assertTrue(len(img.data.coords['bands']) == 3)
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = img.convert('RGB')
+            self.assertTrue(img.mode == 'RGB')
+            self.assertTrue(len(img.data.coords['bands']) == 3)
 
         self.assertRaises(ValueError, img.convert, 'A')
 
