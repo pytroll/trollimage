@@ -635,9 +635,11 @@ class XRImage(object):
         the [0,1] range.
         """
         if min_stretch is None:
-            min_stretch = self.data.min()
+            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
+            min_stretch = self.data.min(dim=non_band_dims)
         if max_stretch is None:
-            max_stretch = self.data.max()
+            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
+            max_stretch = self.data.max(dim=non_band_dims)
 
         if isinstance(min_stretch, (list, tuple)):
             min_stretch = self.xrify_tuples(min_stretch)
