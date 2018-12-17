@@ -219,7 +219,7 @@ class XRImage(object):
         return ''.join(self.data['bands'].values)
 
     def save(self, filename, fformat=None, fill_value=None, compute=True,
-             **format_kwargs):
+             keep_palette=False, cmap=None, **format_kwargs):
         """Save the image to the given *filename*.
 
         Args:
@@ -253,13 +253,15 @@ class XRImage(object):
         if fformat == 'tif' and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
+                                 keep_palette=keep_palette, cmap=cmap,
                                  **format_kwargs)
         else:
             return self.pil_save(filename, fformat, fill_value,
                                  compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, compute=True, tags=None, **format_kwargs):
+                 dtype=np.uint8, compute=True, tags=None, keep_palette=False,
+                 cmap=None, **format_kwargs):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
@@ -270,7 +272,7 @@ class XRImage(object):
         if tags is None:
             tags = {}
 
-        data, mode = self.finalize(fill_value, dtype=dtype)
+        data, mode = self.finalize(fill_value, dtype=dtype, keep_palette=keep_palette, cmap=cmap)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -483,23 +485,29 @@ class XRImage(object):
             new_img.palette = self.palette
         return new_img
 
-    def _finalize(self, fill_value=None, dtype=np.uint8):
+    def _finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
         """Wrapper around 'finalize' method for backwards compatibility."""
         import warnings
         warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
                       DeprecationWarning)
-        return self.finalize(fill_value, dtype)
+        return self.finalize(fill_value, dtype, keep_palette=keep_palette, cmap=cmap)
 
-    def finalize(self, fill_value=None, dtype=np.uint8):
+    def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
         """Finalize the image.
 
         This sets the channels in unsigned 8bit format ([0,255] range)
         (if the *dtype* doesn't say otherwise).
         """
-        if self.mode == "P":
-            return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype)
-        if self.mode == "PA":
-            return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype)
+        if keep_palette and cmap is None and self.mode.startswith('P'):
+            cmap = self.palette
+        else if keep_palette and not self.mode.startswith('P'):
+            keep_palette = False
+
+        if not keep_palette:
+            if self.mode == "P":
+                return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype)
+            if self.mode == "PA":
+                return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
@@ -508,7 +516,7 @@ class XRImage(object):
 
         final_data = self.fill_or_alpha(self.data, fill_value)
 
-        if np.issubdtype(dtype, np.integer):
+        if not keep_palette and np.issubdtype(dtype, np.integer):
             final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
             final_data = final_data.round().astype(dtype)
         else:
