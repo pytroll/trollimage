@@ -45,7 +45,7 @@ setup(name="trollimage",
       url="https://github.com/pytroll/trollimage",
       packages=['trollimage'],
       zip_safe=False,
-      install_requires=['numpy >=1.6', 'pillow', 'six'],
+      install_requires=['numpy >=1.13', 'pillow', 'six'],
       extras_require={
           'geotiff': ['rasterio'],
           'xarray': ['xarray', 'dask[array]'],

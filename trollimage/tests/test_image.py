@@ -40,6 +40,23 @@ except ImportError:
 EPSILON = 0.0001
 
 
+class CustomScheduler(object):
+    """Custom dask scheduler that raises an exception if dask is computed too many times."""
+
+    def __init__(self, max_computes=1):
+        """Set starting and maximum compute counts."""
+        self.max_computes = max_computes
+        self.total_computes = 0
+
+    def __call__(self, dsk, keys, **kwargs):
+        """Compute dask task and keep track of number of times we do so."""
+        import dask
+        self.total_computes += 1
+        if self.total_computes > self.max_computes:
+            raise RuntimeError("Too many dask computations were scheduled: {}".format(self.total_computes))
+        return dask.get(dsk, keys, **kwargs)
+
+
 class TestEmptyImage(unittest.TestCase):
 
     """Class for testing the mpop.imageo.image module
@@ -573,7 +590,7 @@ class TestRegularImage(unittest.TestCase):
 
         self.img.convert(oldmode)
 
-    @unittest.skipIf('win' in sys.platform,
+    @unittest.skipIf(sys.platform.startswith('win'),
                      "Read-only tmp dir not working under Windows")
     def test_save(self):
         """Save an image.
@@ -597,7 +614,7 @@ class TestRegularImage(unittest.TestCase):
 
         self.img.convert(oldmode)
 
-    @unittest.skipIf('win' in sys.platform,
+    @unittest.skipIf(sys.platform.startswith('win'),
                      "Read-only tmp dir not working under Windows")
     def test_save_jpeg(self):
         """Save a jpeg image.
@@ -781,7 +798,7 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'YCbCrA')
 
-    @unittest.skipIf('win' in sys.platform,
+    @unittest.skipIf(sys.platform.startswith('win'),
                      "'NamedTemporaryFile' not supported on Windows")
     def test_save(self):
         import xarray as xr
@@ -826,7 +843,7 @@ class TestXRImage(unittest.TestCase):
             self.assertIsInstance(delay, Delayed)
             delay.compute()
 
-    @unittest.skipIf('win' in sys.platform,
+    @unittest.skipIf(sys.platform.startswith('win'),
                      "'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff(self):
         import xarray as xr
@@ -1103,7 +1120,68 @@ class TestXRImage(unittest.TestCase):
         pass
 
     def test_convert_modes(self):
-        pass
+        import dask
+        import xarray as xr
+        from trollimage import xrimage
+        from trollimage.colormap import brbg
+
+        arr1 = np.arange(150).reshape(1, 15, 10) / 150.
+        arr2 = np.append(arr1, np.ones(150).reshape(arr1.shape)).reshape(2, 15, 10)
+        arr3 = (np.arange(150).reshape(2, 15, 5) / 15).astype('int64')
+        dataset1 = xr.DataArray(arr1.copy(), dims=['bands', 'y', 'x'],
+                                coords={'bands': ['L']})
+        dataset2 = xr.DataArray(arr2.copy(), dims=['bands', 'x', 'y'],
+                                coords={'bands': ['L', 'A']})
+        dataset3 = xr.DataArray(arr3.copy(), dims=['bands', 'x', 'y'],
+                                coords={'bands': ['P', 'A']})
+
+        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+            img = xrimage.XRImage(dataset1)
+
+            img = img.convert('LA')
+            self.assertTrue(img.mode == 'LA')
+            self.assertTrue(len(img.data.coords['bands']) == 2)
+            # make sure the alpha band is all opaque
+            np.testing.assert_allclose(img.data.sel(bands='A'), 1.)
+
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = img.convert('L')
+            self.assertTrue(img.mode == 'L')
+            self.assertTrue(len(img.data.coords['bands']) == 1)
+
+        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+            img = img.convert('RGB')
+            self.assertTrue(img.mode == 'RGB')
+            self.assertTrue(len(img.data.coords['bands']) == 3)
+            data = img.data.compute()
+            np.testing.assert_allclose(data.sel(bands=['R']), arr1)
+            np.testing.assert_allclose(data.sel(bands=['G']), arr1)
+            np.testing.assert_allclose(data.sel(bands=['B']), arr1)
+
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = xrimage.XRImage(dataset2)
+            img = img.convert('RGBA')
+            self.assertTrue(img.mode == 'RGBA')
+            self.assertTrue(len(img.data.coords['bands']) == 4)
+
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = xrimage.XRImage(dataset1)
+            img.palettize(brbg)
+            pal = img.palette
+
+            img = img.convert('RGBA')
+            self.assertTrue(img.mode == 'RGBA')
+            self.assertTrue(len(img.data.coords['bands']) == 4)
+
+        img = xrimage.XRImage(dataset3)
+        img.palette = pal
+
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = img.convert('RGB')
+            self.assertTrue(img.mode == 'RGB')
+            self.assertTrue(len(img.data.coords['bands']) == 3)
+
+        self.assertRaises(ValueError, img.convert, 'A')
 
     def test_colorize(self):
         import xarray as xr
@@ -1114,87 +1192,86 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(arr.copy(), dims=['y', 'x'])
         img = xrimage.XRImage(data)
         img.colorize(brbg)
-
-        values = img.data.values
+        values = img.data.compute()
 
         expected = np.array([[
-            [3.29409498e-01,   3.59108764e-01,   3.88800969e-01,
-             4.18486092e-01,   4.48164112e-01,   4.77835010e-01,
-             5.07498765e-01,   5.37155355e-01,   5.65419479e-01,
-             5.92686124e-01,   6.19861622e-01,   6.46945403e-01,
-             6.73936907e-01,   7.00835579e-01,   7.27640871e-01],
-            [7.58680358e-01,   8.01695237e-01,   8.35686284e-01,
-             8.60598212e-01,   8.76625002e-01,   8.84194741e-01,
-             8.83948647e-01,   8.76714923e-01,   8.95016030e-01,
-             9.14039881e-01,   9.27287161e-01,   9.36546985e-01,
-             9.43656076e-01,   9.50421050e-01,   9.58544227e-01],
-            [9.86916929e-01,   1.02423117e+00,   1.03591220e+00,
-             1.02666645e+00,   1.00491333e+00,   9.80759775e-01,
-             9.63746819e-01,   9.60798629e-01,   9.47739946e-01,
-             9.27428067e-01,   9.01184523e-01,   8.71168132e-01,
-             8.40161241e-01,   8.11290344e-01,   7.87705814e-01],
-            [7.57749840e-01,   7.20020026e-01,   6.82329616e-01,
-             6.44678929e-01,   6.07068282e-01,   5.69497990e-01,
-             5.31968369e-01,   4.94025422e-01,   4.54275131e-01,
-             4.14517560e-01,   3.74757709e-01,   3.35000583e-01,
-             2.95251189e-01,   2.55514533e-01,   2.15795621e-01],
-            [1.85805611e-01,   1.58245609e-01,   1.30686714e-01,
-             1.03128926e-01,   7.55722460e-02,   4.80166757e-02,
-             2.04622160e-02,   3.79809920e-03,   3.46310306e-03,
-             3.10070529e-03,   2.68579661e-03,   2.19341216e-03,
-             1.59875239e-03,   8.77203803e-04,   4.35952940e-06]],
+           [3.29409498e-01,   3.59108764e-01,   3.88800969e-01,
+            4.18486092e-01,   4.48164112e-01,   4.77835010e-01,
+            5.07498765e-01,   5.37155355e-01,   5.65419479e-01,
+            5.92686124e-01,   6.19861622e-01,   6.46945403e-01,
+            6.73936907e-01,   7.00835579e-01,   7.27640871e-01],
+           [7.58680358e-01,   8.01695237e-01,   8.35686284e-01,
+            8.60598212e-01,   8.76625002e-01,   8.84194741e-01,
+            8.83948647e-01,   8.76714923e-01,   8.95016030e-01,
+            9.14039881e-01,   9.27287161e-01,   9.36546985e-01,
+            9.43656076e-01,   9.50421050e-01,   9.58544227e-01],
+           [9.86916929e-01,   1.02423117e+00,   1.03591220e+00,
+            1.02666645e+00,   1.00491333e+00,   9.80759775e-01,
+            9.63746819e-01,   9.60798629e-01,   9.47739946e-01,
+            9.27428067e-01,   9.01184523e-01,   8.71168132e-01,
+            8.40161241e-01,   8.11290344e-01,   7.87705814e-01],
+           [7.57749840e-01,   7.20020026e-01,   6.82329616e-01,
+            6.44678929e-01,   6.07068282e-01,   5.69497990e-01,
+            5.31968369e-01,   4.94025422e-01,   4.54275131e-01,
+            4.14517560e-01,   3.74757709e-01,   3.35000583e-01,
+            2.95251189e-01,   2.55514533e-01,   2.15795621e-01],
+           [1.85805611e-01,   1.58245609e-01,   1.30686714e-01,
+            1.03128926e-01,   7.55722460e-02,   4.80166757e-02,
+            2.04622160e-02,   3.79809920e-03,   3.46310306e-03,
+            3.10070529e-03,   2.68579661e-03,   2.19341216e-03,
+            1.59875239e-03,   8.77203803e-04,   4.35952940e-06]],
 
-            [[1.88249866e-01,   2.05728128e-01,   2.23209861e-01,
-              2.40695072e-01,   2.58183766e-01,   2.75675949e-01,
-              2.93171625e-01,   3.10670801e-01,   3.32877903e-01,
-              3.58244116e-01,   3.83638063e-01,   4.09059827e-01,
-              4.34509485e-01,   4.59987117e-01,   4.85492795e-01],
-             [5.04317660e-01,   4.97523483e-01,   4.92879482e-01,
-              4.90522941e-01,   4.90521579e-01,   4.92874471e-01,
-              4.97514769e-01,   5.04314130e-01,   5.48356836e-01,
-              6.02679755e-01,   6.57930117e-01,   7.13582394e-01,
-              7.69129132e-01,   8.24101035e-01,   8.78084923e-01],
-             [9.05957986e-01,   9.00459829e-01,   9.01710827e-01,
-              9.09304816e-01,   9.21567297e-01,   9.36002510e-01,
-              9.49878533e-01,   9.60836244e-01,   9.50521017e-01,
-              9.42321192e-01,   9.36098294e-01,   9.31447978e-01,
-              9.27737112e-01,   9.24164130e-01,   9.19837458e-01],
-             [9.08479555e-01,   8.93119640e-01,   8.77756168e-01,
-              8.62389039e-01,   8.47018155e-01,   8.31643415e-01,
-              8.16264720e-01,   7.98248733e-01,   7.69688456e-01,
-              7.41111049e-01,   7.12515170e-01,   6.83899486e-01,
-              6.55262669e-01,   6.26603399e-01,   5.97920364e-01],
-             [5.71406981e-01,   5.45439361e-01,   5.19471340e-01,
-              4.93502919e-01,   4.67534097e-01,   4.41564875e-01,
-              4.15595252e-01,   3.91172349e-01,   3.69029170e-01,
-              3.46833147e-01,   3.24591169e-01,   3.02310146e-01,
-              2.79997004e-01,   2.57658679e-01,   2.35302110e-01]],
+           [[1.88249866e-01,   2.05728128e-01,   2.23209861e-01,
+             2.40695072e-01,   2.58183766e-01,   2.75675949e-01,
+             2.93171625e-01,   3.10670801e-01,   3.32877903e-01,
+             3.58244116e-01,   3.83638063e-01,   4.09059827e-01,
+             4.34509485e-01,   4.59987117e-01,   4.85492795e-01],
+            [5.04317660e-01,   4.97523483e-01,   4.92879482e-01,
+             4.90522941e-01,   4.90521579e-01,   4.92874471e-01,
+             4.97514769e-01,   5.04314130e-01,   5.48356836e-01,
+             6.02679755e-01,   6.57930117e-01,   7.13582394e-01,
+             7.69129132e-01,   8.24101035e-01,   8.78084923e-01],
+            [9.05957986e-01,   9.00459829e-01,   9.01710827e-01,
+             9.09304816e-01,   9.21567297e-01,   9.36002510e-01,
+             9.49878533e-01,   9.60836244e-01,   9.50521017e-01,
+             9.42321192e-01,   9.36098294e-01,   9.31447978e-01,
+             9.27737112e-01,   9.24164130e-01,   9.19837458e-01],
+            [9.08479555e-01,   8.93119640e-01,   8.77756168e-01,
+             8.62389039e-01,   8.47018155e-01,   8.31643415e-01,
+             8.16264720e-01,   7.98248733e-01,   7.69688456e-01,
+             7.41111049e-01,   7.12515170e-01,   6.83899486e-01,
+             6.55262669e-01,   6.26603399e-01,   5.97920364e-01],
+            [5.71406981e-01,   5.45439361e-01,   5.19471340e-01,
+             4.93502919e-01,   4.67534097e-01,   4.41564875e-01,
+             4.15595252e-01,   3.91172349e-01,   3.69029170e-01,
+             3.46833147e-01,   3.24591169e-01,   3.02310146e-01,
+             2.79997004e-01,   2.57658679e-01,   2.35302110e-01]],
 
-            [[1.96102817e-02,   2.23037080e-02,   2.49835320e-02,
-              2.76497605e-02,   3.03024001e-02,   3.29414575e-02,
-              3.55669395e-02,   3.81788529e-02,   5.03598778e-02,
-              6.89209657e-02,   8.74757090e-02,   1.06024973e-01,
-              1.24569626e-01,   1.43110536e-01,   1.61648577e-01],
-             [1.82340027e-01,   2.15315774e-01,   2.53562955e-01,
-              2.95884521e-01,   3.41038527e-01,   3.87773687e-01,
-              4.34864157e-01,   4.81142673e-01,   5.00410360e-01,
-              5.19991397e-01,   5.47394263e-01,   5.82556639e-01,
-              6.25097005e-01,   6.74344521e-01,   7.29379582e-01],
-             [7.75227971e-01,   8.13001048e-01,   8.59395545e-01,
-              9.04577146e-01,   9.40342288e-01,   9.61653621e-01,
-              9.67479211e-01,   9.60799542e-01,   9.63421077e-01,
-              9.66445062e-01,   9.67352042e-01,   9.63790783e-01,
-              9.53840372e-01,   9.36234978e-01,   9.10530024e-01],
-             [8.86771441e-01,   8.67903107e-01,   8.48953980e-01,
-              8.29924111e-01,   8.10813555e-01,   7.91622365e-01,
-              7.72350598e-01,   7.51439565e-01,   7.24376642e-01,
-              6.97504841e-01,   6.70822717e-01,   6.44328750e-01,
-              6.18021348e-01,   5.91898843e-01,   5.65959492e-01],
-             [5.40017537e-01,   5.14048293e-01,   4.88079755e-01,
-              4.62111921e-01,   4.36144791e-01,   4.10178361e-01,
-              3.84212632e-01,   3.58028450e-01,   3.31935148e-01,
-              3.06445966e-01,   2.81566598e-01,   2.57302099e-01,
-              2.33656886e-01,   2.10634733e-01,   1.88238767e-01]]])
+           [[1.96102817e-02,   2.23037080e-02,   2.49835320e-02,
+             2.76497605e-02,   3.03024001e-02,   3.29414575e-02,
+             3.55669395e-02,   3.81788529e-02,   5.03598778e-02,
+             6.89209657e-02,   8.74757090e-02,   1.06024973e-01,
+             1.24569626e-01,   1.43110536e-01,   1.61648577e-01],
+            [1.82340027e-01,   2.15315774e-01,   2.53562955e-01,
+             2.95884521e-01,   3.41038527e-01,   3.87773687e-01,
+             4.34864157e-01,   4.81142673e-01,   5.00410360e-01,
+             5.19991397e-01,   5.47394263e-01,   5.82556639e-01,
+             6.25097005e-01,   6.74344521e-01,   7.29379582e-01],
+            [7.75227971e-01,   8.13001048e-01,   8.59395545e-01,
+             9.04577146e-01,   9.40342288e-01,   9.61653621e-01,
+             9.67479211e-01,   9.60799542e-01,   9.63421077e-01,
+             9.66445062e-01,   9.67352042e-01,   9.63790783e-01,
+             9.53840372e-01,   9.36234978e-01,   9.10530024e-01],
+            [8.86771441e-01,   8.67903107e-01,   8.48953980e-01,
+             8.29924111e-01,   8.10813555e-01,   7.91622365e-01,
+             7.72350598e-01,   7.51439565e-01,   7.24376642e-01,
+             6.97504841e-01,   6.70822717e-01,   6.44328750e-01,
+             6.18021348e-01,   5.91898843e-01,   5.65959492e-01],
+            [5.40017537e-01,   5.14048293e-01,   4.88079755e-01,
+             4.62111921e-01,   4.36144791e-01,   4.10178361e-01,
+             3.84212632e-01,   3.58028450e-01,   3.31935148e-01,
+             3.06445966e-01,   2.81566598e-01,   2.57302099e-01,
+             2.33656886e-01,   2.10634733e-01,   1.88238767e-01]]])
 
         np.testing.assert_allclose(values, expected)
 
@@ -1251,8 +1328,7 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        with mock.patch.object(
-                xrimage.PILImage.Image, 'save', return_value=None) as s:
+        with mock.patch.object(xrimage.PILImage.Image, 'show', return_value=None) as s:
             img.show()
             s.assert_called_once()
 

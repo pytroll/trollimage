@@ -173,8 +173,7 @@ class XRImage(object):
         # 'data' is an XArray, get the data from it as a dask array
         if not isinstance(data.data, da.Array):
             logger.debug("Convert image data to dask array")
-            data.data = da.from_array(data.data, chunks=(data.sizes['bands'],
-                                                         4096, 4096))
+            data.data = da.from_array(data.data, chunks=(data.sizes['bands'], 4096, 4096))
 
         self.data = data
         self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
@@ -379,19 +378,110 @@ class XRImage(object):
         return meta
 
     def fill_or_alpha(self, data, fill_value=None):
-        """Fill the data with fill_value, or create an alpha channels."""
+        """Fill the data with fill_value or create an alpha channel."""
         if fill_value is None and not self.mode.endswith("A"):
             not_alpha = [b for b in data.coords['bands'].values if b != 'A']
             # if any of the bands are valid, we don't want transparency
             null_mask = data.sel(bands=not_alpha).notnull().any(dim='bands')
             null_mask = null_mask.expand_dims('bands')
             null_mask['bands'] = ['A']
-
-            data = xr.concat([data, null_mask.astype(data.dtype)],
-                             dim="bands")
+            data = xr.concat([data, null_mask.astype(data.dtype)], dim="bands")
         elif fill_value is not None:
             data = data.fillna(fill_value)
         return data
+
+    def _check_modes(self, modes):
+        """Check that the image is in one of the given *modes*, raise an exception otherwise."""
+        if not isinstance(modes, (tuple, list, set)):
+            modes = [modes]
+        if self.mode not in modes:
+            raise ValueError("Image not in suitable mode, expected: %s, got: %s" % (modes, self.mode))
+
+    def _from_p(self, mode):
+        """Convert the image from P or PA to RGB or RGBA."""
+        self._check_modes(("P", "PA"))
+
+        if self.mode.endswith("A"):
+            alpha = self.data.sel(bands=["A"]).data
+            mode = mode + "A" if not mode.endswith("A") else mode
+        else:
+            alpha = None
+
+        if not self.palette:
+            raise RuntimeError("Can't convert palettized image, missing palette.")
+
+        pal = np.array(self.palette)
+        pal = da.from_array(pal, chunks=pal.shape)
+        flat_indexes = self.data.data[0].ravel().astype('int64')
+        new_shape = (3,) + self.data.shape[1:3]
+        new_data = pal[flat_indexes].reshape(new_shape)
+        coords = dict(self.data.coords)
+        coords["bands"] = list(mode)
+
+        if alpha is not None:
+            new_arr = da.concatenate((new_data, alpha), axis=0)
+            data = xr.DataArray(new_arr, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+        else:
+            data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+
+        return data
+
+    def _l2rgb(self, mode):
+        """Convert from L (black and white) to RGB.
+        """
+        self._check_modes(("L", "LA"))
+
+        bands = ["L"] * 3
+        if mode[-1] == "A":
+            bands.append("A")
+        data = self.data.sel(bands=bands)
+        data["bands"] = list(mode)
+        return data
+
+    def convert(self, mode):
+        if mode == self.mode:
+            return
+
+        if mode not in ["P", "PA", "L", "LA", "RGB", "RGBA"]:
+            raise ValueError("Mode %s not recognized." % (mode))
+
+        if mode == self.mode + "A":
+            data = self.fill_or_alpha(self.data).data
+            coords = dict(self.data.coords)
+            coords["bands"] = list(mode)
+            data = xr.DataArray(data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+            new_img = XRImage(data)
+        elif mode + "A" == self.mode:
+            # Remove the alpha band from our current image
+            no_alpha = self.data.sel(bands=[b for b in self.data.coords["bands"].data if b != "A"]).data
+            coords = dict(self.data.coords)
+            coords["bands"] = list(mode)
+            data = xr.DataArray(no_alpha, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+            new_img = XRImage(data)
+        elif mode.endswith("A") and not self.mode.endswith("A"):
+            img = self.convert(self.mode + "A")
+            new_img = img.convert(mode)
+        elif self.mode.endswith("A") and not mode.endswith("A"):
+            img = self.convert(self.mode[:-1])
+            new_img = img.convert(mode)
+        else:
+            cases = {
+                "P": {"RGB": self._from_p},
+                "PA": {"RGBA": self._from_p},
+                "L": {"RGB": self._l2rgb},
+                "LA": {"RGBA": self._l2rgb}
+            }
+            try:
+                data = cases[self.mode][mode](mode)
+                new_img = XRImage(data)
+            except KeyError:
+                raise ValueError("Conversion from %s to %s not implemented !"
+                                 % (self.mode, mode))
+
+        if self.mode.startswith('P') and new_img.mode.startswith('P'):
+            # need to copy the palette
+            new_img.palette = self.palette
+        return new_img
 
     def _finalize(self, fill_value=None, dtype=np.uint8):
         """Wrapper around 'finalize' method for backwards compatibility."""
@@ -406,11 +496,10 @@ class XRImage(object):
         This sets the channels in unsigned 8bit format ([0,255] range)
         (if the *dtype* doesn't say otherwise).
         """
-        # if self.mode == "P":
-        #     self.convert("RGB")
-        # if self.mode == "PA":
-        #     self.convert("RGBA")
-        #
+        if self.mode == "P":
+            return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype)
+        if self.mode == "PA":
+            return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
@@ -696,8 +785,12 @@ class XRImage(object):
                                                    img.channels[i].mask)
 
     def colorize(self, colormap):
-        """Colorize the current image using
-        *colormap*. Works only on"L" or "LA" images.
+        """Colorize the current image using `colormap`.
+
+        .. note::
+
+            Works only on "L" or "LA" images.
+
         """
 
         if self.mode not in ("L", "LA"):
@@ -710,16 +803,14 @@ class XRImage(object):
 
         l_data = self.data.sel(bands=['L'])
 
-        # TODO: dask-ify colorize
-        def _colorize(colormap, l_data):
-            channels = colormap.colorize(l_data.data)
+        def _colorize(l_data, colormap):
+            # 'l_data' is (1, rows, cols)
+            # 'channels' will be a list of 3 (RGB) or 4 (RGBA) arrays
+            channels = colormap.colorize(l_data)
             return np.concatenate(channels, axis=0)
 
-        # TODO: xarray-ify colorize
-        # delayed = dask.delayed(colormap.colorize)(l_data.data)
-        delayed = dask.delayed(_colorize)(colormap, l_data)
-        shape = (3, l_data.sizes['y'], l_data.sizes['x'])
-        new_data = da.from_delayed(delayed, shape=shape, dtype=np.float64)
+        new_data = l_data.data.map_blocks(_colorize, colormap,
+                                          chunks=(3,) + l_data.data.chunks[1:], dtype=np.float64)
 
         if alpha is not None:
             new_data = da.concatenate([new_data, alpha.data], axis=0)
@@ -732,12 +823,15 @@ class XRImage(object):
         coords['bands'] = list(mode)
         attrs = self.data.attrs
         dims = self.data.dims
-        self.data = xr.DataArray(new_data, coords=coords, attrs=attrs,
-                                 dims=dims)
+        self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
 
     def palettize(self, colormap):
-        """Palettize the current image using
-        *colormap*. Works only on"L" or "LA" images.
+        """Palettize the current image using `colormap`.
+
+        .. note::
+
+            Works only on "L" or "LA" images.
+
         """
 
         if self.mode not in ("L", "LA"):
@@ -746,31 +840,23 @@ class XRImage(object):
         l_data = self.data.sel(bands=['L'])
 
         def _palettize(data):
-            arr, palette = colormap.palettize(data.reshape(data.shape[1:]))
-            new_shape = (1, arr.shape[0], arr.shape[1])
-            arr = arr.reshape(new_shape)
-            return arr, palette
+            # returns data and palette, only need data
+            return colormap.palettize(data)[0]
 
-        delayed = dask.delayed(_palettize)(l_data.data)
-        new_data, palette = delayed[0], delayed[1]
-        new_data = da.from_delayed(new_data, shape=l_data.shape,
-                                   dtype=l_data.dtype)
-        # XXX: Can we complete this method without computing the data?
-        new_data, self.palette = da.compute(new_data, palette)
-        new_data = da.from_array(new_data,
-                                 chunks=self.data.data.chunks)
+        new_data = l_data.data.map_blocks(_palettize, dtype=l_data.dtype)
+        self.palette = tuple(colormap.colors)
 
         if self.mode == "L":
             mode = "P"
         else:
             mode = "PA"
+            new_data = da.concatenate([new_data, self.data.sel(bands=['A'])], axis=0)
 
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
 
     def blend(self, other):
-        """Alpha blend *other* on top of the current image.
-        """
+        """Alpha blend *other* on top of the current image."""
         raise NotImplementedError("This method has not be implemented for "
                                   "xarray support.")
 
