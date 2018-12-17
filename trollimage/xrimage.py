@@ -391,13 +391,11 @@ class XRImage(object):
         return data
 
     def _check_modes(self, modes):
-        """Check that the image is in on of the given *modes*, raise an
-        exception otherwise.
-        """
+        """Check that the image is in one of the given *modes*, raise an exception otherwise."""
         if not isinstance(modes, (tuple, list, set)):
             modes = [modes]
         if self.mode not in modes:
-            raise ValueError("Image not in suitable mode: %s" % modes)
+            raise ValueError("Image not in suitable mode, expected: %s, got: %s" % (modes, self.mode))
 
     def _from_p(self, mode):
         """Convert the image from P or PA to RGB or RGBA."""

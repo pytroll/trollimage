@@ -1135,20 +1135,28 @@ class TestXRImage(unittest.TestCase):
         dataset3 = xr.DataArray(arr3.copy(), dims=['bands', 'x', 'y'],
                                 coords={'bands': ['P', 'A']})
 
-        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage(dataset1)
 
             img = img.convert('LA')
             self.assertTrue(img.mode == 'LA')
             self.assertTrue(len(img.data.coords['bands']) == 2)
+            # make sure the alpha band is all opaque
+            np.testing.assert_allclose(img.data.sel(bands='A'), 1.)
 
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = img.convert('L')
             self.assertTrue(img.mode == 'L')
             self.assertTrue(len(img.data.coords['bands']) == 1)
 
+        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = img.convert('RGB')
             self.assertTrue(img.mode == 'RGB')
             self.assertTrue(len(img.data.coords['bands']) == 3)
+            data = img.data.compute()
+            np.testing.assert_allclose(data.sel(bands=['R']), arr1)
+            np.testing.assert_allclose(data.sel(bands=['G']), arr1)
+            np.testing.assert_allclose(data.sel(bands=['B']), arr1)
 
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = xrimage.XRImage(dataset2)
