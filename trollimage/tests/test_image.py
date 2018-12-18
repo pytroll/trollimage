@@ -897,19 +897,24 @@ class TestXRImage(unittest.TestCase):
         import xarray as xr
         from trollimage import xrimage
 
-        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        arr = np.arange(75).reshape(5, 5, 3)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.crude_stretch()
-        self.assertTrue(np.allclose(img.data.values, arr))
+        red = img.data.sel(bands='R')
+        green = img.data.sel(bands='G')
+        blue = img.data.sel(bands='B')
+        np.testing.assert_allclose(red, arr[:, :, 0] / 72.)
+        np.testing.assert_allclose(green, (arr[:, :, 1] - 1.) / (73. - 1.))
+        np.testing.assert_allclose(blue, (arr[:, :, 2] - 2.) / (74. - 2.))
 
         arr = np.arange(75).reshape(5, 5, 3).astype(float)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.crude_stretch(0, 74)
-        self.assertTrue(np.allclose(img.data.values, arr / 74.))
+        np.testing.assert_allclose(img.data.values, arr / 74.)
 
     def test_invert(self):
         """Check inversion of the image."""
