@@ -1,3 +1,15 @@
+## Version 1.6.1 (2018/12/19)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 34](https://github.com/pytroll/trollimage/pull/34) - Fix XRImage's finalize method when input data are integers
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.6.0 (2018/12/18)
 
 ### Issues Closed
