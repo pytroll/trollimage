@@ -440,7 +440,7 @@ class XRImage(object):
 
     def convert(self, mode):
         if mode == self.mode:
-            return
+            return self
 
         if mode not in ["P", "PA", "L", "LA", "RGB", "RGBA"]:
             raise ValueError("Mode %s not recognized." % (mode))

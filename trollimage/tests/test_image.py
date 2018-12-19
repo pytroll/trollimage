@@ -1291,6 +1291,10 @@ class TestXRImage(unittest.TestCase):
         dataset3 = xr.DataArray(arr3.copy(), dims=['bands', 'x', 'y'],
                                 coords={'bands': ['P', 'A']})
 
+        img = xrimage.XRImage(dataset1)
+        new_img = img.convert(img.mode)
+        self.assertIs(new_img, img)
+
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage(dataset1)
 
