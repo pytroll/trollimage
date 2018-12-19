@@ -1293,7 +1293,11 @@ class TestXRImage(unittest.TestCase):
 
         img = xrimage.XRImage(dataset1)
         new_img = img.convert(img.mode)
-        self.assertIs(new_img, img)
+        self.assertIsNotNone(new_img)
+        # make sure it is a copy
+        self.assertIsNot(new_img, img)
+        self.assertIsNot(new_img.data, img.data)
+
 
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage(dataset1)
