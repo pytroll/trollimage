@@ -843,30 +843,168 @@ class TestXRImage(unittest.TestCase):
             self.assertIsInstance(delay, Delayed)
             delay.compute()
 
-    @unittest.skipIf(sys.platform.startswith('win'),
-                     "'NamedTemporaryFile' not supported on Windows")
-    def test_save_geotiff(self):
+    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_float(self):
+        """Test saving geotiffs when input data is float."""
         import xarray as xr
         import dask.array as da
         from trollimage import xrimage
+        import rasterio as rio
 
-        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
+        # numpy array image - scale to 0 to 1 first
+        data = xr.DataArray(np.arange(75.).reshape(5, 5, 3) / 75., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
-        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 75.,
-                                          chunks=5),
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape(5, 5, 3) / 75., chunks=5),
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
+        # Regular default save
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
-        data = data.where(data > (10 / 75.0))
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        # with NaNs
+        data = data.where(data > 10. / 75.)
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = np.arange(75.).reshape(5, 5, 3) / 75.
+            exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
+            exp = (exp * 255).round()
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        # with fill value
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, fill_value=128)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            exp = np.arange(75.).reshape(5, 5, 3) / 75.
+            exp2 = (exp * 255).round()
+            exp2[exp <= 10. / 75.] = 128
+            np.testing.assert_allclose(file_data[0], exp2[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp2[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp2[:, :, 2])
+
+        # float type - floats can't have alpha channel
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, dtype=np.float32)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            exp = np.arange(75.).reshape(5, 5, 3) / 75.
+            # fill value is forced to 0
+            exp[exp <= 10. / 75.] = 0
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        # float type with NaN fill value
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, dtype=np.float32, fill_value=np.nan)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            exp = np.arange(75.).reshape(5, 5, 3) / 75.
+            exp[exp <= 10. / 75.] = np.nan
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        # float type with non-NaN fill value
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, dtype=np.float32, fill_value=128)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            exp = np.arange(75.).reshape(5, 5, 3) / 75.
+            exp[exp <= 10. / 75.] = 128
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        # dask delayed save
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            delay = img.save(tmp.name, compute=False)
+            self.assertIsInstance(delay, tuple)
+            self.assertIsInstance(delay[0], da.Array)
+            self.assertIsInstance(delay[1], xrimage.RIOFile)
+            da.store(*delay)
+            delay[1].close()
+
+    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int(self):
+        """Test saving geotiffs when input data is int."""
+        import xarray as xr
+        import dask.array as da
+        from trollimage import xrimage
+        import rasterio as rio
+
+        # numpy array image
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = np.arange(75).reshape(5, 5, 3)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        # Regular default save
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = np.arange(75).reshape(5, 5, 3)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        # with fill value
+        # FUTURE: xarray and trollimage have no way of detecting null values in integer data
+        # with NamedTemporaryFile(suffix='.tif') as tmp:
+        #     img.save(tmp.name, fill_value=128)
+        #     with rio.open(tmp.name) as f:
+        #         file_data = f.read()
+        #     self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+        #     exp = np.arange(75).reshape(5, 5, 3)
+        #     exp[exp <= 10] = 128
+        #     np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        #     np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        #     np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
         # dask delayed save
         with NamedTemporaryFile(suffix='.tif') as tmp:

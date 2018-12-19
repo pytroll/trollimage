@@ -506,13 +506,17 @@ class XRImage(object):
                            "setting fill_value to 0")
             fill_value = 0
 
-        final_data = self.fill_or_alpha(self.data, fill_value)
-
+        final_data = self.data
         if np.issubdtype(dtype, np.integer):
-            final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
-            final_data = final_data.round().astype(dtype)
-        else:
-            final_data = final_data.astype(dtype)
+            if np.issubdtype(final_data, np.integer):
+                # preserve integer data type
+                final_data = final_data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
+            else:
+                # scale float data (assumed to be 0 to 1) to integer space
+                final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
+            final_data = final_data.round()
+        final_data = self.fill_or_alpha(final_data, fill_value)
+        final_data = final_data.astype(dtype)
 
         final_data.attrs = self.data.attrs
 
