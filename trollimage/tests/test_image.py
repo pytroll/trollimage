@@ -945,6 +945,19 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
+        # float type with fill value saved to int16 (signed!)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, dtype=np.int16, fill_value=-128)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            exp = np.arange(75.).reshape(5, 5, 3) / 75.
+            exp2 = (exp * (2**16 - 1) - (2**15)).round()
+            exp2[exp <= 10. / 75.] = -128.
+            np.testing.assert_allclose(file_data[0], exp2[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp2[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp2[:, :, 2])
+
         # dask delayed save
         with NamedTemporaryFile(suffix='.tif') as tmp:
             delay = img.save(tmp.name, compute=False)

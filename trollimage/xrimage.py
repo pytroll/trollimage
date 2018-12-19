@@ -512,14 +512,14 @@ class XRImage(object):
                 # preserve integer data type
                 final_data = final_data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
             else:
-                # scale float data (assumed to be 0 to 1) to integer space
-                final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
+                # scale float data (assumed to be 0 to 1) to full integer space
+                dinfo = np.iinfo(dtype)
+                final_data = final_data.clip(0, 1) * (dinfo.max - dinfo.min) + dinfo.min
             final_data = final_data.round()
         final_data = self.fill_or_alpha(final_data, fill_value)
         final_data = final_data.astype(dtype)
 
         final_data.attrs = self.data.attrs
-
         return final_data, ''.join(final_data['bands'].values)
 
     def pil_image(self, fill_value=None):
