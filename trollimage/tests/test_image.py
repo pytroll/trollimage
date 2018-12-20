@@ -851,7 +851,7 @@ class TestXRImage(unittest.TestCase):
         from trollimage import xrimage
         import rasterio as rio
 
-	# numpy array image - scale to 0 to 1 first
+        # numpy array image - scale to 0 to 1 first
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75.,
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
