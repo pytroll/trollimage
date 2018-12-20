@@ -864,6 +864,7 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)  # completely opaque
 
         data = xr.DataArray(da.from_array(np.arange(75.).reshape(5, 5, 3) / 75., chunks=5),
                             dims=['y', 'x', 'bands'],
@@ -879,6 +880,7 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)  # completely opaque
 
         # with NaNs
         data = data.where(data > 10. / 75.)
@@ -894,6 +896,9 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            is_null = (exp == 0).all(axis=2)
+            np.testing.assert_allclose(file_data[3][~is_null], 255)  # completely opaque
+            np.testing.assert_allclose(file_data[3][is_null], 0)  # completely transparent
 
         # with fill value
         with NamedTemporaryFile(suffix='.tif') as tmp:
