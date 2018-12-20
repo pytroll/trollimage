@@ -850,8 +850,9 @@ class TestXRImage(unittest.TestCase):
         import dask.array as da
         from trollimage import xrimage
 
-        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
-            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75.,
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)

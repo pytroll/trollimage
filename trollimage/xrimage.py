@@ -308,7 +308,6 @@ class XRImage(object):
                 except KeyError:
                     logger.info("Couldn't create geotransform")
 
-
             if "start_time" in data.attrs:
                 stime = data.attrs['start_time']
                 stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
