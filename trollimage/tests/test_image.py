@@ -972,6 +972,28 @@ class TestXRImage(unittest.TestCase):
             da.store(*delay)
             delay[1].close()
 
+        # float RGBA input to uint8
+        alpha = xr.ones_like(data[:, :, 0])
+        alpha = alpha.where(data.notnull().all(dim='bands'), 0)
+        alpha['bands'] = 'A'
+        # make a float version of a uint8 RGBA
+        rgb_data = xr.concat((data, alpha), dim='bands') * 255.
+        img = xrimage.XRImage(rgb_data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band already existed
+            exp = np.arange(75.).reshape(5, 5, 3) / 75.
+            exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
+            exp = (exp * 255.).astype(np.uint8)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            not_null = (alpha != 0).values
+            np.testing.assert_allclose(file_data[3][not_null], 255)  # completely opaque
+            np.testing.assert_allclose(file_data[3][~not_null], 0)  # completely transparent
+
     @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
         """Test saving geotiffs when input data is int."""

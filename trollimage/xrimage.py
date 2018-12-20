@@ -575,8 +575,8 @@ class XRImage(object):
                 final_data = final_data.where(final_data != ifill, fill_value)
             else:
                 final_data = final_data.fillna(fill_value)
-            final_data = final_data.astype(dtype)
 
+        final_data = final_data.astype(dtype)
         final_data.attrs = self.data.attrs
         return final_data, ''.join(final_data['bands'].values)
 
