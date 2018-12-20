@@ -950,7 +950,7 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
-        # float type with fill value saved to int16 (signed!)
+        # float input with fill value saved to int16 (signed!)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name, dtype=np.int16, fill_value=-128)
             with rio.open(tmp.name) as f:
@@ -994,6 +994,7 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)
 
         data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
                             dims=['y', 'x', 'bands'],
@@ -1010,19 +1011,7 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-
-        # with fill value
-        # FUTURE: xarray and trollimage have no way of detecting null values in integer data
-        # with NamedTemporaryFile(suffix='.tif') as tmp:
-        #     img.save(tmp.name, fill_value=128)
-        #     with rio.open(tmp.name) as f:
-        #         file_data = f.read()
-        #     self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
-        #     exp = np.arange(75).reshape(5, 5, 3)
-        #     exp[exp <= 10] = 128
-        #     np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-        #     np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-        #     np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)
 
         # dask delayed save
         with NamedTemporaryFile(suffix='.tif') as tmp:
@@ -1032,6 +1021,46 @@ class TestXRImage(unittest.TestCase):
             self.assertIsInstance(delay[1], xrimage.RIOFile)
             da.store(*delay)
             delay[1].close()
+
+        # with input fill value
+        data = np.arange(75).reshape(5, 5, 3)
+        # second pixel is all bad
+        # pixel [0, 1, 1] is also naturally 5 by arange above
+        data[0, 1, :] = 5
+        data = xr.DataArray(da.from_array(data, chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            attrs={'_FillValue': 5},
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, fill_value=128)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            exp = np.arange(75).reshape(5, 5, 3)
+            exp[0, 1, :] = 128
+            exp[0, 1, 1] = 128
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+        # input fill value but alpha on output
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # no alpha band
+            exp = np.arange(75).reshape(5, 5, 3)
+            exp[0, 1, :] = 5
+            exp[0, 1, 1] = 5
+            exp_alpha = np.ones((5, 5)) * 255
+            exp_alpha[0, 1] = 0
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], exp_alpha)
+
 
     def test_gamma(self):
         """Test gamma correction."""
@@ -1303,21 +1332,32 @@ class TestXRImage(unittest.TestCase):
         self.assertIsNot(new_img, img)
         self.assertIsNot(new_img.data, img.data)
 
+        # L -> LA (int)
+        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+            img = xrimage.XRImage((dataset1 * 150).astype(np.uint8))
+            img = img.convert('LA')
+            self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+            self.assertTrue(img.mode == 'LA')
+            self.assertTrue(len(img.data.coords['bands']) == 2)
+            # make sure the alpha band is all opaque
+            np.testing.assert_allclose(img.data.sel(bands='A'), 255)
 
+        # L -> LA (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage(dataset1)
-
             img = img.convert('LA')
             self.assertTrue(img.mode == 'LA')
             self.assertTrue(len(img.data.coords['bands']) == 2)
             # make sure the alpha band is all opaque
             np.testing.assert_allclose(img.data.sel(bands='A'), 1.)
 
+        # LA -> L (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = img.convert('L')
             self.assertTrue(img.mode == 'L')
             self.assertTrue(len(img.data.coords['bands']) == 1)
 
+        # L -> RGB (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = img.convert('RGB')
             self.assertTrue(img.mode == 'RGB')
@@ -1327,26 +1367,59 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(data.sel(bands=['G']), arr1)
             np.testing.assert_allclose(data.sel(bands=['B']), arr1)
 
+        # RGB -> RGBA (float)
+        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+            img = img.convert('RGBA')
+            self.assertTrue(img.mode == 'RGBA')
+            self.assertTrue(len(img.data.coords['bands']) == 4)
+            self.assertTrue(np.issubdtype(img.data.dtype, np.floating))
+            data = img.data.compute()
+            np.testing.assert_allclose(data.sel(bands=['R']), arr1)
+            np.testing.assert_allclose(data.sel(bands=['G']), arr1)
+            np.testing.assert_allclose(data.sel(bands=['B']), arr1)
+            # make sure the alpha band is all opaque
+            np.testing.assert_allclose(data.sel(bands='A'), 1.)
+
+        # RGB -> RGBA (int)
+        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+            img = xrimage.XRImage((dataset1 * 150).astype(np.uint8))
+            img = img.convert('RGB')  # L -> RGB
+            self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+            img = img.convert('RGBA')
+            self.assertTrue(img.mode == 'RGBA')
+            self.assertTrue(len(img.data.coords['bands']) == 4)
+            self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+            data = img.data.compute()
+            np.testing.assert_allclose(data.sel(bands=['R']), (arr1 * 150).astype(np.uint8))
+            np.testing.assert_allclose(data.sel(bands=['G']), (arr1 * 150).astype(np.uint8))
+            np.testing.assert_allclose(data.sel(bands=['B']), (arr1 * 150).astype(np.uint8))
+            # make sure the alpha band is all opaque
+            np.testing.assert_allclose(data.sel(bands='A'), 255)
+
+        # LA -> RGBA (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = xrimage.XRImage(dataset2)
             img = img.convert('RGBA')
             self.assertTrue(img.mode == 'RGBA')
             self.assertTrue(len(img.data.coords['bands']) == 4)
 
+        # L -> palettize -> RGBA (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = xrimage.XRImage(dataset1)
             img.palettize(brbg)
             pal = img.palette
 
             img = img.convert('RGBA')
+            self.assertTrue(np.issubdtype(img.data.dtype, np.floating))
             self.assertTrue(img.mode == 'RGBA')
             self.assertTrue(len(img.data.coords['bands']) == 4)
 
+        # PA -> RGB (float)
         img = xrimage.XRImage(dataset3)
         img.palette = pal
-
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = img.convert('RGB')
+            self.assertTrue(np.issubdtype(img.data.dtype, np.floating))
             self.assertTrue(img.mode == 'RGB')
             self.assertTrue(len(img.data.coords['bands']) == 3)
 
