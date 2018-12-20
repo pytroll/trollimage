@@ -275,6 +275,7 @@ class XRImage(object):
         data.attrs = self.data.attrs
 
         crs = None
+        gcps = None
         transform = None
         if driver == 'GTiff':
             if not np.issubdtype(data.dtype, np.floating):
@@ -298,13 +299,20 @@ class XRImage(object):
                 transform = rasterio.transform.from_bounds(west, south,
                                                            east, north,
                                                            width, height)
-                if "start_time" in data.attrs:
-                    stime = data.attrs['start_time']
-                    stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
-                    tags.setdefault('TIFFTAG_DATETIME', stime_str)
 
-            except (KeyError, AttributeError):
+            except KeyError:  # No area
                 logger.info("Couldn't create geotransform")
+            except AttributeError:
+                try:
+                    gcps, crs = data.attrs['area'].lons.attrs['gcps']
+                except KeyError:
+                    logger.info("Couldn't create geotransform")
+
+
+            if "start_time" in data.attrs:
+                stime = data.attrs['start_time']
+                stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
+                tags.setdefault('TIFFTAG_DATETIME', stime_str)
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
@@ -314,7 +322,10 @@ class XRImage(object):
                          count=data.sizes['bands'],
                          dtype=dtype,
                          nodata=fill_value,
-                         crs=crs, transform=transform, **format_kwargs)
+                         crs=crs,
+                         transform=transform,
+                         gcps=gcps,
+                         **format_kwargs)
         r_file.open()
         r_file.colorinterp = color_interp(data)
         r_file.rfile.update_tags(**tags)
