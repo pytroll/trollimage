@@ -506,7 +506,15 @@ class XRImage(object):
                            "setting fill_value to 0")
             fill_value = 0
 
-        final_data = self.data
+        # convert fill_value to the current arrays data type to avoid
+        # implicit data array type conversion
+        notnull_mask = None
+        if fill_value is not None:
+            fill_value = self.data.dtype.type(fill_value)
+            # hold on to fill mask for later use
+            notnull_mask = self.data.notnull()
+        final_data = self.fill_or_alpha(self.data, fill_value)
+
         if np.issubdtype(dtype, np.integer):
             if np.issubdtype(final_data, np.integer):
                 # preserve integer data type
@@ -516,7 +524,10 @@ class XRImage(object):
                 dinfo = np.iinfo(dtype)
                 final_data = final_data.clip(0, 1) * (dinfo.max - dinfo.min) + dinfo.min
             final_data = final_data.round()
-        final_data = self.fill_or_alpha(final_data, fill_value)
+        # if we used a fill_value it would have been scaled to the data type
+        # we need to get the desired fill_value back
+        if fill_value is not None:
+            final_data = final_data.where(notnull_mask, fill_value)
         final_data = final_data.astype(dtype)
 
         final_data.attrs = self.data.attrs
