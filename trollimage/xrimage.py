@@ -387,16 +387,27 @@ class XRImage(object):
 
         return meta
 
-    def fill_or_alpha(self, data, fill_value=None):
+    def fill_or_alpha(self, data, fill_value=None, dtype=None):
         """Fill the data with fill_value or create an alpha channel."""
+        if dtype is None:
+            dtype = data.dtype.type
         if fill_value is None and not self.mode.endswith("A"):
             not_alpha = [b for b in data.coords['bands'].values if b != 'A']
             # if any of the bands are valid, we don't want transparency
             null_mask = data.sel(bands=not_alpha).notnull().any(dim='bands')
             null_mask = null_mask.expand_dims('bands')
             null_mask['bands'] = ['A']
-            data = xr.concat([data, null_mask.astype(data.dtype)], dim="bands")
+            null_mask = null_mask.astype(dtype)
+            # if we are creating an integer field, then alpha needs to be max-int
+            # otherwise for floats we want 0 to 1
+            if np.issubdtype(dtype, np.integer):
+                dinfo = np.iinfo(dtype)
+                null_mask = null_mask * (dinfo.max - dinfo.min) + dinfo.min
+            data = xr.concat([data, null_mask], dim="bands")
         elif fill_value is not None:
+            # convert fill_value to the current arrays data type to avoid
+            # implicit data array type conversion
+            fill_value = dtype(fill_value)
             data = data.fillna(fill_value)
         return data
 
@@ -450,7 +461,7 @@ class XRImage(object):
 
     def convert(self, mode):
         if mode == self.mode:
-            return
+            return self.__class__(self.data)
 
         if mode not in ["P", "PA", "L", "LA", "RGB", "RGBA"]:
             raise ValueError("Mode %s not recognized." % (mode))
@@ -516,16 +527,20 @@ class XRImage(object):
                            "setting fill_value to 0")
             fill_value = 0
 
-        final_data = self.fill_or_alpha(self.data, fill_value)
-
+        final_data = self.data
         if np.issubdtype(dtype, np.integer):
-            final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
-            final_data = final_data.round().astype(dtype)
-        else:
-            final_data = final_data.astype(dtype)
+            if np.issubdtype(final_data, np.integer):
+                # preserve integer data type
+                final_data = final_data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
+            else:
+                # scale float data (assumed to be 0 to 1) to full integer space
+                dinfo = np.iinfo(dtype)
+                final_data = final_data.clip(0, 1) * (dinfo.max - dinfo.min) + dinfo.min
+            final_data = final_data.round()
+        final_data = self.fill_or_alpha(final_data, fill_value, dtype=dtype)
+        final_data = final_data.astype(dtype)
 
         final_data.attrs = self.data.attrs
-
         return final_data, ''.join(final_data['bands'].values)
 
     def pil_image(self, fill_value=None):
