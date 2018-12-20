@@ -977,7 +977,7 @@ class TestXRImage(unittest.TestCase):
         alpha = alpha.where(data.notnull().all(dim='bands'), 0)
         alpha['bands'] = 'A'
         # make a float version of a uint8 RGBA
-        rgb_data = xr.concat((data, alpha), dim='bands') * 255.
+        rgb_data = xr.concat((data, alpha), dim='bands')
         img = xrimage.XRImage(rgb_data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
@@ -986,7 +986,7 @@ class TestXRImage(unittest.TestCase):
             self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band already existed
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
-            exp = (exp * 255.).astype(np.uint8)
+            exp = (exp * 255.).round()
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
