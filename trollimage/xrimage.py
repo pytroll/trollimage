@@ -539,10 +539,16 @@ class XRImage(object):
         return self.finalize(fill_value, dtype)
 
     def finalize(self, fill_value=None, dtype=np.uint8):
-        """Finalize the image.
+        """Finalize the image to be written to an output file.
 
-        This sets the channels in unsigned 8bit format ([0,255] range)
-        (if the *dtype* doesn't say otherwise).
+        This adds an alpha band or fills data with a fill_value (if specified).
+        It also scales float data to the output range of the data type (0-255
+        for uint8, default). For integer input data this method assumes the
+        data is already scaled to the proper desired range. It will still fill
+        in invalid values and add an alpha band if needed. Integer input
+        data's fill value is determined by a special ``_FillValue`` attribute
+        in the ``DataArray`` ``.attrs`` dictionary.
+
         """
         if self.mode == "P":
             return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype)
@@ -562,21 +568,21 @@ class XRImage(object):
             alpha = self._create_alpha(final_data, fill_value=ifill)
             final_data = self._scale_to_dtype(final_data, dtype).astype(dtype)
             final_data = self._add_alpha(final_data, alpha=alpha)
-        elif fill_value is not None:
-            # cast fill value to output type so we don't change data type
-            fill_value = dtype(fill_value)
+        else:
             # scale float data to the proper dtype
             # this method doesn't cast yet so that we can keep track of NULL values
             final_data = self._scale_to_dtype(final_data, dtype)
             # Add fill_value after all other calculations have been done to
             # make sure it is not scaled for the data type
-            if ifill is not None:
+            if ifill is not None and fill_value is not None:
+                # cast fill value to output type so we don't change data type
+                fill_value = dtype(fill_value)
                 # integer fields have special fill values
-                final_data = final_data.where(final_data != ifill, fill_value)
-            else:
-                final_data = final_data.fillna(fill_value)
-            final_data = final_data.astype(dtype)
+                final_data = final_data.where(final_data != ifill, dtype(fill_value))
+            elif fill_value is not None:
+                final_data = final_data.fillna(dtype(fill_value))
 
+        final_data = final_data.astype(dtype)
         final_data.attrs = self.data.attrs
         return final_data, ''.join(final_data['bands'].values)
 
