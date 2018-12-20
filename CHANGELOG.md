@@ -1,3 +1,15 @@
+## Version 1.6.3 (2018/12/20)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 38](https://github.com/pytroll/trollimage/pull/38) - Fix casting and scaling float arrays in finalize
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.6.2 (2018/12/20)
 
 
