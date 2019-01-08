@@ -23,4 +23,6 @@
 """The trollimage package
 """
 
-from trollimage.version import __version__  # noqa
+from .version import get_versions
+__version__ = get_versions()['version']
+del get_versions

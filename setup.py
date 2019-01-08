@@ -26,12 +26,11 @@
 """
 
 from setuptools import setup
-import imp
-
-version = imp.load_source('trollimage.version', 'trollimage/version.py')
+import versioneer
 
 setup(name="trollimage",
-      version=version.__version__,
+      version=versioneer.get_version(),
+      cmdclass=versioneer.get_cmdclass(),
       description='Pytroll imaging library',
       author='Martin Raspaud',
       author_email='martin.raspaud@smhi.se',

@@ -379,17 +379,65 @@ class XRImage(object):
 
         return meta
 
-    def fill_or_alpha(self, data, fill_value=None):
-        """Fill the data with fill_value or create an alpha channel."""
-        if fill_value is None and not self.mode.endswith("A"):
-            not_alpha = [b for b in data.coords['bands'].values if b != 'A']
-            # if any of the bands are valid, we don't want transparency
-            null_mask = data.sel(bands=not_alpha).notnull().any(dim='bands')
-            null_mask = null_mask.expand_dims('bands')
-            null_mask['bands'] = ['A']
-            data = xr.concat([data, null_mask.astype(data.dtype)], dim="bands")
-        elif fill_value is not None:
-            data = data.fillna(fill_value)
+    def _create_alpha(self, data, fill_value=None):
+        """Create an alpha band DataArray object.
+
+        If `fill_value` is provided and input data is an integer type
+        then it is used to determine invalid "null" pixels instead of
+        xarray's `isnull` and `notnull` methods.
+
+        The returned array is 1 where data is valid, 0 where invalid.
+
+        """
+        not_alpha = [b for b in data.coords['bands'].values if b != 'A']
+        null_mask = data.sel(bands=not_alpha)
+        if np.issubdtype(data.dtype, np.integer) and fill_value is not None:
+            null_mask = null_mask != fill_value
+        else:
+            null_mask = null_mask.notnull()
+        # if any of the bands are valid, we don't want transparency
+        null_mask = null_mask.any(dim='bands')
+        null_mask = null_mask.expand_dims('bands')
+        null_mask['bands'] = ['A']
+        # match data dtype
+        return null_mask
+
+    def _add_alpha(self, data, alpha=None):
+        """Create an alpha channel and concatenate it to the provided data.
+
+        If ``data`` is an integer type then the alpha band will be scaled
+        to use the smallest (min) value as fully transparent and the largest
+        (max) value as fully opaque. For float types the alpha band spans
+        0 to 1.
+
+        """
+        null_mask = alpha if alpha is not None else self._create_alpha(data)
+        # if we are using integer data, then alpha needs to be min-int to max-int
+        # otherwise for floats we want 0 to 1
+        if np.issubdtype(data.dtype, np.integer):
+            # xarray sometimes upcasts this calculation, so cast again
+            null_mask = self._scale_to_dtype(null_mask, data.dtype).astype(data.dtype)
+        data = xr.concat([data, null_mask], dim="bands")
+        return data
+
+    def _scale_to_dtype(self, data, dtype):
+        """Scale provided data to dtype range assuming a 0-1 range.
+
+        Float input data is assumed to be normalized to a 0 to 1 range.
+        Integer input data is not scaled, only clipped. A float output
+        type is not scaled since both outputs and inputs are assumed to
+        be in the 0-1 range already.
+
+        """
+        if np.issubdtype(dtype, np.integer):
+            if np.issubdtype(data, np.integer):
+                # preserve integer data type
+                data = data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
+            else:
+                # scale float data (assumed to be 0 to 1) to full integer space
+                dinfo = np.iinfo(dtype)
+                data = data.clip(0, 1) * (dinfo.max - dinfo.min) + dinfo.min
+            data = data.round()
         return data
 
     def _check_modes(self, modes):
@@ -442,13 +490,13 @@ class XRImage(object):
 
     def convert(self, mode):
         if mode == self.mode:
-            return
+            return self.__class__(self.data)
 
         if mode not in ["P", "PA", "L", "LA", "RGB", "RGBA"]:
             raise ValueError("Mode %s not recognized." % (mode))
 
         if mode == self.mode + "A":
-            data = self.fill_or_alpha(self.data).data
+            data = self._add_alpha(self.data).data
             coords = dict(self.data.coords)
             coords["bands"] = list(mode)
             data = xr.DataArray(data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
@@ -492,11 +540,17 @@ class XRImage(object):
                       DeprecationWarning)
         return self.finalize(fill_value, dtype, keep_palette=keep_palette, cmap=cmap)
 
-    def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
-        """Finalize the image.
+    def finalize(self, fill_value=None, dtype=np.uint8):
+        """Finalize the image to be written to an output file.
 
-        This sets the channels in unsigned 8bit format ([0,255] range)
-        (if the *dtype* doesn't say otherwise).
+        This adds an alpha band or fills data with a fill_value (if specified).
+        It also scales float data to the output range of the data type (0-255
+        for uint8, default). For integer input data this method assumes the
+        data is already scaled to the proper desired range. It will still fill
+        in invalid values and add an alpha band if needed. Integer input
+        data's fill value is determined by a special ``_FillValue`` attribute
+        in the ``DataArray`` ``.attrs`` dictionary.
+
         """
         if keep_palette and cmap is None and self.mode.startswith('P'):
             cmap = self.palette
@@ -514,16 +568,30 @@ class XRImage(object):
                            "setting fill_value to 0")
             fill_value = 0
 
-        final_data = self.fill_or_alpha(self.data, fill_value)
-
-        if not keep_palette and np.issubdtype(dtype, np.integer):
-            final_data = final_data.clip(0, 1) * np.iinfo(dtype).max
-            final_data = final_data.round().astype(dtype)
+        final_data = self.data
+        # if the data are integers then this fill value will be used to check for invalid values
+        ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
+        if fill_value is None and not self.mode.endswith('A'):
+            # We don't have a fill value or an alpha, let's add an alpha
+            alpha = self._create_alpha(final_data, fill_value=ifill)
+            final_data = self._scale_to_dtype(final_data, dtype).astype(dtype)
+            final_data = self._add_alpha(final_data, alpha=alpha)
         else:
-            final_data = final_data.astype(dtype)
+            # scale float data to the proper dtype
+            # this method doesn't cast yet so that we can keep track of NULL values
+            final_data = self._scale_to_dtype(final_data, dtype)
+            # Add fill_value after all other calculations have been done to
+            # make sure it is not scaled for the data type
+            if ifill is not None and fill_value is not None:
+                # cast fill value to output type so we don't change data type
+                fill_value = dtype(fill_value)
+                # integer fields have special fill values
+                final_data = final_data.where(final_data != ifill, dtype(fill_value))
+            elif fill_value is not None:
+                final_data = final_data.fillna(dtype(fill_value))
 
+        final_data = final_data.astype(dtype)
         final_data.attrs = self.data.attrs
-
         return final_data, ''.join(final_data['bands'].values)
 
     def pil_image(self, fill_value=None):
