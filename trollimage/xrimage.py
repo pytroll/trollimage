@@ -47,7 +47,6 @@ try:
 except ImportError:
     rasterio = None
 
-
 try:
     # rasterio 1.0+
     from rasterio.windows import Window
@@ -57,7 +56,6 @@ except ImportError:
     def Window(x_off, y_off, x_size, y_size):
         """Replace the missing Window object in rasterio < 1.0."""
         return (y_off, y_off + y_size), (x_off, x_off + x_size)
-
 
 logger = logging.getLogger(__name__)
 
@@ -260,8 +258,9 @@ class XRImage(object):
                                  compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, compute=True, tags=None, keep_palette=False,
-                 cmap=None, **format_kwargs):
+                 dtype=np.uint8, compute=True, tags=None,
+                 keep_palette=False, cmap=None,
+                 **format_kwargs):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
@@ -272,7 +271,8 @@ class XRImage(object):
         if tags is None:
             tags = {}
 
-        data, mode = self.finalize(fill_value, dtype=dtype, keep_palette=keep_palette, cmap=cmap)
+        data, mode = self.finalize(fill_value, dtype=dtype,
+                                   keep_palette=keep_palette, cmap=cmap)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -318,8 +318,13 @@ class XRImage(object):
                          nodata=fill_value,
                          crs=crs, transform=transform, **format_kwargs)
         r_file.open()
-        r_file.colorinterp = color_interp(data)
+        if not keep_palette:
+            r_file.colorinterp = color_interp(data)
         r_file.rfile.update_tags(**tags)
+
+        if keep_palette and cmap is not None:
+            # cmap = cmap or self.palette
+            r_file.rfile.write_colormap(1, cmap)
 
         if compute:
             # write data to the file now
@@ -348,6 +353,7 @@ class XRImage(object):
         def _create_save_image(fill_value, filename, fformat, format_kwargs):
             img = self.pil_image(fill_value)
             img.save(filename, fformat, **format_kwargs)
+
         delay = dask.delayed(_create_save_image)(
             fill_value, filename, fformat, format_kwargs)
         if compute:
@@ -464,7 +470,7 @@ class XRImage(object):
         pal = da.from_array(pal, chunks=pal.shape)
         flat_indexes = self.data.data[0].ravel().astype('int64')
         new_shape = (3,) + self.data.shape[1:3]
-        new_data = pal[flat_indexes].reshape(new_shape)
+        new_data = pal[flat_indexes].transpose().reshape(new_shape)
         coords = dict(self.data.coords)
         coords["bands"] = list(mode)
 
@@ -538,9 +544,9 @@ class XRImage(object):
         import warnings
         warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
                       DeprecationWarning)
-        return self.finalize(fill_value, dtype, keep_palette=keep_palette, cmap=cmap)
+        return self.finalize(fill_value, dtype, keep_palette, cmap)
 
-    def finalize(self, fill_value=None, dtype=np.uint8):
+    def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
         """Finalize the image to be written to an output file.
 
         This adds an alpha band or fills data with a fill_value (if specified).
@@ -552,16 +558,16 @@ class XRImage(object):
         in the ``DataArray`` ``.attrs`` dictionary.
 
         """
-        if keep_palette and cmap is None and self.mode.startswith('P'):
-            cmap = self.palette
-        else if keep_palette and not self.mode.startswith('P'):
+        if keep_palette and not self.mode.startswith('P'):
             keep_palette = False
 
         if not keep_palette:
             if self.mode == "P":
-                return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype)
+                return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype,
+                                                    keep_palette=keep_palette, cmap=cmap)
             if self.mode == "PA":
-                return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype)
+                return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype,
+                                                     keep_palette=keep_palette, cmap=cmap)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
@@ -571,24 +577,25 @@ class XRImage(object):
         final_data = self.data
         # if the data are integers then this fill value will be used to check for invalid values
         ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
-        if fill_value is None and not self.mode.endswith('A'):
-            # We don't have a fill value or an alpha, let's add an alpha
-            alpha = self._create_alpha(final_data, fill_value=ifill)
-            final_data = self._scale_to_dtype(final_data, dtype).astype(dtype)
-            final_data = self._add_alpha(final_data, alpha=alpha)
-        else:
-            # scale float data to the proper dtype
-            # this method doesn't cast yet so that we can keep track of NULL values
-            final_data = self._scale_to_dtype(final_data, dtype)
-            # Add fill_value after all other calculations have been done to
-            # make sure it is not scaled for the data type
-            if ifill is not None and fill_value is not None:
-                # cast fill value to output type so we don't change data type
-                fill_value = dtype(fill_value)
-                # integer fields have special fill values
-                final_data = final_data.where(final_data != ifill, dtype(fill_value))
-            elif fill_value is not None:
-                final_data = final_data.fillna(dtype(fill_value))
+        if not keep_palette:
+            if fill_value is None and not self.mode.endswith('A'):
+                # We don't have a fill value or an alpha, let's add an alpha
+                alpha = self._create_alpha(final_data, fill_value=ifill)
+                final_data = self._scale_to_dtype(final_data, dtype).astype(dtype)
+                final_data = self._add_alpha(final_data, alpha=alpha)
+            else:
+                # scale float data to the proper dtype
+                # this method doesn't cast yet so that we can keep track of NULL values
+                final_data = self._scale_to_dtype(final_data, dtype)
+                # Add fill_value after all other calculations have been done to
+                # make sure it is not scaled for the data type
+                if ifill is not None and fill_value is not None:
+                    # cast fill value to output type so we don't change data type
+                    fill_value = dtype(fill_value)
+                    # integer fields have special fill values
+                    final_data = final_data.where(final_data != ifill, dtype(fill_value))
+                elif fill_value is not None:
+                    final_data = final_data.fillna(dtype(fill_value))
 
         final_data = final_data.astype(dtype)
         final_data.attrs = self.data.attrs
@@ -617,7 +624,7 @@ class XRImage(object):
         undefined outside the normal [0,1] range of the channels.
         """
         if isinstance(gamma, (list, tuple)):
-           gamma = self.xrify_tuples(gamma)
+            gamma = self.xrify_tuples(gamma)
         elif gamma == 1.0:
             return
 
@@ -815,7 +822,7 @@ class XRImage(object):
         highest unpercieved stimulus), and k is the factor.
         """
         attrs = self.data.attrs
-        self.data = k*xu.log(self.data / s0)
+        self.data = k * xu.log(self.data / s0)
         self.data.attrs = attrs
 
     def invert(self, invert=True):
