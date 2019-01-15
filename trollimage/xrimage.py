@@ -323,8 +323,10 @@ class XRImage(object):
         r_file.rfile.update_tags(**tags)
 
         if keep_palette and cmap is not None:
-            # cmap = cmap or self.palette
-            r_file.rfile.write_colormap(1, cmap)
+            try:
+                r_file.rfile.write_colormap(1, cmap)
+            except AttributeError:
+                raise ValueError("Colormap is not formatted correctly")
 
         if compute:
             # write data to the file now
