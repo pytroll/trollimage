@@ -26,6 +26,7 @@
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
 
+
 def colorize(arr, colors, values):
     """Colorize a monochromatic array *arr*, based *colors* given for
     *values*. Interpolation is used. *values* must be in ascending order.
@@ -51,6 +52,7 @@ def colorize(arr, colors, values):
         return [np.ma.array(channel, mask=arr.mask) for channel in channels]
     except AttributeError:
         return channels
+
 
 def palettize(arr, colors, values):
     """From start *values* apply *colors* to *data*.
@@ -122,7 +124,7 @@ class Colormap(object):
             max_val, min_val = min_val, max_val
         self.values = (((self.values * 1.0 - self.values.min()) /
                         (self.values.max() - self.values.min()))
-                        * (max_val - min_val) + min_val)
+                       * (max_val - min_val) + min_val)
 
     def to_rio(self):
         """Converts the colormap to a rasterio colormap.
@@ -130,6 +132,7 @@ class Colormap(object):
         self.colors = (((self.colors * 1.0 - self.colors.min()) /
                         (self.colors.max() - self.colors.min())) * 255)
         return dict(zip(self.values, tuple(map(tuple, self.colors))))
+
 
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
 # "#FF7F00", "red", "#7F0000"
@@ -150,7 +153,7 @@ rainbow = Colormap((0.000, (0.0, 0.0, 0.5)),
 # * Single hue *
 
 blues = Colormap((0.000, (247 / 255.0, 251 / 255.0, 1.0)),
-                (1.000, (8 / 255.0, 48 / 255.0, 107 / 255.0)))
+                 (1.000, (8 / 255.0, 48 / 255.0, 107 / 255.0)))
 
 greens = Colormap((0.000, (247 / 255.0, 252 / 255.0, 245 / 255.0)),
                   (1.000, (0.0, 68 / 255.0, 27 / 255.0)))
@@ -166,7 +169,6 @@ purples = Colormap((0.0, (252 / 255.0, 251 / 255.0, 253 / 255.0)),
 
 reds = Colormap((0.0, (1.0, 245 / 255.0, 240 / 255.0)),
                 (1.0, (103 / 255.0, 0.0, 13 / 255.0)))
-
 
 # * Multihue *
 
@@ -238,7 +240,6 @@ sequential_colormaps = [blues, greens, greys, oranges, purples, reds,
                         bugn, bupu, gnbu, orrd, pubu, pubugn, purd, rdpu,
                         ylgn, ylgnbu, ylorbr, ylorrd]
 
-
 # * Diverging *
 
 brbg = Colormap((0.0, (84 / 255.0, 48 / 255.0, 5 / 255.0)),
@@ -253,7 +254,6 @@ brbg = Colormap((0.0, (84 / 255.0, 48 / 255.0, 5 / 255.0)),
                 (0.9, (1 / 255.0, 102 / 255.0, 94 / 255.0)),
                 (1.0, (0 / 255.0, 60 / 255.0, 48 / 255.0)))
 
-
 piyg = Colormap((0.0, (142 / 255.0, 1 / 255.0, 82 / 255.0)),
                 (0.1, (197 / 255.0, 27 / 255.0, 125 / 255.0)),
                 (0.2, (222 / 255.0, 119 / 255.0, 174 / 255.0)),
@@ -265,8 +265,6 @@ piyg = Colormap((0.0, (142 / 255.0, 1 / 255.0, 82 / 255.0)),
                 (0.8, (127 / 255.0, 188 / 255.0, 65 / 255.0)),
                 (0.9, (77 / 255.0, 146 / 255.0, 33 / 255.0)),
                 (1.0, (39 / 255.0, 100 / 255.0, 25 / 255.0)))
-
-
 
 prgn = Colormap((0.0, (64 / 255.0, 0 / 255.0, 75 / 255.0)),
                 (0.1, (118 / 255.0, 42 / 255.0, 131 / 255.0)),
@@ -280,7 +278,6 @@ prgn = Colormap((0.0, (64 / 255.0, 0 / 255.0, 75 / 255.0)),
                 (0.9, (27 / 255.0, 120 / 255.0, 55 / 255.0)),
                 (1.0, (0 / 255.0, 68 / 255.0, 27 / 255.0)))
 
-
 puor = Colormap((0.0, (127 / 255.0, 59 / 255.0, 8 / 255.0)),
                 (0.1, (179 / 255.0, 88 / 255.0, 6 / 255.0)),
                 (0.2, (224 / 255.0, 130 / 255.0, 20 / 255.0)),
@@ -292,7 +289,6 @@ puor = Colormap((0.0, (127 / 255.0, 59 / 255.0, 8 / 255.0)),
                 (0.8, (128 / 255.0, 115 / 255.0, 172 / 255.0)),
                 (0.9, (84 / 255.0, 39 / 255.0, 136 / 255.0)),
                 (1.0, (45 / 255.0, 0 / 255.0, 75 / 255.0)))
-
 
 rdbu = Colormap((0.0, (103 / 255.0, 0 / 255.0, 31 / 255.0)),
                 (0.1, (178 / 255.0, 24 / 255.0, 43 / 255.0)),
@@ -306,7 +302,6 @@ rdbu = Colormap((0.0, (103 / 255.0, 0 / 255.0, 31 / 255.0)),
                 (0.9, (33 / 255.0, 102 / 255.0, 172 / 255.0)),
                 (1.0, (5 / 255.0, 48 / 255.0, 97 / 255.0)))
 
-
 rdgy = Colormap((0.0, (103 / 255.0, 0 / 255.0, 31 / 255.0)),
                 (0.1, (178 / 255.0, 24 / 255.0, 43 / 255.0)),
                 (0.2, (214 / 255.0, 96 / 255.0, 77 / 255.0)),
@@ -319,7 +314,6 @@ rdgy = Colormap((0.0, (103 / 255.0, 0 / 255.0, 31 / 255.0)),
                 (0.9, (77 / 255.0, 77 / 255.0, 77 / 255.0)),
                 (1.0, (26 / 255.0, 26 / 255.0, 26 / 255.0)))
 
-
 rdylbu = Colormap((0.0, (165 / 255.0, 0 / 255.0, 38 / 255.0)),
                   (0.1, (215 / 255.0, 48 / 255.0, 39 / 255.0)),
                   (0.2, (244 / 255.0, 109 / 255.0, 67 / 255.0)),
@@ -331,7 +325,6 @@ rdylbu = Colormap((0.0, (165 / 255.0, 0 / 255.0, 38 / 255.0)),
                   (0.8, (116 / 255.0, 173 / 255.0, 209 / 255.0)),
                   (0.9, (69 / 255.0, 117 / 255.0, 180 / 255.0)),
                   (1.0, (49 / 255.0, 54 / 255.0, 149 / 255.0)))
-
 
 rdylgn = Colormap((0.0, (165 / 255.0, 0 / 255.0, 38 / 255.0)),
                   (0.1, (215 / 255.0, 48 / 255.0, 39 / 255.0)),
@@ -356,7 +349,6 @@ spectral = Colormap((0.0, (158 / 255.0, 1 / 255.0, 66 / 255.0)),
                     (0.8, (102 / 255.0, 194 / 255.0, 165 / 255.0)),
                     (0.9, (50 / 255.0, 136 / 255.0, 189 / 255.0)),
                     (1.0, (94 / 255.0, 79 / 255.0, 162 / 255.0)))
-
 
 diverging_colormaps = [brbg, piyg, prgn, puor, rdbu, rdgy, rdylbu, rdylgn,
                        spectral]
@@ -449,19 +441,21 @@ qualitative_colormaps = [set1, set2, set3,
                          paired, accent, dark2,
                          pastel1, pastel2]
 
+
 def colorbar(height, length, colormap):
     """Return the channels of a colorbar.
     """
-    cbar = np.tile(np.arange(length)*1.0/(length-1), (height, 1))
+    cbar = np.tile(np.arange(length) * 1.0 / (length - 1), (height, 1))
     cbar = (cbar * (colormap.values.max() - colormap.values.min())
             + colormap.values.min())
 
     return colormap.colorize(cbar)
 
+
 def palettebar(height, length, colormap):
     """Return the channels of a palettebar.
     """
-    cbar = np.tile(np.arange(length)*1.0/(length-1), (height, 1))
+    cbar = np.tile(np.arange(length) * 1.0 / (length - 1), (height, 1))
     cbar = (cbar * (colormap.values.max() + 1 - colormap.values.min())
             + colormap.values.min())
 

@@ -23,14 +23,15 @@
 """Test colormap.py
 """
 
-
 import unittest
 from trollimage import colormap
 import numpy as np
 
+
 class TestColormapClass(unittest.TestCase):
     """Test case for the colormap object.
     """
+
     def test_colorize(self):
         """Test colorize
         """
@@ -78,8 +79,6 @@ class TestColormapClass(unittest.TestCase):
         channels, colors = cm_.palettize(data)
         self.assertTrue(np.allclose(colors, cm_.colors))
         self.assertTrue(all(channels == [0, 0, 1, 2, 3, 3]))
-
-
 
     def test_set_range(self):
         """Test set_range
