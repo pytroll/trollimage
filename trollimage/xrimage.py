@@ -323,7 +323,11 @@ class XRImage(object):
         r_file.rfile.update_tags(**tags)
 
         if keep_palette and cmap is not None:
+            if data.dtype != 'uint8':
+                raise ValueError('Rasterio only supports 8-bit colormaps')
             try:
+                from trollimage.colormap import Colormap
+                cmap = cmap.to_rio() if isinstance(cmap, Colormap) else cmap
                 r_file.rfile.write_colormap(1, cmap)
             except AttributeError:
                 raise ValueError("Colormap is not formatted correctly")

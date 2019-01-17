@@ -1044,7 +1044,7 @@ class TestXRImage(unittest.TestCase):
             da.store(*delay)
             delay[1].close()
 
-        # with colormap provided
+        # with rasterio colormap provided
         exp_cmap = {i: (i, 255 - i, i, 255) for i in range(256)}
         data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
                             dims=['y', 'x', 'bands'],
@@ -1060,6 +1060,25 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             self.assertEqual(cmap, exp_cmap)
 
+        # with trollimage colormap provided
+        from trollimage.colormap import Colormap
+        t_cmap = Colormap(*tuple((i, (i, i, i)) for i in range(20)))
+        exp_cmap = {i : (int(i*255/19), int(i*255/19), int(i*255/19), 255) for i in range(20)}
+        exp_cmap.update({i: (0, 0, 0, 255) for i in range(20, 256)})
+        data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['P']})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, keep_palette=True, cmap=t_cmap)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+                cmap = f.colormap(1)
+            self.assertEqual(file_data.shape, (1, 9, 9)) # no alpha band
+            exp = np.arange(81).reshape(9, 9, 1)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            self.assertEqual(cmap, exp_cmap)
+
         # with bad colormap provided
         bad_cmap = [[i, [i, i, i]] for i in range(256)]
         data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
@@ -1067,7 +1086,10 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['P']})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
-            self.assertRaises(ValueError, img.save, tmp.name, keep_palette=True, cmap=bad_cmap)
+            self.assertRaises(ValueError, img.save, tmp.name,
+                              keep_palette=True, cmap=bad_cmap)
+            self.assertRaises(ValueError, img.save, tmp.name,
+                              keep_palette=True, cmap=t_cmap, dtype='uint16')
 
         # with input fill value
         data = np.arange(75).reshape(5, 5, 3)
