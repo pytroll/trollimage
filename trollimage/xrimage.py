@@ -235,10 +235,10 @@ class XRImage(object):
                             a `dask.Delayed` object or a tuple of
                             ``(source, target)`` to be passed to
                             `dask.array.store`.
-            keep_palette (bool): Saves the palettized version of the image if 
+            keep_palette (bool): Saves the palettized version of the image if
                                  set to True. False by default.
             cmap (Colormap or dict): Colormap to be applied to the image when
-                                     saving with rasterio, used with 
+                                     saving with rasterio, used with
                                      keep_palette=True. Should be uint8.
             format_kwargs: Additional format options to pass to `rasterio`
                            or `PIL` saving methods.
