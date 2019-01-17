@@ -161,6 +161,20 @@ class TestColormapClass(unittest.TestCase):
         self.assertTrue(np.allclose(channel, np.arange(4)))
         self.assertTrue(np.allclose(palette, cm_.colors))
 
+    def test_to_rio(self):
+        """Test conversion to rasterio colormap
+        """
+        cm_ = colormap.Colormap((1, (1, 1, 0)),
+                                (2, (0, 1, 1)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        d = cm_.to_rio()
+        exp = {1: (255, 255, 0), 2: (0, 255, 255),
+               3: (255, 255, 255), 4: (0, 0, 0)}
+
+        self.assertEqual(d, exp)
+
 
 def suite():
     """The suite for test_colormap.
