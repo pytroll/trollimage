@@ -880,13 +880,16 @@ class XRImage(object):
             return np.concatenate(channels, axis=0)
 
         new_data = l_data.data.map_blocks(_colorize, colormap,
-                                          chunks=(3,) + l_data.data.chunks[1:], dtype=np.float64)
+                                          chunks=(colormap.colors.shape[1],) + l_data.data.chunks[1:], dtype=np.float64)
 
-        if alpha is not None:
-            new_data = da.concatenate([new_data, alpha.data], axis=0)
+        if colormap.colors.shape[1] == 4:
             mode = "RGBA"
         else:
-            mode = "RGB"
+            if alpha is not None:
+                new_data = da.concatenate([new_data, alpha.data], axis=0)
+                mode = "RGBA"
+            else:
+                mode = "RGB"
 
         # copy the coordinates so we don't affect the original
         coords = dict(self.data.coords)
