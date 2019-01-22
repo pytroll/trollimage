@@ -880,7 +880,8 @@ class XRImage(object):
             return np.concatenate(channels, axis=0)
 
         new_data = l_data.data.map_blocks(_colorize, colormap,
-                          chunks=(colormap.colors.shape[1],) + l_data.data.chunks[1:], dtype=np.float64)
+                                          chunks=(colormap.colors.shape[1],) + l_data.data.chunks[1:],
+                                          dtype=np.float64)
 
         if colormap.colors.shape[1] == 4:
             mode = "RGBA"
