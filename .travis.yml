@@ -8,11 +8,13 @@ env:
         - PYTHON_VERSION=$TRAVIS_PYTHON_VERSION
         - NUMPY_VERSION=stable
         - MAIN_CMD='python setup.py'
-        - CONDA_DEPENDENCIES='pillow gdal xarray dask toolz mock coverage coveralls codecov'
+        - CONDA_DEPENDENCIES='pillow gdal xarray dask toolz mock coverage coveralls codecov rasterio'
         - SETUP_XVFB=False
         - EVENT_TYPE='push pull_request'
         - SETUP_CMD='test'
         - CONDA_CHANNELS='conda-forge'
+        - CONDA_CHANNEL_PRIORITY=True
+
 install:
 # Get rasterio 1.0
     - git clone --depth 1 git://github.com/astropy/ci-helpers.git
