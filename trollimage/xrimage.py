@@ -667,6 +667,25 @@ class XRImage(object):
         else:
             raise TypeError("Stretch parameter must be a string or a tuple.")
 
+    @staticmethod
+    def _compute_quantile(data, dims, cutoffs):
+        """Helper method for stretch_linear.
+
+        Dask delayed functions need to be non-internal functions (created
+        inside a function) to be serializable on a multi-process scheduler.
+
+        Quantile requires the data to be loaded since it not supported on
+        dask arrays yet.
+
+        """
+        # numpy doesn't get a 'quantile' function until 1.15
+        # for better backwards compatibility we use xarray's version
+        data_arr = xr.DataArray(data, dims=dims)
+        # delayed will provide us the fully computed xarray with ndarray
+        left, right = data_arr.quantile([cutoffs[0], 1. - cutoffs[1]], dim=['x', 'y'])
+        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+        return left.data, right.data
+
     def stretch_linear(self, cutoffs=(0.005, 0.005)):
         """Stretch linearly the contrast of the current image.
 
@@ -678,21 +697,13 @@ class XRImage(object):
         logger.debug("Left and right quantiles: " +
                      str(cutoffs[0]) + " " + str(cutoffs[1]))
 
-        # Quantile requires the data to be loaded, not supported on dask arrays
-        def _compute_quantile(data, cutoffs):
-            # delayed will provide us the fully computed xarray with ndarray
-            left, right = data.quantile([cutoffs[0], 1. - cutoffs[1]],
-                                        dim=['x', 'y'])
-            logger.debug("Interval: left=%s, right=%s", str(left), str(right))
-            return left.data, right.data
-
         cutoff_type = np.float64
         # numpy percentile (which quantile calls) returns 64-bit floats
         # unless the value is a higher order float
         if np.issubdtype(self.data.dtype, np.floating) and \
                 np.dtype(self.data.dtype).itemsize > 8:
             cutoff_type = self.data.dtype
-        left, right = dask.delayed(_compute_quantile, nout=2)(self.data, cutoffs)
+        left, right = dask.delayed(self._compute_quantile, nout=2)(self.data.data, self.data.dims, cutoffs)
         left_data = da.from_delayed(left,
                                     shape=(self.data.sizes['bands'],),
                                     dtype=cutoff_type)
