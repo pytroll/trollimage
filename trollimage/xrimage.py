@@ -668,7 +668,7 @@ class XRImage(object):
             raise TypeError("Stretch parameter must be a string or a tuple.")
 
     @staticmethod
-    def _compute_quantile(data, cutoffs):
+    def _compute_quantile(data, dims, cutoffs):
         """Helper method for stretch_linear.
 
         Dask delayed functions need to be non-internal functions (created
@@ -678,9 +678,11 @@ class XRImage(object):
         dask arrays yet.
 
         """
+        # numpy doesn't get a 'quantile' function until 1.15
+        # for better backwards compatibility we use xarray's version
+        data_arr = xr.DataArray(data, dims=dims)
         # delayed will provide us the fully computed xarray with ndarray
-        left, right = data.quantile([cutoffs[0], 1. - cutoffs[1]],
-                                    dim=['x', 'y'])
+        left, right = data_arr.quantile([cutoffs[0], 1. - cutoffs[1]], dim=['x', 'y'])
         logger.debug("Interval: left=%s, right=%s", str(left), str(right))
         return left.data, right.data
 
@@ -701,7 +703,7 @@ class XRImage(object):
         if np.issubdtype(self.data.dtype, np.floating) and \
                 np.dtype(self.data.dtype).itemsize > 8:
             cutoff_type = self.data.dtype
-        left, right = dask.delayed(self._compute_quantile, nout=2)(self.data, cutoffs)
+        left, right = dask.delayed(self._compute_quantile, nout=2)(self.data.data, self.data.dims, cutoffs)
         left_data = da.from_delayed(left,
                                     shape=(self.data.sizes['bands'],),
                                     dtype=cutoff_type)
