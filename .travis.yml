@@ -16,10 +16,8 @@ env:
         - CONDA_CHANNEL_PRIORITY=True
 
 install:
-# Get rasterio 1.0
     - git clone --depth 1 git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda.sh
-    - conda install -c conda-forge/label/dev rasterio
 script: coverage run --source=trollimage setup.py test
 after_success:
     - if [[ $PYTHON_VERSION == 3.6 ]]; then coveralls; fi
