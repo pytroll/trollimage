@@ -343,11 +343,8 @@ class XRImage(object):
             # Take care of GeoImage.tags (if any).
             format_kwargs['pnginfo'] = self._pngmeta()
 
-        def _create_save_image(fill_value, filename, fformat, format_kwargs):
-            img = self.pil_image(fill_value)
-            img.save(filename, fformat, **format_kwargs)
-        delay = dask.delayed(_create_save_image)(
-            fill_value, filename, fformat, format_kwargs)
+        img = self.pil_image(fill_value, compute=False)
+        delay = img.save(filename, fformat, **format_kwargs)
         if compute:
             return delay.compute()
         return delay
@@ -586,11 +583,24 @@ class XRImage(object):
         final_data.attrs = self.data.attrs
         return final_data, ''.join(final_data['bands'].values)
 
-    def pil_image(self, fill_value=None):
-        """Return a PIL image from the current image."""
+    def pil_image(self, fill_value=None, compute=True):
+        """Return a PIL image from the current image.
+
+        Args:
+            fill_value (int or float): Value to use for NaN null values.
+                See :meth:`~trollimage.xrimage.XRImage.finalize` for more
+                info.
+            compute (bool): Whether to return a fully computed PIL.Image
+                object (True) or return a dask Delayed object representing
+                the Image (False). This is True by default.
+
+        """
         channels, mode = self.finalize(fill_value)
-        res = np.asanyarray(channels.transpose('y', 'x', 'bands').values)
-        return PILImage.fromarray(np.squeeze(res), mode)
+        res = channels.transpose('y', 'x', 'bands')
+        img = dask.delayed(PILImage.fromarray)(np.squeeze(res.data), mode)
+        if compute:
+            img = img.compute()
+        return img
 
     def xrify_tuples(self, tup):
         """Make xarray.DataArray from tuple."""
