@@ -343,11 +343,8 @@ class XRImage(object):
             # Take care of GeoImage.tags (if any).
             format_kwargs['pnginfo'] = self._pngmeta()
 
-        def _create_save_image(fill_value, filename, fformat, format_kwargs):
-            img = self.pil_image(fill_value)
-            img.save(filename, fformat, **format_kwargs)
-        delay = dask.delayed(_create_save_image)(
-            fill_value, filename, fformat, format_kwargs)
+        img = self.pil_image(fill_value, compute=False)
+        delay = img.save(filename, fformat, **format_kwargs)
         if compute:
             return delay.compute()
         return delay
@@ -586,11 +583,24 @@ class XRImage(object):
         final_data.attrs = self.data.attrs
         return final_data, ''.join(final_data['bands'].values)
 
-    def pil_image(self, fill_value=None):
-        """Return a PIL image from the current image."""
+    def pil_image(self, fill_value=None, compute=True):
+        """Return a PIL image from the current image.
+
+        Args:
+            fill_value (int or float): Value to use for NaN null values.
+                See :meth:`~trollimage.xrimage.XRImage.finalize` for more
+                info.
+            compute (bool): Whether to return a fully computed PIL.Image
+                object (True) or return a dask Delayed object representing
+                the Image (False). This is True by default.
+
+        """
         channels, mode = self.finalize(fill_value)
-        res = np.asanyarray(channels.transpose('y', 'x', 'bands').values)
-        return PILImage.fromarray(np.squeeze(res), mode)
+        res = channels.transpose('y', 'x', 'bands')
+        img = dask.delayed(PILImage.fromarray)(np.squeeze(res.data), mode)
+        if compute:
+            img = img.compute()
+        return img
 
     def xrify_tuples(self, tup):
         """Make xarray.DataArray from tuple."""
@@ -657,6 +667,25 @@ class XRImage(object):
         else:
             raise TypeError("Stretch parameter must be a string or a tuple.")
 
+    @staticmethod
+    def _compute_quantile(data, dims, cutoffs):
+        """Helper method for stretch_linear.
+
+        Dask delayed functions need to be non-internal functions (created
+        inside a function) to be serializable on a multi-process scheduler.
+
+        Quantile requires the data to be loaded since it not supported on
+        dask arrays yet.
+
+        """
+        # numpy doesn't get a 'quantile' function until 1.15
+        # for better backwards compatibility we use xarray's version
+        data_arr = xr.DataArray(data, dims=dims)
+        # delayed will provide us the fully computed xarray with ndarray
+        left, right = data_arr.quantile([cutoffs[0], 1. - cutoffs[1]], dim=['x', 'y'])
+        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+        return left.data, right.data
+
     def stretch_linear(self, cutoffs=(0.005, 0.005)):
         """Stretch linearly the contrast of the current image.
 
@@ -668,21 +697,13 @@ class XRImage(object):
         logger.debug("Left and right quantiles: " +
                      str(cutoffs[0]) + " " + str(cutoffs[1]))
 
-        # Quantile requires the data to be loaded, not supported on dask arrays
-        def _compute_quantile(data, cutoffs):
-            # delayed will provide us the fully computed xarray with ndarray
-            left, right = data.quantile([cutoffs[0], 1. - cutoffs[1]],
-                                        dim=['x', 'y'])
-            logger.debug("Interval: left=%s, right=%s", str(left), str(right))
-            return left.data, right.data
-
         cutoff_type = np.float64
         # numpy percentile (which quantile calls) returns 64-bit floats
         # unless the value is a higher order float
         if np.issubdtype(self.data.dtype, np.floating) and \
                 np.dtype(self.data.dtype).itemsize > 8:
             cutoff_type = self.data.dtype
-        left, right = dask.delayed(_compute_quantile, nout=2)(self.data, cutoffs)
+        left, right = dask.delayed(self._compute_quantile, nout=2)(self.data.data, self.data.dims, cutoffs)
         left_data = da.from_delayed(left,
                                     shape=(self.data.sizes['bands'],),
                                     dtype=cutoff_type)
