@@ -906,12 +906,11 @@ class XRImage(object):
 
         if colormap.colors.shape[1] == 4:
             mode = "RGBA"
+        elif alpha is not None:
+            new_data = da.concatenate([new_data, alpha.data], axis=0)
+            mode = "RGBA"
         else:
-            if alpha is not None:
-                new_data = da.concatenate([new_data, alpha.data], axis=0)
-                mode = "RGBA"
-            else:
-                mode = "RGB"
+            mode = "RGB"
 
         # copy the coordinates so we don't affect the original
         coords = dict(self.data.coords)
