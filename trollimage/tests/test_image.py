@@ -800,15 +800,22 @@ class TestXRImage(unittest.TestCase):
         import dask.array as da
         from dask.delayed import Delayed
         from trollimage import xrimage
+        from trollimage.colormap import brbg, Colormap
 
-        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
         # Single band image
-        data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 75., dims=[
+        data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
         # Single band image to JPEG
         img = xrimage.XRImage(data)
@@ -819,7 +826,21 @@ class TestXRImage(unittest.TestCase):
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
-        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 75.,
+        # Single band image palettized
+        data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74., dims=[
+            'y', 'x', 'bands'], coords={'bands': ['L']})
+        # Single band image to JPEG
+        img = xrimage.XRImage(data)
+        img.palettize(brbg)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name)
+        # RGBA colormap
+        img = xrimage.XRImage(data)
+        img.palettize(bw)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name)
+
+        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 74.,
                                           chunks=5),
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -827,7 +848,7 @@ class TestXRImage(unittest.TestCase):
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
-        data = data.where(data > (10 / 75.0))
+        data = data.where(data > (10 / 74.0))
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
@@ -1376,7 +1397,13 @@ class TestXRImage(unittest.TestCase):
         import dask
         import xarray as xr
         from trollimage import xrimage
-        from trollimage.colormap import brbg
+        from trollimage.colormap import brbg, Colormap
+
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
 
         arr1 = np.arange(150).reshape(1, 15, 10) / 150.
         arr2 = np.append(arr1, np.ones(150).reshape(arr1.shape)).reshape(2, 15, 10)
@@ -1472,10 +1499,10 @@ class TestXRImage(unittest.TestCase):
             img.palettize(brbg)
             pal = img.palette
 
-            img = img.convert('RGBA')
-            self.assertTrue(np.issubdtype(img.data.dtype, np.floating))
-            self.assertTrue(img.mode == 'RGBA')
-            self.assertTrue(len(img.data.coords['bands']) == 4)
+            img2 = img.convert('RGBA')
+            self.assertTrue(np.issubdtype(img2.data.dtype, np.floating))
+            self.assertTrue(img2.mode == 'RGBA')
+            self.assertTrue(len(img2.data.coords['bands']) == 4)
 
         # PA -> RGB (float)
         img = xrimage.XRImage(dataset3)
@@ -1488,7 +1515,23 @@ class TestXRImage(unittest.TestCase):
 
         self.assertRaises(ValueError, img.convert, 'A')
 
+        # L -> palettize -> RGBA (float) with RGBA colormap
+        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+            img = xrimage.XRImage(dataset1)
+            img.palettize(bw)
+
+            img2 = img.convert('RGBA')
+            self.assertTrue(np.issubdtype(img2.data.dtype, np.floating))
+            self.assertTrue(img2.mode == 'RGBA')
+            self.assertTrue(len(img2.data.coords['bands']) == 4)
+            # convert to RGB, use RGBA from colormap regardless
+            img2 = img.convert('RGB')
+            self.assertTrue(np.issubdtype(img2.data.dtype, np.floating))
+            self.assertTrue(img2.mode == 'RGBA')
+            self.assertTrue(len(img2.data.coords['bands']) == 4)
+
     def test_colorize(self):
+        """Test colorize with an RGB colormap."""
         import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import brbg
@@ -1594,7 +1637,29 @@ class TestXRImage(unittest.TestCase):
                                    alpha.reshape((1,) + alpha.shape)))
         np.testing.assert_allclose(values, expected)
 
+    def test_colorize_rgba(self):
+        """Test colorize with an RGBA colormap."""
+        import xarray as xr
+        from trollimage import xrimage
+        from trollimage.colormap import Colormap
+
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
+
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        img.colorize(bw)
+        values = img.data.compute()
+        self.assertTupleEqual((4, 5, 15), values.shape)
+        np.testing.assert_allclose(values[:, 0, 0], [1.0, 1.0, 1.0, 1.0], rtol=1e-03)
+        np.testing.assert_allclose(values[:, -1, -1], [0.0, 0.0, 0.0, 0.5])
+
     def test_palettize(self):
+        """Test palettize with an RGB colormap."""
         import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import brbg
@@ -1612,6 +1677,27 @@ class TestXRImage(unittest.TestCase):
             [6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7],
             [8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 10]]])
         np.testing.assert_allclose(values, expected)
+
+    def test_palettize_rgba(self):
+        """Test palettize with an RGBA colormap."""
+        import xarray as xr
+        from trollimage import xrimage
+        from trollimage.colormap import Colormap
+
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
+
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        img.palettize(bw)
+
+        values = img.data.values
+        self.assertTupleEqual((1, 5, 15), values.shape)
+        self.assertTupleEqual((2, 4), bw.colors.shape)
 
     def test_merge(self):
         pass

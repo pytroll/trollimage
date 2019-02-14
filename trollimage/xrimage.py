@@ -464,28 +464,36 @@ class XRImage(object):
         """Convert the image from P or PA to RGB or RGBA."""
         self._check_modes(("P", "PA"))
 
-        if self.mode.endswith("A"):
-            alpha = self.data.sel(bands=["A"]).data
+        if not self.palette:
+            raise RuntimeError("Can't convert palettized image, missing palette.")
+        pal = np.array(self.palette)
+        pal = da.from_array(pal, chunks=pal.shape)
+
+        if pal.shape[1] == 4:
+            # colormap's alpha overrides data alpha
+            mode = "RGBA"
+            alpha = None
+        elif self.mode.endswith("A"):
+            # add a new/fake 'bands' dimension to the end
+            alpha = self.data.sel(bands="A").data[..., None]
             mode = mode + "A" if not mode.endswith("A") else mode
         else:
             alpha = None
 
-        if not self.palette:
-            raise RuntimeError("Can't convert palettized image, missing palette.")
-
-        pal = np.array(self.palette)
-        pal = da.from_array(pal, chunks=pal.shape)
-        flat_indexes = self.data.data[0].ravel().astype('int64')
-        new_shape = (3,) + self.data.shape[1:3]
-        new_data = pal[flat_indexes].transpose().reshape(new_shape)
+        flat_indexes = self.data.sel(bands='P').data.ravel().astype('int64')
+        dim_sizes = ((key, val) for key, val in self.data.sizes.items() if key != 'bands')
+        dims, new_shape = zip(*dim_sizes)
+        dims = dims + ('bands',)
+        new_shape = new_shape + (pal.shape[1],)
+        new_data = pal[flat_indexes].reshape(new_shape)
         coords = dict(self.data.coords)
         coords["bands"] = list(mode)
 
         if alpha is not None:
-            new_arr = da.concatenate((new_data, alpha), axis=0)
-            data = xr.DataArray(new_arr, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+            new_arr = da.concatenate((new_data, alpha), axis=-1)
+            data = xr.DataArray(new_arr, coords=coords, attrs=self.data.attrs, dims=dims)
         else:
-            data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+            data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=dims)
 
         return data
 
