@@ -162,7 +162,11 @@ def color_interp(data):
 
 
 class XRImage(object):
-    """Image class using an :class:`xarray.DataArray` as internal storage."""
+    """Image class using an :class:`xarray.DataArray` as internal storage.
+
+    It can be saved to a variety of image formats, but if Rasterio is installed,
+    it can save to geotiff and jpeg2000 with geographical information.
+    """
 
     def __init__(self, data):
         """Initialize the image with a :class:`~xarray.DataArray`."""
