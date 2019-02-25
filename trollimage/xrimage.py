@@ -304,7 +304,8 @@ class XRImage(object):
                 logger.info("Couldn't create geotransform")
             except AttributeError:
                 try:
-                    gcps, crs = data.attrs['area'].lons.attrs['gcps']
+                    gcps = data.attrs['area'].lons.attrs['gcps']
+                    crs = data.attrs['area'].lons.attrs['crs']
                 except KeyError:
                     logger.info("Couldn't create geotransform")
 

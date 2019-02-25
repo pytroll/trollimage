@@ -980,6 +980,7 @@ class TestXRImage(unittest.TestCase):
         import dask.array as da
         from trollimage import xrimage
         import rasterio as rio
+        from rasterio.control import GroundControlPoint
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1033,6 +1034,43 @@ class TestXRImage(unittest.TestCase):
             self.assertIsInstance(delay[1], xrimage.RIOFile)
             da.store(*delay)
             delay[1].close()
+
+        # GCPs
+        class FakeArea():
+            def __init__(self, lons, lats):
+                self.lons = lons
+                self.lats = lats
+
+        gcps = [GroundControlPoint(1, 1, 100.0, 1000.0, z=0.0),
+                GroundControlPoint(2, 3, 400.0, 2000.0, z=0.0)]
+        crs = 'epsg:4326'
+
+        lons = xr.DataArray(da.from_array(np.arange(25).reshape(5, 5), chunks=5),
+                            dims=['y', 'x'],
+                            attrs={'gcps': gcps,
+                                   'crs': crs})
+
+        lats = xr.DataArray(da.from_array(np.arange(25).reshape(5, 5), chunks=5),
+                            dims=['y', 'x'],
+                            attrs={'gcps': gcps,
+                                   'crs': crs})
+
+        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']},
+                            attrs={'area': FakeArea(lons, lats)})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                fgcps, fcrs = f.gcps
+            for ref, val in zip(gcps, fgcps):
+                self.assertEqual(ref.col, val.col)
+                self.assertEqual(ref.row, val.row)
+                self.assertEqual(ref.x, val.x)
+                self.assertEqual(ref.y, val.y)
+                self.assertEqual(ref.z, val.z)
+            self.assertEqual(crs, fcrs)
 
     def test_gamma(self):
         """Test gamma correction."""
