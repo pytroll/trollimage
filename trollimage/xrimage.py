@@ -227,6 +227,9 @@ class XRImage(object):
                            `rasterio` or `PIL` libraries ('jpg', 'png',
                            'tif'). By default this is determined by the
                            extension of the provided filename.
+                           If the format allows, geographical information will
+                           be saved to the ouput file, in the form of grid
+                           mapping or ground control points.
             fill_value (float): Replace invalid data values with this value
                                 and do not produce an Alpha band. Default
                                 behavior is to create an alpha band.
@@ -282,6 +285,7 @@ class XRImage(object):
         data.attrs = self.data.attrs
 
         crs = None
+        gcps = None
         transform = None
         if driver == 'GTiff':
             if not np.issubdtype(data.dtype, np.floating):
@@ -305,13 +309,20 @@ class XRImage(object):
                 transform = rasterio.transform.from_bounds(west, south,
                                                            east, north,
                                                            width, height)
-                if "start_time" in data.attrs:
-                    stime = data.attrs['start_time']
-                    stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
-                    tags.setdefault('TIFFTAG_DATETIME', stime_str)
 
-            except (KeyError, AttributeError):
+            except KeyError:  # No area
                 logger.info("Couldn't create geotransform")
+            except AttributeError:
+                try:
+                    gcps = data.attrs['area'].lons.attrs['gcps']
+                    crs = data.attrs['area'].lons.attrs['crs']
+                except KeyError:
+                    logger.info("Couldn't create geotransform")
+
+            if "start_time" in data.attrs:
+                stime = data.attrs['start_time']
+                stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
+                tags.setdefault('TIFFTAG_DATETIME', stime_str)
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
@@ -321,7 +332,10 @@ class XRImage(object):
                          count=data.sizes['bands'],
                          dtype=dtype,
                          nodata=fill_value,
-                         crs=crs, transform=transform, **format_kwargs)
+                         crs=crs,
+                         transform=transform,
+                         gcps=gcps,
+                         **format_kwargs)
         r_file.open()
         if not keep_palette:
             r_file.colorinterp = color_interp(data)
