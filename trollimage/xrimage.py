@@ -227,6 +227,9 @@ class XRImage(object):
                            `rasterio` or `PIL` libraries ('jpg', 'png',
                            'tif'). By default this is determined by the
                            extension of the provided filename.
+                           If the format allows, geographical information will
+                           be saved to the ouput file, in the form of grid
+                           mapping or ground control points.
             fill_value (float): Replace invalid data values with this value
                                 and do not produce an Alpha band. Default
                                 behavior is to create an alpha band.
