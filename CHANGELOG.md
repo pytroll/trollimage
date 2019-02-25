@@ -1,3 +1,28 @@
+## Version 1.6.3 (2018/12/20)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 38](https://github.com/pytroll/trollimage/pull/38) - Fix casting and scaling float arrays in finalize
+
+In this release 1 pull request was closed.
+
+
+## Version 1.6.2 (2018/12/20)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 37](https://github.com/pytroll/trollimage/pull/37) - Fix and cleanup alpha and fill value handling in XRImage finalize
+* [PR 35](https://github.com/pytroll/trollimage/pull/35) - Fix xrimage alpha creation in finalize
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.6.1 (2018/12/19)
 
 

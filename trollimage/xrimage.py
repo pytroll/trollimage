@@ -47,7 +47,6 @@ try:
 except ImportError:
     rasterio = None
 
-
 try:
     # rasterio 1.0+
     from rasterio.windows import Window
@@ -57,7 +56,6 @@ except ImportError:
     def Window(x_off, y_off, x_size, y_size):
         """Replace the missing Window object in rasterio < 1.0."""
         return (y_off, y_off + y_size), (x_off, x_off + x_size)
-
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +217,7 @@ class XRImage(object):
         return ''.join(self.data['bands'].values)
 
     def save(self, filename, fformat=None, fill_value=None, compute=True,
-             **format_kwargs):
+             keep_palette=False, cmap=None, **format_kwargs):
         """Save the image to the given *filename*.
 
         Args:
@@ -237,6 +235,11 @@ class XRImage(object):
                             a `dask.Delayed` object or a tuple of
                             ``(source, target)`` to be passed to
                             `dask.array.store`.
+            keep_palette (bool): Saves the palettized version of the image if
+                                 set to True. False by default.
+            cmap (Colormap or dict): Colormap to be applied to the image when
+                                     saving with rasterio, used with
+                                     keep_palette=True. Should be uint8.
             format_kwargs: Additional format options to pass to `rasterio`
                            or `PIL` saving methods.
 
@@ -253,13 +256,16 @@ class XRImage(object):
         if fformat == 'tif' and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
+                                 keep_palette=keep_palette, cmap=cmap,
                                  **format_kwargs)
         else:
             return self.pil_save(filename, fformat, fill_value,
                                  compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, compute=True, tags=None, **format_kwargs):
+                 dtype=np.uint8, compute=True, tags=None,
+                 keep_palette=False, cmap=None,
+                 **format_kwargs):
         """Save the image using rasterio."""
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
@@ -270,7 +276,8 @@ class XRImage(object):
         if tags is None:
             tags = {}
 
-        data, mode = self.finalize(fill_value, dtype=dtype)
+        data, mode = self.finalize(fill_value, dtype=dtype,
+                                   keep_palette=keep_palette, cmap=cmap)
         data = data.transpose('bands', 'y', 'x')
         data.attrs = self.data.attrs
 
@@ -327,8 +334,19 @@ class XRImage(object):
                          gcps=gcps,
                          **format_kwargs)
         r_file.open()
-        r_file.colorinterp = color_interp(data)
+        if not keep_palette:
+            r_file.colorinterp = color_interp(data)
         r_file.rfile.update_tags(**tags)
+
+        if keep_palette and cmap is not None:
+            if data.dtype != 'uint8':
+                raise ValueError('Rasterio only supports 8-bit colormaps')
+            try:
+                from trollimage.colormap import Colormap
+                cmap = cmap.to_rio() if isinstance(cmap, Colormap) else cmap
+                r_file.rfile.write_colormap(1, cmap)
+            except AttributeError:
+                raise ValueError("Colormap is not formatted correctly")
 
         if compute:
             # write data to the file now
@@ -354,11 +372,8 @@ class XRImage(object):
             # Take care of GeoImage.tags (if any).
             format_kwargs['pnginfo'] = self._pngmeta()
 
-        def _create_save_image(fill_value, filename, fformat, format_kwargs):
-            img = self.pil_image(fill_value)
-            img.save(filename, fformat, **format_kwargs)
-        delay = dask.delayed(_create_save_image)(
-            fill_value, filename, fformat, format_kwargs)
+        img = self.pil_image(fill_value, compute=False)
+        delay = img.save(filename, fformat, **format_kwargs)
         if compute:
             return delay.compute()
         return delay
@@ -388,28 +403,65 @@ class XRImage(object):
 
         return meta
 
-    def fill_or_alpha(self, data, fill_value=None, dtype=None):
-        """Fill the data with fill_value or create an alpha channel."""
-        if dtype is None:
-            dtype = data.dtype.type
-        if fill_value is None and not self.mode.endswith("A"):
-            not_alpha = [b for b in data.coords['bands'].values if b != 'A']
-            # if any of the bands are valid, we don't want transparency
-            null_mask = data.sel(bands=not_alpha).notnull().any(dim='bands')
-            null_mask = null_mask.expand_dims('bands')
-            null_mask['bands'] = ['A']
-            null_mask = null_mask.astype(dtype)
-            # if we are creating an integer field, then alpha needs to be max-int
-            # otherwise for floats we want 0 to 1
-            if np.issubdtype(dtype, np.integer):
+    def _create_alpha(self, data, fill_value=None):
+        """Create an alpha band DataArray object.
+
+        If `fill_value` is provided and input data is an integer type
+        then it is used to determine invalid "null" pixels instead of
+        xarray's `isnull` and `notnull` methods.
+
+        The returned array is 1 where data is valid, 0 where invalid.
+
+        """
+        not_alpha = [b for b in data.coords['bands'].values if b != 'A']
+        null_mask = data.sel(bands=not_alpha)
+        if np.issubdtype(data.dtype, np.integer) and fill_value is not None:
+            null_mask = null_mask != fill_value
+        else:
+            null_mask = null_mask.notnull()
+        # if any of the bands are valid, we don't want transparency
+        null_mask = null_mask.any(dim='bands')
+        null_mask = null_mask.expand_dims('bands')
+        null_mask['bands'] = ['A']
+        # match data dtype
+        return null_mask
+
+    def _add_alpha(self, data, alpha=None):
+        """Create an alpha channel and concatenate it to the provided data.
+
+        If ``data`` is an integer type then the alpha band will be scaled
+        to use the smallest (min) value as fully transparent and the largest
+        (max) value as fully opaque. For float types the alpha band spans
+        0 to 1.
+
+        """
+        null_mask = alpha if alpha is not None else self._create_alpha(data)
+        # if we are using integer data, then alpha needs to be min-int to max-int
+        # otherwise for floats we want 0 to 1
+        if np.issubdtype(data.dtype, np.integer):
+            # xarray sometimes upcasts this calculation, so cast again
+            null_mask = self._scale_to_dtype(null_mask, data.dtype).astype(data.dtype)
+        data = xr.concat([data, null_mask], dim="bands")
+        return data
+
+    def _scale_to_dtype(self, data, dtype):
+        """Scale provided data to dtype range assuming a 0-1 range.
+
+        Float input data is assumed to be normalized to a 0 to 1 range.
+        Integer input data is not scaled, only clipped. A float output
+        type is not scaled since both outputs and inputs are assumed to
+        be in the 0-1 range already.
+
+        """
+        if np.issubdtype(dtype, np.integer):
+            if np.issubdtype(data, np.integer):
+                # preserve integer data type
+                data = data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
+            else:
+                # scale float data (assumed to be 0 to 1) to full integer space
                 dinfo = np.iinfo(dtype)
-                null_mask = null_mask * (dinfo.max - dinfo.min) + dinfo.min
-            data = xr.concat([data, null_mask], dim="bands")
-        elif fill_value is not None:
-            # convert fill_value to the current arrays data type to avoid
-            # implicit data array type conversion
-            fill_value = dtype(fill_value)
-            data = data.fillna(fill_value)
+                data = data.clip(0, 1) * (dinfo.max - dinfo.min) + dinfo.min
+            data = data.round()
         return data
 
     def _check_modes(self, modes):
@@ -423,28 +475,36 @@ class XRImage(object):
         """Convert the image from P or PA to RGB or RGBA."""
         self._check_modes(("P", "PA"))
 
-        if self.mode.endswith("A"):
-            alpha = self.data.sel(bands=["A"]).data
+        if not self.palette:
+            raise RuntimeError("Can't convert palettized image, missing palette.")
+        pal = np.array(self.palette)
+        pal = da.from_array(pal, chunks=pal.shape)
+
+        if pal.shape[1] == 4:
+            # colormap's alpha overrides data alpha
+            mode = "RGBA"
+            alpha = None
+        elif self.mode.endswith("A"):
+            # add a new/fake 'bands' dimension to the end
+            alpha = self.data.sel(bands="A").data[..., None]
             mode = mode + "A" if not mode.endswith("A") else mode
         else:
             alpha = None
 
-        if not self.palette:
-            raise RuntimeError("Can't convert palettized image, missing palette.")
-
-        pal = np.array(self.palette)
-        pal = da.from_array(pal, chunks=pal.shape)
-        flat_indexes = self.data.data[0].ravel().astype('int64')
-        new_shape = (3,) + self.data.shape[1:3]
+        flat_indexes = self.data.sel(bands='P').data.ravel().astype('int64')
+        dim_sizes = ((key, val) for key, val in self.data.sizes.items() if key != 'bands')
+        dims, new_shape = zip(*dim_sizes)
+        dims = dims + ('bands',)
+        new_shape = new_shape + (pal.shape[1],)
         new_data = pal[flat_indexes].reshape(new_shape)
         coords = dict(self.data.coords)
         coords["bands"] = list(mode)
 
         if alpha is not None:
-            new_arr = da.concatenate((new_data, alpha), axis=0)
-            data = xr.DataArray(new_arr, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+            new_arr = da.concatenate((new_data, alpha), axis=-1)
+            data = xr.DataArray(new_arr, coords=coords, attrs=self.data.attrs, dims=dims)
         else:
-            data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
+            data = xr.DataArray(new_data, coords=coords, attrs=self.data.attrs, dims=dims)
 
         return data
 
@@ -468,7 +528,7 @@ class XRImage(object):
             raise ValueError("Mode %s not recognized." % (mode))
 
         if mode == self.mode + "A":
-            data = self.fill_or_alpha(self.data).data
+            data = self._add_alpha(self.data).data
             coords = dict(self.data.coords)
             coords["bands"] = list(mode)
             data = xr.DataArray(data, coords=coords, attrs=self.data.attrs, dims=self.data.dims)
@@ -505,23 +565,35 @@ class XRImage(object):
             new_img.palette = self.palette
         return new_img
 
-    def _finalize(self, fill_value=None, dtype=np.uint8):
+    def _finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
         """Wrapper around 'finalize' method for backwards compatibility."""
         import warnings
         warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
                       DeprecationWarning)
-        return self.finalize(fill_value, dtype)
+        return self.finalize(fill_value, dtype, keep_palette, cmap)
 
-    def finalize(self, fill_value=None, dtype=np.uint8):
-        """Finalize the image.
+    def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
+        """Finalize the image to be written to an output file.
 
-        This sets the channels in unsigned 8bit format ([0,255] range)
-        (if the *dtype* doesn't say otherwise).
+        This adds an alpha band or fills data with a fill_value (if specified).
+        It also scales float data to the output range of the data type (0-255
+        for uint8, default). For integer input data this method assumes the
+        data is already scaled to the proper desired range. It will still fill
+        in invalid values and add an alpha band if needed. Integer input
+        data's fill value is determined by a special ``_FillValue`` attribute
+        in the ``DataArray`` ``.attrs`` dictionary.
+
         """
-        if self.mode == "P":
-            return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype)
-        if self.mode == "PA":
-            return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype)
+        if keep_palette and not self.mode.startswith('P'):
+            keep_palette = False
+
+        if not keep_palette:
+            if self.mode == "P":
+                return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype,
+                                                    keep_palette=keep_palette, cmap=cmap)
+            if self.mode == "PA":
+                return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype,
+                                                     keep_palette=keep_palette, cmap=cmap)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
@@ -529,26 +601,50 @@ class XRImage(object):
             fill_value = 0
 
         final_data = self.data
-        if np.issubdtype(dtype, np.integer):
-            if np.issubdtype(final_data, np.integer):
-                # preserve integer data type
-                final_data = final_data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
+        # if the data are integers then this fill value will be used to check for invalid values
+        ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
+        if not keep_palette:
+            if fill_value is None and not self.mode.endswith('A'):
+                # We don't have a fill value or an alpha, let's add an alpha
+                alpha = self._create_alpha(final_data, fill_value=ifill)
+                final_data = self._scale_to_dtype(final_data, dtype).astype(dtype)
+                final_data = self._add_alpha(final_data, alpha=alpha)
             else:
-                # scale float data (assumed to be 0 to 1) to full integer space
-                dinfo = np.iinfo(dtype)
-                final_data = final_data.clip(0, 1) * (dinfo.max - dinfo.min) + dinfo.min
-            final_data = final_data.round()
-        final_data = self.fill_or_alpha(final_data, fill_value, dtype=dtype)
-        final_data = final_data.astype(dtype)
+                # scale float data to the proper dtype
+                # this method doesn't cast yet so that we can keep track of NULL values
+                final_data = self._scale_to_dtype(final_data, dtype)
+                # Add fill_value after all other calculations have been done to
+                # make sure it is not scaled for the data type
+                if ifill is not None and fill_value is not None:
+                    # cast fill value to output type so we don't change data type
+                    fill_value = dtype(fill_value)
+                    # integer fields have special fill values
+                    final_data = final_data.where(final_data != ifill, dtype(fill_value))
+                elif fill_value is not None:
+                    final_data = final_data.fillna(dtype(fill_value))
 
+        final_data = final_data.astype(dtype)
         final_data.attrs = self.data.attrs
         return final_data, ''.join(final_data['bands'].values)
 
-    def pil_image(self, fill_value=None):
-        """Return a PIL image from the current image."""
+    def pil_image(self, fill_value=None, compute=True):
+        """Return a PIL image from the current image.
+
+        Args:
+            fill_value (int or float): Value to use for NaN null values.
+                See :meth:`~trollimage.xrimage.XRImage.finalize` for more
+                info.
+            compute (bool): Whether to return a fully computed PIL.Image
+                object (True) or return a dask Delayed object representing
+                the Image (False). This is True by default.
+
+        """
         channels, mode = self.finalize(fill_value)
-        res = np.asanyarray(channels.transpose('y', 'x', 'bands').values)
-        return PILImage.fromarray(np.squeeze(res), mode)
+        res = channels.transpose('y', 'x', 'bands')
+        img = dask.delayed(PILImage.fromarray)(np.squeeze(res.data), mode)
+        if compute:
+            img = img.compute()
+        return img
 
     def xrify_tuples(self, tup):
         """Make xarray.DataArray from tuple."""
@@ -567,7 +663,7 @@ class XRImage(object):
         undefined outside the normal [0,1] range of the channels.
         """
         if isinstance(gamma, (list, tuple)):
-           gamma = self.xrify_tuples(gamma)
+            gamma = self.xrify_tuples(gamma)
         elif gamma == 1.0:
             return
 
@@ -615,6 +711,25 @@ class XRImage(object):
         else:
             raise TypeError("Stretch parameter must be a string or a tuple.")
 
+    @staticmethod
+    def _compute_quantile(data, dims, cutoffs):
+        """Helper method for stretch_linear.
+
+        Dask delayed functions need to be non-internal functions (created
+        inside a function) to be serializable on a multi-process scheduler.
+
+        Quantile requires the data to be loaded since it not supported on
+        dask arrays yet.
+
+        """
+        # numpy doesn't get a 'quantile' function until 1.15
+        # for better backwards compatibility we use xarray's version
+        data_arr = xr.DataArray(data, dims=dims)
+        # delayed will provide us the fully computed xarray with ndarray
+        left, right = data_arr.quantile([cutoffs[0], 1. - cutoffs[1]], dim=['x', 'y'])
+        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+        return left.data, right.data
+
     def stretch_linear(self, cutoffs=(0.005, 0.005)):
         """Stretch linearly the contrast of the current image.
 
@@ -626,21 +741,13 @@ class XRImage(object):
         logger.debug("Left and right quantiles: " +
                      str(cutoffs[0]) + " " + str(cutoffs[1]))
 
-        # Quantile requires the data to be loaded, not supported on dask arrays
-        def _compute_quantile(data, cutoffs):
-            # delayed will provide us the fully computed xarray with ndarray
-            left, right = data.quantile([cutoffs[0], 1. - cutoffs[1]],
-                                        dim=['x', 'y'])
-            logger.debug("Interval: left=%s, right=%s", str(left), str(right))
-            return left.data, right.data
-
         cutoff_type = np.float64
         # numpy percentile (which quantile calls) returns 64-bit floats
         # unless the value is a higher order float
         if np.issubdtype(self.data.dtype, np.floating) and \
                 np.dtype(self.data.dtype).itemsize > 8:
             cutoff_type = self.data.dtype
-        left, right = dask.delayed(_compute_quantile, nout=2)(self.data, cutoffs)
+        left, right = dask.delayed(self._compute_quantile, nout=2)(self.data.data, self.data.dims, cutoffs)
         left_data = da.from_delayed(left,
                                     shape=(self.data.sizes['bands'],),
                                     dtype=cutoff_type)
@@ -765,7 +872,7 @@ class XRImage(object):
         highest unpercieved stimulus), and k is the factor.
         """
         attrs = self.data.attrs
-        self.data = k*xu.log(self.data / s0)
+        self.data = k * xu.log(self.data / s0)
         self.data.attrs = attrs
 
     def invert(self, invert=True):
@@ -838,9 +945,12 @@ class XRImage(object):
             return np.concatenate(channels, axis=0)
 
         new_data = l_data.data.map_blocks(_colorize, colormap,
-                                          chunks=(3,) + l_data.data.chunks[1:], dtype=np.float64)
+                                          chunks=(colormap.colors.shape[1],) + l_data.data.chunks[1:],
+                                          dtype=np.float64)
 
-        if alpha is not None:
+        if colormap.colors.shape[1] == 4:
+            mode = "RGBA"
+        elif alpha is not None:
             new_data = da.concatenate([new_data, alpha.data], axis=0)
             mode = "RGBA"
         else:

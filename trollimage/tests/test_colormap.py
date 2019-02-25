@@ -23,14 +23,15 @@
 """Test colormap.py
 """
 
-
 import unittest
 from trollimage import colormap
 import numpy as np
 
+
 class TestColormapClass(unittest.TestCase):
     """Test case for the colormap object.
     """
+
     def test_colorize(self):
         """Test colorize
         """
@@ -78,8 +79,6 @@ class TestColormapClass(unittest.TestCase):
         channels, colors = cm_.palettize(data)
         self.assertTrue(np.allclose(colors, cm_.colors))
         self.assertTrue(all(channels == [0, 0, 1, 2, 3, 3]))
-
-
 
     def test_set_range(self):
         """Test set_range
@@ -160,6 +159,20 @@ class TestColormapClass(unittest.TestCase):
 
         self.assertTrue(np.allclose(channel, np.arange(4)))
         self.assertTrue(np.allclose(palette, cm_.colors))
+
+    def test_to_rio(self):
+        """Test conversion to rasterio colormap
+        """
+        cm_ = colormap.Colormap((1, (1, 1, 0)),
+                                (2, (0, 1, 1)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        d = cm_.to_rio()
+        exp = {1: (255, 255, 0), 2: (0, 255, 255),
+               3: (255, 255, 255), 4: (0, 0, 0)}
+
+        self.assertEqual(d, exp)
 
 
 def suite():
