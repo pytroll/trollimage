@@ -162,7 +162,11 @@ def color_interp(data):
 
 
 class XRImage(object):
-    """Image class using an :class:`xarray.DataArray` as internal storage."""
+    """Image class using an :class:`xarray.DataArray` as internal storage.
+
+    It can be saved to a variety of image formats, but if Rasterio is installed,
+    it can save to geotiff and jpeg2000 with geographical information.
+    """
 
     def __init__(self, data):
         """Initialize the image with a :class:`~xarray.DataArray`."""
@@ -256,7 +260,7 @@ class XRImage(object):
 
         """
         fformat = fformat or os.path.splitext(filename)[1][1:4]
-        if fformat == 'tif' and rasterio:
+        if fformat in ('tif', 'jp2') and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
                                  keep_palette=keep_palette, cmap=cmap,
@@ -273,7 +277,8 @@ class XRImage(object):
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
-                   'tif': 'GTiff'}
+                   'tif': 'GTiff',
+                   'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
 
         if tags is None:
@@ -287,7 +292,7 @@ class XRImage(object):
         crs = None
         gcps = None
         transform = None
-        if driver == 'GTiff':
+        if driver in ['GTiff', 'JP2OpenJPEG']:
             if not np.issubdtype(data.dtype, np.floating):
                 format_kwargs.setdefault('compress', 'DEFLATE')
             photometric_map = {

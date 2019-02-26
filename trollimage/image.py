@@ -76,6 +76,7 @@ def check_image_format(fformat):
              "png": "png",
              "xbm": "xbm",
              "xpm": "xpm",
+             'jp2': 'jp2',
              }
     fformat = fformat.lower()
     try:

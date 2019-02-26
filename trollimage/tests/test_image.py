@@ -1185,6 +1185,29 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
 
+    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    def test_save_jp2_int(self):
+        """Test saving geotiffs when input data is int."""
+        import xarray as xr
+        from trollimage import xrimage
+        import rasterio as rio
+
+        # numpy array image
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        with NamedTemporaryFile(suffix='.jp2') as tmp:
+            img.save(tmp.name, quality=100, reversible=True)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = np.arange(75).reshape(5, 5, 3)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)
+
     def test_gamma(self):
         """Test gamma correction."""
         import xarray as xr
