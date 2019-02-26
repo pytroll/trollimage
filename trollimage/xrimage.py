@@ -104,6 +104,7 @@ class RIOFile(object):
     def close(self):
         if not self._closed:
             if self.overviews:
+                logger.debug('Building overviews %s', str(self.overviews))
                 self.rfile.build_overviews(self.overviews)
             self.rfile.close()
             self._closed = True
