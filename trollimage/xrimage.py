@@ -70,6 +70,7 @@ class RIOFile(object):
         self.kwargs = kwargs
         self.rfile = None
         self._closed = True
+        self.overviews = kwargs.pop('overviews', None)
 
     def __setitem__(self, key, item):
         """Put the data chunk in the image."""
@@ -102,6 +103,9 @@ class RIOFile(object):
 
     def close(self):
         if not self._closed:
+            if self.overviews:
+                logger.debug('Building overviews %s', str(self.overviews))
+                self.rfile.build_overviews(self.overviews)
             self.rfile.close()
             self._closed = True
 
@@ -273,7 +277,13 @@ class XRImage(object):
                  dtype=np.uint8, compute=True, tags=None,
                  keep_palette=False, cmap=None,
                  **format_kwargs):
-        """Save the image using rasterio."""
+        """Save the image using rasterio.
+
+        Overviews can be added to the file using the `overviews` kwarg, eg::
+
+          img.rio_save('myfile.tif', overviews=[2, 4, 8, 16])
+
+        """
         fformat = fformat or os.path.splitext(filename)[1][1:4]
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
