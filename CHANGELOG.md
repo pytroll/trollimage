@@ -1,5 +1,31 @@
-## Version 1.6.3 (2018/12/20)
+## Version 1.7.0 (2019/02/28)
 
+### Issues Closed
+
+* [Issue 27](https://github.com/pytroll/trollimage/issues/27) - Add "overviews" to save options
+* [Issue 5](https://github.com/pytroll/trollimage/issues/5) - Add alpha channel to Colormaps
+
+In this release 2 issues were closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 42](https://github.com/pytroll/trollimage/pull/42) - Fix stretch_linear to be dask serializable
+* [PR 41](https://github.com/pytroll/trollimage/pull/41) - Refactor XRImage pil_save to be serializable
+
+#### Features added
+
+* [PR 44](https://github.com/pytroll/trollimage/pull/44) - Add support for adding overviews to rasterio-managed files
+* [PR 43](https://github.com/pytroll/trollimage/pull/43) - Add support for jpeg2000 writing
+* [PR 40](https://github.com/pytroll/trollimage/pull/40) - Modify colorize routine to allow colorizing using colormaps with alpha channel
+* [PR 39](https://github.com/pytroll/trollimage/pull/39) - Add 'keep_palette' keyword argument 'XRImage.save' to prevent P -> RGB conversion on save
+* [PR 36](https://github.com/pytroll/trollimage/pull/36) - Add support for saving gcps
+
+In this release 7 pull requests were closed.
+
+
+## Version 1.6.3 (2018/12/20)
 
 ### Pull Requests Merged
 
@@ -12,7 +38,6 @@ In this release 1 pull request was closed.
 
 ## Version 1.6.2 (2018/12/20)
 
-
 ### Pull Requests Merged
 
 #### Bugs fixed
@@ -24,7 +49,6 @@ In this release 2 pull requests were closed.
 
 
 ## Version 1.6.1 (2018/12/19)
-
 
 ### Pull Requests Merged
 
