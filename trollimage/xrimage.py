@@ -1046,12 +1046,14 @@ class XRImage(object):
 
         if self.mode != "RGBA":
             raise ValueError(
-                    f"Expected self.mode='RGBA', got {self.mode!s}")
+                    "Expected self.mode='RGBA', got {md!s}".format(
+                        md=self.mode))
         elif not isinstance(src, XRImage):
-            raise TypeError(f"Expected XRImage, got {type(src)!s}")
+            raise TypeError("Expected XRImage, got {tp!s}".format(
+                tp=type(src)))
         elif src.mode != "RGBA":
-            raise ValueError(
-                    f"Expected src.mode='RGBA', got {src.mode!s}")
+            raise ValueError("Expected src.mode='RGBA', got {sm!s}".format(
+                sm=src.mode))
 
         dstdata = xr.DataArray(
                 np.empty(src.data.shape, dtype="f4"),
