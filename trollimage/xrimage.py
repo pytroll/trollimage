@@ -1020,8 +1020,13 @@ class XRImage(object):
         .. math::
 
            \begin{cases}
-            \mathrm{out}_A = \mathrm{src}_A + \mathrm{dst}_A (1 - \mathrm{src}_A) \\
-            \mathrm{out}_{RGB} = \bigl( \mathrm{src}_{RGB} \mathrm{src}_A + \mathrm{dst}_{RGB} \mathrm{dst}_A \left( 1 - \mathrm{src}_A \right) \bigr) \div \mathrm{out}_A \\
+            \mathrm{out}_A =
+             \mathrm{src}_A + \mathrm{dst}_A (1 - \mathrm{src}_A) \\
+            \mathrm{out}_{RGB} =
+             \bigl(\mathrm{src}_{RGB}\mathrm{src}_A
+                 + \mathrm{dst}_{RGB} \mathrm{dst}_A
+                   \left(1 - \mathrm{src}_A \right) \bigr)
+             \div \mathrm{out}_A \\
             \mathrm{out}_A = 0 \Rightarrow \mathrm{out}_{RGB} = 0
            \end{cases}
 
@@ -1040,13 +1045,13 @@ class XRImage(object):
         # NB: docstring maths copy-pasta from enwiki
 
         if self.mode != "RGBA":
-            raise ValueError("Expected self.mode='RGBA', got "
-                f"{self.mode!s}")
+            raise ValueError(
+                    f"Expected self.mode='RGBA', got {self.mode!s}")
         elif not isinstance(src, XRImage):
             raise TypeError(f"Expected XRImage, got {type(src)!s}")
         elif src.mode != "RGBA":
-            raise ValueError("Expected src.mode='RGBA', got "
-                f"{src.mode!s}")
+            raise ValueError(
+                    f"Expected src.mode='RGBA', got {src.mode!s}")
 
         dstdata = xr.DataArray(
                 np.empty(src.data.shape, dtype="f4"),
@@ -1058,9 +1063,8 @@ class XRImage(object):
         for b in "RGB":
             dstdata.loc[{"bands": b}] = (
                     (src.data.sel(bands=b) * srca
-                        + self.data.sel(bands=b) * dsta * (1 - srca)
-                    ) / outa)
-            dstdata.loc[{"bands": b}].values[outa.values==0] = 0
+                        + self.data.sel(bands=b) * dsta * (1 - srca)) / outa)
+            dstdata.loc[{"bands": b}].values[outa.values == 0] = 0
         dstdata.loc[{"bands": "A"}] = outa
         return self.__class__(dstdata)
 

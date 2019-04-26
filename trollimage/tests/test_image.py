@@ -1789,14 +1789,14 @@ class TestXRImage(unittest.TestCase):
         alpha1 = np.linspace(0, 1, 25).reshape(5, 5, 1)
         arr1 = np.concatenate([core1, alpha1], 2)
         data1 = xr.DataArray(arr1, dims=['y', 'x', 'bands'],
-                            coords={'bands': ['R', 'G', 'B', 'A']})
+                             coords={'bands': ['R', 'G', 'B', 'A']})
         img1 = xrimage.XRImage(data1)
 
         core2 = np.arange(75, 0, -1).reshape(5, 5, 3) / 75
         alpha2 = np.linspace(1, 0, 25).reshape(5, 5, 1)
         arr2 = np.concatenate([core2, alpha2], 2)
         data2 = xr.DataArray(arr2, dims=['y', 'x', 'bands'],
-                            coords={'bands': ['R', 'G', 'B', 'A']})
+                             coords={'bands': ['R', 'G', 'B', 'A']})
         img2 = xrimage.XRImage(data2)
 
         img3 = img1.blend(img2)
@@ -1808,11 +1808,11 @@ class TestXRImage(unittest.TestCase):
         np.testing.assert_allclose(
             img3.data.sel(bands="R").values,
             np.array(
-                [[1.        , 0.95833635, 0.9136842 , 0.8666667 , 0.8180645 ],
-                 [0.768815  , 0.72      , 0.6728228 , 0.62857145, 0.5885714 ],
-                 [0.55412847, 0.5264665 , 0.50666666, 0.495612  , 0.49394494],
-                 [0.5020408 , 0.52      , 0.5476586 , 0.5846154 , 0.63027024],
-                 [0.683871  , 0.7445614 , 0.81142855, 0.8835443 , 0.96]]))
+                [[1.,           0.95833635, 0.9136842,  0.8666667,  0.8180645],
+                 [0.768815,     0.72,       0.6728228,  0.62857145, 0.5885714],
+                 [0.55412847,   0.5264665,  0.50666666, 0.495612,   0.49394494],
+                 [0.5020408,    0.52,       0.5476586,  0.5846154,  0.63027024],
+                 [0.683871,     0.7445614,  0.81142855, 0.8835443,  0.96]]))
 
         with self.assertRaises(TypeError):
             img1.blend("Salekhard")
