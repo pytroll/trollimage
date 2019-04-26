@@ -1011,22 +1011,58 @@ class XRImage(object):
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
 
-    def blend(self, other):
-        """Alpha blend *other* on top of the current image."""
-        raise NotImplementedError("This method has not be implemented for "
-                                  "xarray support.")
+    def blend(self, src):
+        r"""Alpha blend *src* on top of the current image.
 
-        if self.mode != "RGBA" or other.mode != "RGBA":
-            raise ValueError("Images must be in RGBA")
-        src = other
-        dst = self
-        outa = src.channels[3] + dst.channels[3] * (1 - src.channels[3])
-        for i in range(3):
-            dst.channels[i] = (src.channels[i] * src.channels[3] +
-                               dst.channels[i] * dst.channels[3] *
-                               (1 - src.channels[3])) / outa
-            dst.channels[i][outa == 0] = 0
-        dst.channels[3] = outa
+        Perform `alpha blending`_ of *src* on top of the current image.
+        Alpha blending is defined as:
+
+        .. math::
+
+           \begin{cases}
+            \mathrm{out}_A = \mathrm{src}_A + \mathrm{dst}_A (1 - \mathrm{src}_A) \\
+            \mathrm{out}_{RGB} = \bigl( \mathrm{src}_{RGB} \mathrm{src}_A + \mathrm{dst}_{RGB} \mathrm{dst}_A \left( 1 - \mathrm{src}_A \right) \bigr) \div \mathrm{out}_A \\
+            \mathrm{out}_A = 0 \Rightarrow \mathrm{out}_{RGB} = 0
+           \end{cases}
+
+        Both images must have mode ``"RGBA"``.
+
+        Args:
+            src (:class:`XRImage` with mode ``"RGBA"``)
+                Image to be blended on top of current image.
+
+        .. _alpha blending: https://en.wikipedia.org/w/index.php?title=Alpha_compositing&oldid=891033105#Alpha_blending
+
+        Returns
+            XRImage with mode "RGBA", blended as described above
+
+        """
+        # NB: docstring maths copy-pasta from enwiki
+
+        if self.mode != "RGBA":
+            raise ValueError("Expected self.mode='RGBA', got "
+                f"{self.mode!s}")
+        elif not isinstance(src, XRImage):
+            raise TypeError(f"Expected XRImage, got {type(src)!s}")
+        elif src.mode != "RGBA":
+            raise ValueError("Expected src.mode='RGBA', got "
+                f"{src.mode!s}")
+
+        dstdata = xr.DataArray(
+                np.empty(src.data.shape, dtype="f4"),
+                dims=src.data.dims,
+                coords=src.data.coords)
+        srca = src.data.sel(bands="A")
+        dsta = self.data.sel(bands="A")
+        outa = srca + dsta * (1-srca)
+        for b in "RGB":
+            dstdata.loc[{"bands": b}] = (
+                    (src.data.sel(bands=b) * srca
+                        + self.data.sel(bands=b) * dsta * (1 - srca)
+                    ) / outa)
+            dstdata.loc[{"bands": b}].values[outa.values==0] = 0
+        dstdata.loc[{"bands": "A"}] = outa
+        return self.__class__(dstdata)
 
     def show(self):
         """Display the image on screen."""
