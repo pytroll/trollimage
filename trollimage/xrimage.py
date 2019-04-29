@@ -1055,19 +1055,17 @@ class XRImage(object):
             raise ValueError("Expected src.mode='RGBA', got {sm!s}".format(
                 sm=src.mode))
 
-        dstdata = xr.DataArray(
-                np.empty(src.data.shape, dtype="f4"),
-                dims=src.data.dims,
-                coords=src.data.coords)
         srca = src.data.sel(bands="A")
         dsta = self.data.sel(bands="A")
         outa = srca + dsta * (1-srca)
         bi = {"bands": ["R", "G", "B"]}
-        dstdata.loc[bi] = (src.data.loc[bi] * srca
-                           + self.data.loc[bi] * dsta * (1-srca)) / outa
-        dstdata.loc[bi] = dstdata.loc[bi].where(outa != 0, 0)
-        dstdata.loc[{"bands": "A"}] = outa
-        return self.__class__(dstdata)
+        rgb = ((src.data.loc[bi] * srca
+               + self.data.loc[bi] * dsta * (1-srca))
+               / outa).where(outa != 0, 0)
+        return self.__class__(
+                xr.concat(
+                    [rgb, outa.expand_dims("bands")],
+                    dim="bands"))
 
     def show(self):
         """Display the image on screen."""
