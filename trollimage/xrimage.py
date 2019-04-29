@@ -1065,8 +1065,7 @@ class XRImage(object):
         bi = {"bands": ["R", "G", "B"]}
         dstdata.loc[bi] = (src.data.loc[bi] * srca
                            + self.data.loc[bi] * dsta * (1-srca)) / outa
-        for b in "RGB":
-            dstdata.loc[{"bands": b}].values[outa.values == 0] = 0
+        dstdata.loc[bi] = dstdata.loc[bi].where(outa != 0, 0)
         dstdata.loc[{"bands": "A"}] = outa
         return self.__class__(dstdata)
 
