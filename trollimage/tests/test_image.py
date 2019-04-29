@@ -1785,14 +1785,14 @@ class TestXRImage(unittest.TestCase):
         import xarray as xr
         from trollimage import xrimage
 
-        core1 = np.arange(75).reshape(5, 5, 3) / 75
+        core1 = np.arange(75).reshape(5, 5, 3) / 75.0
         alpha1 = np.linspace(0, 1, 25).reshape(5, 5, 1)
         arr1 = np.concatenate([core1, alpha1], 2)
         data1 = xr.DataArray(arr1, dims=['y', 'x', 'bands'],
                              coords={'bands': ['R', 'G', 'B', 'A']})
         img1 = xrimage.XRImage(data1)
 
-        core2 = np.arange(75, 0, -1).reshape(5, 5, 3) / 75
+        core2 = np.arange(75, 0, -1).reshape(5, 5, 3) / 75.0
         alpha2 = np.linspace(1, 0, 25).reshape(5, 5, 1)
         arr2 = np.concatenate([core2, alpha2], 2)
         data2 = xr.DataArray(arr2, dims=['y', 'x', 'bands'],
