@@ -1062,10 +1062,10 @@ class XRImage(object):
         srca = src.data.sel(bands="A")
         dsta = self.data.sel(bands="A")
         outa = srca + dsta * (1-srca)
+        bi = {"bands": ["R", "G", "B"]}
+        dstdata.loc[bi] = (src.data.loc[bi] * srca
+                + self.data.loc[bi] * dsta * (1-srca)) / outa
         for b in "RGB":
-            dstdata.loc[{"bands": b}] = (
-                    (src.data.sel(bands=b) * srca
-                        + self.data.sel(bands=b) * dsta * (1 - srca)) / outa)
             dstdata.loc[{"bands": b}].values[outa.values == 0] = 0
         dstdata.loc[{"bands": "A"}] = outa
         return self.__class__(dstdata)
