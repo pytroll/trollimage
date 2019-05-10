@@ -1,3 +1,24 @@
+## Version 1.8.0 (2019/05/10)
+
+### Issues Closed
+
+* [Issue 45](https://github.com/pytroll/trollimage/issues/45) - img.stretch gives TypeError where img.data is xarray.DataArray and img.data.data is a dask.array
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 47](https://github.com/pytroll/trollimage/pull/47) - Fix xrimage palettize and colorize delaying internal functions
+
+#### Features added
+
+* [PR 46](https://github.com/pytroll/trollimage/pull/46) - Implement blend method for XRImage class
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.7.0 (2019/02/28)
 
 ### Issues Closed
