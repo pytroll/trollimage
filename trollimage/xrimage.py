@@ -937,6 +937,13 @@ class XRImage(object):
             self.channels[i].mask = np.logical_and(selfmask,
                                                    img.channels[i].mask)
 
+    @staticmethod
+    def _colorize(l_data, colormap):
+        # 'l_data' is (1, rows, cols)
+        # 'channels' will be a list of 3 (RGB) or 4 (RGBA) arrays
+        channels = colormap.colorize(l_data)
+        return np.concatenate(channels, axis=0)
+
     def colorize(self, colormap):
         """Colorize the current image using `colormap`.
 
@@ -955,14 +962,7 @@ class XRImage(object):
             alpha = None
 
         l_data = self.data.sel(bands=['L'])
-
-        def _colorize(l_data, colormap):
-            # 'l_data' is (1, rows, cols)
-            # 'channels' will be a list of 3 (RGB) or 4 (RGBA) arrays
-            channels = colormap.colorize(l_data)
-            return np.concatenate(channels, axis=0)
-
-        new_data = l_data.data.map_blocks(_colorize, colormap,
+        new_data = l_data.data.map_blocks(self._colorize, colormap,
                                           chunks=(colormap.colors.shape[1],) + l_data.data.chunks[1:],
                                           dtype=np.float64)
 
@@ -981,6 +981,12 @@ class XRImage(object):
         dims = self.data.dims
         self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
 
+    @staticmethod
+    def _palettize(data, colormap):
+        """Helper for dask-friendly palettize operation."""
+        # returns data and palette, only need data
+        return colormap.palettize(data)[0]
+
     def palettize(self, colormap):
         """Palettize the current image using `colormap`.
 
@@ -994,12 +1000,7 @@ class XRImage(object):
             raise ValueError("Image should be grayscale to colorize")
 
         l_data = self.data.sel(bands=['L'])
-
-        def _palettize(data):
-            # returns data and palette, only need data
-            return colormap.palettize(data)[0]
-
-        new_data = l_data.data.map_blocks(_palettize, dtype=l_data.dtype)
+        new_data = l_data.data.map_blocks(self._palettize, colormap, dtype=l_data.dtype)
         self.palette = tuple(colormap.colors)
 
         if self.mode == "L":
