@@ -1090,7 +1090,7 @@ class XRImage(object):
         self.pil_image().save(b, format='png')
         return b.getvalue()
 
-    def get_outputinfo(self, **kwargs):
+    def set_outputinfo(self, **kwargs):
         """Store additional data in xrimage outputinfo attribute"""
         if 'outputinfo' not in self.data.attrs:
             self.data.attrs['outputinfo'] = dict()
