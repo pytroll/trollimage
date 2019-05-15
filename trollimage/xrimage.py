@@ -914,6 +914,16 @@ class XRImage(object):
         self.data = self.data * scale + offset
         self.data.attrs = attrs
 
+    def stack(self, img):
+        """Stack the provided image on top of the current image.
+        """
+        # TODO: Conversions between different modes with notification
+        # to the user, i.e. proper logging
+        if self.mode != img.mode:
+            raise NotImplementedError("Cannot stack images of different modes.")
+
+        self.data = self.data.where(img.data.isnull(), img.data)
+
     def merge(self, img):
         """Use the provided image as background for the current *img* image,
         that is if the current image has missing data.
