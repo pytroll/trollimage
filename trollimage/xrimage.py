@@ -785,6 +785,18 @@ class XRImage(object):
         This is done without any cutoff on the current image and normalizes to
         the [0,1] range.
         """
+
+        # store enanchement defined max and min stretch values in output info attribute
+        outputinfo_data = dict()
+        if min_stretch is not None:
+            outputinfo_data['min_value'] = min_stretch
+        if max_stretch is not None:
+            outputinfo_data['max_value'] = max_stretch
+        if len(outputinfo_data) > 0:
+            if 'outputinfo' not in self.data.attrs:
+                self.data.attrs['outputinfo'] = dict()
+            self.data.attrs['outputinfo'].update(outputinfo_data)
+
         if min_stretch is None:
             non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
             min_stretch = self.data.min(dim=non_band_dims)
@@ -1077,3 +1089,9 @@ class XRImage(object):
         b = io.BytesIO()
         self.pil_image().save(b, format='png')
         return b.getvalue()
+
+    def get_outputinfo(self, **kwargs):
+        """Store additional data in xrimage outputinfo attribute"""
+        if 'outputinfo' not in self.data.attrs:
+            self.data.attrs['outputinfo'] = dict()
+        self.data.attrs['outputinfo'].update(kwargs)
