@@ -1778,6 +1778,34 @@ class TestXRImage(unittest.TestCase):
         self.assertTupleEqual((1, 5, 15), values.shape)
         self.assertTupleEqual((2, 4), bw.colors.shape)
 
+    def test_stack(self):
+
+        import xarray as xr
+        from trollimage import xrimage
+
+        # background image
+        arr1 = np.zeros((2,2))
+        data1 = xr.DataArray(arr1, dims=['y', 'x'])
+        bkg =  xrimage.XRImage(data1)
+
+        # image to be stacked
+        arr2 = np.full((2,2), np.nan)
+        arr2[0] = 1
+        data2 = xr.DataArray(arr2, dims=['y', 'x'])
+        img =  xrimage.XRImage(data2)
+
+        # expected result
+        arr3 = arr1.copy()
+        arr3[0] = 1
+        data3 = xr.DataArray(arr3, dims=['y', 'x'])
+        res =  xrimage.XRImage(data3)
+
+        # stack image over the background
+        bkg.stack(img)
+
+        # check result
+        np.testing.assert_allclose(bkg.data, res.data, rtol=1e-05)
+
     def test_merge(self):
         pass
 
