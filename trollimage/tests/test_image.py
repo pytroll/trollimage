@@ -1784,21 +1784,21 @@ class TestXRImage(unittest.TestCase):
         from trollimage import xrimage
 
         # background image
-        arr1 = np.zeros((2,2))
+        arr1 = np.zeros((2, 2))
         data1 = xr.DataArray(arr1, dims=['y', 'x'])
-        bkg =  xrimage.XRImage(data1)
+        bkg = xrimage.XRImage(data1)
 
         # image to be stacked
-        arr2 = np.full((2,2), np.nan)
+        arr2 = np.full((2, 2), np.nan)
         arr2[0] = 1
         data2 = xr.DataArray(arr2, dims=['y', 'x'])
-        img =  xrimage.XRImage(data2)
+        img = xrimage.XRImage(data2)
 
         # expected result
         arr3 = arr1.copy()
         arr3[0] = 1
         data3 = xr.DataArray(arr3, dims=['y', 'x'])
-        res =  xrimage.XRImage(data3)
+        res = xrimage.XRImage(data3)
 
         # stack image over the background
         bkg.stack(img)
