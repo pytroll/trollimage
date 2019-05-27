@@ -1840,6 +1840,36 @@ class TestXRImage(unittest.TestCase):
             img.show()
             s.assert_called_once()
 
+    def test_outputinfo(self):
+        """Test saving of output info attributes"""
+        import xarray as xr
+        from trollimage import xrimage
+
+        data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74.,
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['L']})
+        img = xrimage.XRImage(data)
+        output_attrib = {"physic_unit": "KELVIN", "physic_value": "T"}
+
+        img.set_outputinfo(**output_attrib)
+        self.assertDictEqual(img.data.attrs["outputinfo"], output_attrib)
+
+    def test_outputinfo_stretch(self):
+        """Test saving of stretch values in the image attributes"""
+        import xarray as xr
+        from trollimage import xrimage
+        data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74.,
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['L']})
+        img = xrimage.XRImage(data)
+        min_stretch = [193]
+        max_stretch = [313]
+        output_stretch = {"min_value": min_stretch, "max_value": max_stretch}
+
+        img.crude_stretch(min_stretch, max_stretch)
+        self.assertDictEqual(img.data.attrs["outputinfo"], output_stretch)
+
+
 
 def suite():
     """The suite for test_image."""
