@@ -88,9 +88,13 @@ class Colormap(object):
 
     """
 
-    def __init__(self, *tuples):
-        values = [a for (a, b) in tuples]
-        colors = [b for (a, b) in tuples]
+    def __init__(self, *tuples, **kwargs):
+        if 'colors' in kwargs and 'values' in kwargs:
+            values = kwargs['values']
+            colors = kwargs['colors']
+        else:
+            values = [a for (a, b) in tuples]
+            colors = [b for (a, b) in tuples]
         self.values = np.array(values)
         self.colors = np.array(colors)
 
