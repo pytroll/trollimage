@@ -1,3 +1,18 @@
+## Version 1.9.0 (2019/06/18)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 51](https://github.com/pytroll/trollimage/pull/51) - Fix _FillValue not being respected when converting to alpha image
+
+#### Features added
+
+* [PR 49](https://github.com/pytroll/trollimage/pull/49) - Add a new method for image stacking.
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.8.0 (2019/05/10)
 
 ### Issues Closed
