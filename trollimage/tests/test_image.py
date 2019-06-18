@@ -1504,12 +1504,15 @@ class TestXRImage(unittest.TestCase):
         # L -> LA (int)
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage((dataset1 * 150).astype(np.uint8))
+            img.data.attrs['_FillValue'] = 0  # set fill value
             img = img.convert('LA')
             self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
             self.assertTrue(img.mode == 'LA')
             self.assertTrue(len(img.data.coords['bands']) == 2)
-            # make sure the alpha band is all opaque
-            np.testing.assert_allclose(img.data.sel(bands='A'), 255)
+            # make sure the alpha band is all opaque except the first pixel
+            alpha = img.data.sel(bands='A').values.ravel()
+            np.testing.assert_allclose(alpha[0], 0)
+            np.testing.assert_allclose(alpha[1:], 255)
 
         # L -> LA (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):

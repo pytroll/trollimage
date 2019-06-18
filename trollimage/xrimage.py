@@ -449,11 +449,15 @@ class XRImage(object):
 
         If ``data`` is an integer type then the alpha band will be scaled
         to use the smallest (min) value as fully transparent and the largest
-        (max) value as fully opaque. For float types the alpha band spans
-        0 to 1.
+        (max) value as fully opaque. If a `_FillValue` attribute is found for
+        integer type data then it is used to identify null values in the data.
+        Otherwise xarray's `isnull` is used.
+
+        For float types the alpha band spans 0 to 1.
 
         """
-        null_mask = alpha if alpha is not None else self._create_alpha(data)
+        fill_value = data.attrs.get('_FillValue', None)  # integer fill value
+        null_mask = alpha if alpha is not None else self._create_alpha(data, fill_value)
         # if we are using integer data, then alpha needs to be min-int to max-int
         # otherwise for floats we want 0 to 1
         if np.issubdtype(data.dtype, np.integer):
