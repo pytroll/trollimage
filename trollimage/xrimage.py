@@ -259,7 +259,8 @@ class XRImage(object):
                                      saving with rasterio, used with
                                      keep_palette=True. Should be uint8.
             format_kwargs: Additional format options to pass to `rasterio`
-                           or `PIL` saving methods.
+                           or `PIL` saving methods. Any format argument passed
+                           at this stage would be superseeded by `fformat`.
 
         Returns:
             Either `None` if `compute` is True or a `dask.Delayed` object or
