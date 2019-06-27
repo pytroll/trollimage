@@ -272,7 +272,7 @@ class XRImage(object):
 
         """
         kwformat = format_kwargs.pop('format', None)
-        fformat = fformat or kwformat or os.path.splitext(filename)[1][1:4]
+        fformat = fformat or kwformat or os.path.splitext(filename)[1][1:]
         if fformat in ('tif', 'jp2') and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
@@ -293,7 +293,7 @@ class XRImage(object):
           img.rio_save('myfile.tif', overviews=[2, 4, 8, 16])
 
         """
-        fformat = fformat or os.path.splitext(filename)[1][1:4]
+        fformat = fformat or os.path.splitext(filename)[1][1:]
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
                    'tif': 'GTiff',
@@ -393,7 +393,7 @@ class XRImage(object):
         lack of support. See also :meth:`save`.
 
         """
-        fformat = fformat or os.path.splitext(filename)[1][1:4]
+        fformat = fformat or os.path.splitext(filename)[1][1:]
         fformat = check_image_format(fformat)
 
         if fformat == 'png':
@@ -1016,7 +1016,7 @@ class XRImage(object):
 
     @staticmethod
     def _palettize(data, colormap):
-        """Operate in a dask-friendly maner."""
+        """Operate in a dask-friendly manner."""
         # returns data and palette, only need data
         return colormap.palettize(data)[0]
 

@@ -21,7 +21,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with mpop.  If not, see <http://www.gnu.org/licenses/>.
-"""Module for testing the imageo.image module."""
+"""Module for testing the image and xrimage modules."""
 import os
 import sys
 import random
