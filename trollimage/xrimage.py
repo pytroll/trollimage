@@ -21,12 +21,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""This module defines the XRImage class. It overlaps largely with the PIL
-library, but has the advantage of using :class:`~xarray.DataArray` objects
-backed by :class:`dask arrays <dask.array.Array>` as pixel arrays. This
-allows for invalid values to be tracked, metadata to be assigned, and
-stretching to be lazy evaluated. With the optional ``rasterio`` library
-installed dask array chunks can be saved in parallel.
+"""This module defines the XRImage class.
+
+It overlaps largely with the PIL library, but has the advantage of using
+:class:`~xarray.DataArray` objects backed by :class:`dask arrays
+<dask.array.Array>` as pixel arrays. This allows for invalid values to
+be tracked, metadata to be assigned, and stretching to be lazy
+evaluated. With the optional ``rasterio`` library installed dask array
+chunks can be saved in parallel.
 
 """
 
@@ -96,12 +98,14 @@ class RIOFile(object):
                          indexes=indexes)
 
     def open(self, mode=None):
+        """Open the file."""
         mode = mode or self.mode
         if self._closed:
             self.rfile = rasterio.open(self.path, mode, **self.kwargs)
             self._closed = False
 
     def close(self):
+        """Close the file."""
         if not self._closed:
             if self.overviews:
                 logger.debug('Building overviews %s', str(self.overviews))
@@ -119,6 +123,7 @@ class RIOFile(object):
         self.close()
 
     def __del__(self):
+        """Delete the instance."""
         try:
             self.close()
         except (IOError, OSError):
@@ -168,8 +173,10 @@ def color_interp(data):
 class XRImage(object):
     """Image class using an :class:`xarray.DataArray` as internal storage.
 
-    It can be saved to a variety of image formats, but if Rasterio is installed,
-    it can save to geotiff and jpeg2000 with geographical information.
+    It can be saved to a variety of image formats, but if Rasterio is
+    installed, it can save to geotiff and jpeg2000 with geographical
+    information.
+
     """
 
     def __init__(self, data):
@@ -252,7 +259,8 @@ class XRImage(object):
                                      saving with rasterio, used with
                                      keep_palette=True. Should be uint8.
             format_kwargs: Additional format options to pass to `rasterio`
-                           or `PIL` saving methods.
+                           or `PIL` saving methods. Any format argument passed
+                           at this stage would be superseeded by `fformat`.
 
         Returns:
             Either `None` if `compute` is True or a `dask.Delayed` object or
@@ -263,7 +271,8 @@ class XRImage(object):
             the caller.
 
         """
-        fformat = fformat or os.path.splitext(filename)[1][1:4]
+        kwformat = format_kwargs.pop('format', None)
+        fformat = fformat or kwformat or os.path.splitext(filename)[1][1:]
         if fformat in ('tif', 'jp2') and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
@@ -284,7 +293,7 @@ class XRImage(object):
           img.rio_save('myfile.tif', overviews=[2, 4, 8, 16])
 
         """
-        fformat = fformat or os.path.splitext(filename)[1][1:4]
+        fformat = fformat or os.path.splitext(filename)[1][1:]
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
                    'tif': 'GTiff',
@@ -380,10 +389,11 @@ class XRImage(object):
                  compute=True, **format_kwargs):
         """Save the image to the given *filename* using PIL.
 
-        For now, the compression level [0-9] is ignored, due to PIL's lack of
-        support. See also :meth:`save`.
+        For now, the compression level [0-9] is ignored, due to PIL's
+        lack of support. See also :meth:`save`.
+
         """
-        fformat = fformat or os.path.splitext(filename)[1][1:4]
+        fformat = fformat or os.path.splitext(filename)[1][1:]
         fformat = check_image_format(fformat)
 
         if fformat == 'png':
@@ -402,6 +412,7 @@ class XRImage(object):
         Inspired by:
         public domain, Nick Galbreath
         http://blog.modp.com/2007/08/python-pil-and-png-metadata-take-2.html
+
         """
         reserved = ('interlace', 'gamma', 'dpi', 'transparency', 'aspect')
 
@@ -531,8 +542,7 @@ class XRImage(object):
         return data
 
     def _l2rgb(self, mode):
-        """Convert from L (black and white) to RGB.
-        """
+        """Convert from L (black and white) to RGB."""
         self._check_modes(("L", "LA"))
 
         bands = ["L"] * 3
@@ -543,6 +553,7 @@ class XRImage(object):
         return data
 
     def convert(self, mode):
+        """Convert image to *mode*."""
         if mode == self.mode:
             return self.__class__(self.data)
 
@@ -588,7 +599,7 @@ class XRImage(object):
         return new_img
 
     def _finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
-        """Wrapper around 'finalize' method for backwards compatibility."""
+        """Wrap around 'finalize' method for backwards compatibility."""
         import warnings
         warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
                       DeprecationWarning)
@@ -597,13 +608,14 @@ class XRImage(object):
     def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
         """Finalize the image to be written to an output file.
 
-        This adds an alpha band or fills data with a fill_value (if specified).
-        It also scales float data to the output range of the data type (0-255
-        for uint8, default). For integer input data this method assumes the
-        data is already scaled to the proper desired range. It will still fill
-        in invalid values and add an alpha band if needed. Integer input
-        data's fill value is determined by a special ``_FillValue`` attribute
-        in the ``DataArray`` ``.attrs`` dictionary.
+        This adds an alpha band or fills data with a fill_value (if
+        specified). It also scales float data to the output range of the
+        data type (0-255 for uint8, default). For integer input data
+        this method assumes the data is already scaled to the proper
+        desired range. It will still fill in invalid values and add an
+        alpha band if needed. Integer input data's fill value is
+        determined by a special ``_FillValue`` attribute in the
+        ``DataArray`` ``.attrs`` dictionary.
 
         """
         if keep_palette and not self.mode.startswith('P'):
@@ -677,12 +689,13 @@ class XRImage(object):
     def gamma(self, gamma=1.0):
         """Apply gamma correction to the channels of the image.
 
-        If *gamma* is a
-        tuple, then it should have as many elements as the channels of the
-        image, and the gamma correction is applied elementwise. If *gamma* is a
-        number, the same gamma correction is applied on every channel, if there
-        are several channels in the image. The behaviour of :func:`gamma` is
-        undefined outside the normal [0,1] range of the channels.
+        If *gamma* is a tuple, then it should have as many elements as
+        the channels of the image, and the gamma correction is applied
+        elementwise. If *gamma* is a number, the same gamma correction
+        is applied on every channel, if there are several channels in
+        the image. The behaviour of :func:`gamma` is undefined outside
+        the normal [0,1] range of the channels.
+
         """
         if isinstance(gamma, (list, tuple)):
             gamma = self.xrify_tuples(gamma)
@@ -698,14 +711,16 @@ class XRImage(object):
     def stretch(self, stretch="crude", **kwargs):
         """Apply stretching to the current image.
 
-        The value of *stretch* sets the type of stretching applied. The values
-        "histogram", "linear", "crude" (or "crude-stretch") perform respectively
-        histogram equalization, contrast stretching (with 5% cutoff on both
-        sides), and contrast stretching without cutoff. The value "logarithmic"
-        or "log" will do a logarithmic enhancement towards white. If a tuple or
-        a list of two values is given as input, then a contrast stretching is
-        performed with the values as cutoff. These values should be normalized
-        in the range [0.0,1.0].
+        The value of *stretch* sets the type of stretching applied. The
+        values "histogram", "linear", "crude" (or "crude-stretch")
+        perform respectively histogram equalization, contrast stretching
+        (with 5% cutoff on both sides), and contrast stretching without
+        cutoff. The value "logarithmic" or "log" will do a logarithmic
+        enhancement towards white. If a tuple or a list of two values is
+        given as input, then a contrast stretching is performed with the
+        values as cutoff. These values should be normalized in the range
+        [0.0,1.0].
+
         """
         logger.debug("Applying stretch %s with parameters %s",
                      stretch, str(kwargs))
@@ -735,7 +750,7 @@ class XRImage(object):
 
     @staticmethod
     def _compute_quantile(data, dims, cutoffs):
-        """Helper method for stretch_linear.
+        """Compute quantile for stretch_linear.
 
         Dask delayed functions need to be non-internal functions (created
         inside a function) to be serializable on a multi-process scheduler.
@@ -756,6 +771,7 @@ class XRImage(object):
         """Stretch linearly the contrast of the current image.
 
         Use *cutoffs* for left and right trimming.
+
         """
         logger.debug("Perform a linear contrast stretch.")
 
@@ -786,8 +802,9 @@ class XRImage(object):
     def crude_stretch(self, min_stretch=None, max_stretch=None):
         """Perform simple linear stretching.
 
-        This is done without any cutoff on the current image and normalizes to
-        the [0,1] range.
+        This is done without any cutoff on the current image and
+        normalizes to the [0,1] range.
+
         """
         if min_stretch is None:
             non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
@@ -892,6 +909,7 @@ class XRImage(object):
         p = k.ln(S/S0)
         p is perception, S is the stimulus, S0 is the stimulus threshold (the
         highest unpercieved stimulus), and k is the factor.
+
         """
         attrs = self.data.attrs
         self.data = k * xu.log(self.data / s0)
@@ -905,6 +923,7 @@ class XRImage(object):
 
         Note: 'Inverting' means that black becomes white, and vice-versa, not
         that the values are negated !
+
         """
         logger.debug("Applying invert with parameters %s", str(invert))
         if isinstance(invert, (tuple, list)):
@@ -919,8 +938,7 @@ class XRImage(object):
         self.data.attrs = attrs
 
     def stack(self, img):
-        """Stack the provided image on top of the current image.
-        """
+        """Stack the provided image on top of the current image."""
         # TODO: Conversions between different modes with notification
         # to the user, i.e. proper logging
         if self.mode != img.mode:
@@ -929,8 +947,10 @@ class XRImage(object):
         self.data = self.data.where(img.data.isnull(), img.data)
 
     def merge(self, img):
-        """Use the provided image as background for the current *img* image,
-        that is if the current image has missing data.
+        """Use the provided image as background for the current *img* image.
+
+        That is if the current image has missing data.
+
         """
         raise NotImplementedError("This method has not be implemented for "
                                   "xarray support.")
@@ -966,7 +986,6 @@ class XRImage(object):
             Works only on "L" or "LA" images.
 
         """
-
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
 
@@ -997,7 +1016,7 @@ class XRImage(object):
 
     @staticmethod
     def _palettize(data, colormap):
-        """Helper for dask-friendly palettize operation."""
+        """Operate in a dask-friendly manner."""
         # returns data and palette, only need data
         return colormap.palettize(data)[0]
 
@@ -1009,7 +1028,6 @@ class XRImage(object):
             Works only on "L" or "LA" images.
 
         """
-
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
 
