@@ -21,8 +21,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with mpop.  If not, see <http://www.gnu.org/licenses/>.
-"""Module for testing the imageo.image module.
-"""
+"""Module for testing the imageo.image module."""
 import os
 import sys
 import random
@@ -58,18 +57,15 @@ class CustomScheduler(object):
 
 
 class TestEmptyImage(unittest.TestCase):
-    """Class for testing the mpop.imageo.image module
-    """
+    """Class for testing the mpop.imageo.image module."""
 
     def setUp(self):
-        """Setup the test.
-        """
+        """Set up the test case."""
         self.img = image.Image()
         self.modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
 
     def test_shape(self):
-        """Shape of an empty image.
-        """
+        """Shape of an empty image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -77,13 +73,11 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_is_empty(self):
-        """Test if an image is empty.
-        """
+        """Test if an image is empty."""
         self.assertEqual(self.img.is_empty(), True)
 
     def test_clip(self):
-        """Clip an empty image.
-        """
+        """Clip an empty image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -91,8 +85,7 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_convert(self):
-        """Convert an empty image.
-        """
+        """Convert an empty image."""
         for mode1 in self.modes:
             for mode2 in self.modes:
                 self.img.convert(mode1)
@@ -108,8 +101,7 @@ class TestEmptyImage(unittest.TestCase):
         self.assertRaises(ValueError, self.img.convert, randstr)
 
     def test_stretch(self):
-        """Stretch an empty image
-        """
+        """Stretch an empty image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -136,8 +128,7 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_gamma(self):
-        """Gamma correction on an empty image.
-        """
+        """Gamma correction on an empty image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -158,8 +149,7 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_invert(self):
-        """Invert an empty image.
-        """
+        """Invert an empty image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -174,8 +164,7 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_pil_image(self):
-        """Return an empty PIL image.
-        """
+        """Return an empty PIL image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -189,8 +178,7 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_putalpha(self):
-        """Add an alpha channel to en empty image
-        """
+        """Add an alpha channel to en empty image."""
         # Putting alpha channel to an empty image should not do anything except
         # change the mode if necessary.
         oldmode = self.img.mode
@@ -212,8 +200,7 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_save(self):
-        """Save an empty image.
-        """
+        """Save an empty image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -222,8 +209,7 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_replace_luminance(self):
-        """Replace luminance in an empty image.
-        """
+        """Replace luminance in an empty image."""
         oldmode = self.img.mode
         for mode in self.modes:
             self.img.convert(mode)
@@ -234,13 +220,11 @@ class TestEmptyImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_resize(self):
-        """Resize an empty image.
-        """
+        """Resize an empty image."""
         self.assertRaises(ValueError, self.img.resize, (10, 10))
 
     def test_merge(self):
-        """Merging of an empty image with another.
-        """
+        """Merging of an empty image with another."""
         newimg = image.Image()
         self.assertRaises(ValueError, self.img.merge, newimg)
         newimg = image.Image(np.array([[1, 2], [3, 4]]))
@@ -250,20 +234,16 @@ class TestEmptyImage(unittest.TestCase):
 
 
 class TestImageCreation(unittest.TestCase):
-    """Class for testing the mpop.imageo.image module
-    """
+    """Class for testing the mpop.imageo.image module."""
 
     def setUp(self):
-        """Setup the test.
-        """
+        """Set up the test case."""
         self.img = {}
         self.modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
         self.modes_len = [1, 2, 3, 4, 3, 4, 1, 2]
 
     def test_creation(self):
-        """Creation of an image.
-        """
-
+        """Test creation of an image."""
         self.assertRaises(TypeError, image.Image,
                           channels=random.randint(1, 1000))
         self.assertRaises(TypeError, image.Image,
@@ -338,12 +318,10 @@ class TestImageCreation(unittest.TestCase):
 
 
 class TestRegularImage(unittest.TestCase):
-    """Class for testing the mpop.imageo.image module
-    """
+    """Class for testing the mpop.imageo.image module."""
 
     def setUp(self):
-        """Setup the test.
-        """
+        """Set up the test case."""
         one_channel = np.random.rand(random.randint(1, 10),
                                      random.randint(1, 10))
         self.rand_img = image.Image(channels=[one_channel] * 3,
@@ -370,8 +348,7 @@ class TestRegularImage(unittest.TestCase):
         os.chmod(self.tempdir, 0o444)
 
     def test_shape(self):
-        """Shape of an image.
-        """
+        """Shape of an image."""
         oldmode = self.img.mode
         for mode in self.modes:
             if mode == "P" or mode == "PA":
@@ -381,13 +358,11 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_is_empty(self):
-        """Test if an image is empty.
-        """
+        """Test if an image is empty."""
         self.assertEqual(self.img.is_empty(), False)
 
     def test_clip(self):
-        """Clip an image.
-        """
+        """Clip an image."""
         oldmode = self.img.mode
         for mode in self.modes:
             if mode == "P" or mode == "PA":
@@ -399,8 +374,7 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_convert(self):
-        """Convert an image.
-        """
+        """Convert an image."""
         i = 0
         for mode1 in self.modes:
             j = 0
@@ -437,8 +411,7 @@ class TestRegularImage(unittest.TestCase):
         self.assertRaises(ValueError, self.img.convert, randstr)
 
     def test_stretch(self):
-        """Stretch an image.
-        """
+        """Stretch an image."""
         oldmode = self.img.mode
 
         for mode in "L":
@@ -479,8 +452,7 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_gamma(self):
-        """Gamma correction on an image.
-        """
+        """Gamma correction on an image."""
         oldmode = self.img.mode
         for mode in self.modes:
             if mode == "P" or mode == "PA":
@@ -519,8 +491,7 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_invert(self):
-        """Invert an image.
-        """
+        """Invert an image."""
         oldmode = self.img.mode
         for mode in self.modes:
             if mode == "P" or mode == "PA":
@@ -543,11 +514,8 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_pil_image(self):
-        """Return an PIL image.
-        """
-
+        """Return an PIL image."""
         # FIXME: Should test on palette images
-
         oldmode = self.img.mode
         for mode in self.modes:
             if (mode == "YCbCr" or
@@ -561,8 +529,7 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_putalpha(self):
-        """Add an alpha channel.
-        """
+        """Add an alpha channel."""
         # Putting alpha channel to an image should not do anything except
         # change the mode if necessary.
         oldmode = self.img.mode
@@ -590,8 +557,7 @@ class TestRegularImage(unittest.TestCase):
     @unittest.skipIf(sys.platform.startswith('win'),
                      "Read-only tmp dir not working under Windows")
     def test_save(self):
-        """Save an image.
-        """
+        """Save an image."""
         oldmode = self.img.mode
         for mode in self.modes:
             if (mode == "YCbCr" or
@@ -614,8 +580,7 @@ class TestRegularImage(unittest.TestCase):
     @unittest.skipIf(sys.platform.startswith('win'),
                      "Read-only tmp dir not working under Windows")
     def test_save_jpeg(self):
-        """Save a jpeg image.
-        """
+        """Save a jpeg image."""
         oldmode = self.img.mode
         self.img.convert('L')
         self.img.save("test.jpg")
@@ -630,8 +595,7 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_replace_luminance(self):
-        """Replace luminance in an image.
-        """
+        """Replace luminance in an image."""
         oldmode = self.img.mode
         for mode in self.modes:
             if (mode == "P" or
@@ -651,8 +615,7 @@ class TestRegularImage(unittest.TestCase):
         self.img.convert(oldmode)
 
     def test_resize(self):
-        """Resize an image.
-        """
+        """Resize an image."""
         self.img.resize((6, 6))
         res = np.array([[0, 0, 0.5, 0.5, 0.5, 0.5],
                         [0, 0, 0.5, 0.5, 0.5, 0.5],
@@ -667,8 +630,7 @@ class TestRegularImage(unittest.TestCase):
         self.assertTrue(np.all(res == self.img.channels[0]))
 
     def test_merge(self):
-        """Merging of an image with another.
-        """
+        """Merging of an image with another."""
         newimg = image.Image()
         self.assertRaises(ValueError, self.img.merge, newimg)
         newimg = image.Image(np.array([[1, 2], [3, 4]]))
@@ -686,17 +648,16 @@ class TestRegularImage(unittest.TestCase):
                                EPSILON))
 
     def tearDown(self):
-        """Clean up the mess.
-        """
+        """Clean up the mess."""
         os.chmod(self.tempdir, 0o777)
         os.rmdir(self.tempdir)
 
 
 class TestFlatImage(unittest.TestCase):
-    """Test a flat image, ie an image where min == max.
-    """
+    """Test a flat image, ie an image where min == max."""
 
     def setUp(self):
+        """Set up the test case."""
         channel = np.ma.array([[0, 0.5, 0.5], [0.5, 0.25, 0.25]],
                               mask=[[1, 1, 1], [1, 1, 0]])
         self.img = image.Image(channels=[channel] * 3,
@@ -704,8 +665,7 @@ class TestFlatImage(unittest.TestCase):
         self.modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
 
     def test_stretch(self):
-        """Stretch a flat image.
-        """
+        """Stretch a flat image."""
         self.img.stretch()
         self.assertTrue(self.img.channels[0].shape == (2, 3) and
                         np.ma.count_masked(self.img.channels[0]) == 5)
@@ -724,10 +684,10 @@ class TestFlatImage(unittest.TestCase):
 
 
 class TestNoDataImage(unittest.TestCase):
-    """Test an image filled with no data.
-    """
+    """Test an image filled with no data."""
 
     def setUp(self):
+        """Set up the test case."""
         channel = np.ma.array([[0, 0.5, 0.5], [0.5, 0.25, 0.25]],
                               mask=[[1, 1, 1], [1, 1, 1]])
         self.img = image.Image(channels=[channel] * 3,
@@ -735,8 +695,7 @@ class TestNoDataImage(unittest.TestCase):
         self.modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
 
     def test_stretch(self):
-        """Stretch a no data image.
-        """
+        """Stretch a no data image."""
         self.img.stretch()
         self.assertTrue(self.img.channels[0].shape == (2, 3))
         self.img.stretch("crude")
@@ -752,16 +711,16 @@ class TestNoDataImage(unittest.TestCase):
 def random_string(length,
                   choices="abcdefghijklmnopqrstuvwxyz"
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
-    """Generates a random string with elements from *set* of the specified
-    *length*.
-    """
+    """Generate a random string with elements from *set* of the specified *length*."""
     return "".join([random.choice(choices)
                     for dummy in range(length)])
 
 
 class TestXRImage(unittest.TestCase):
+    """Test XRImage objects."""
 
     def test_init(self):
+        """Test object initialization."""
         import xarray as xr
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
@@ -796,6 +755,7 @@ class TestXRImage(unittest.TestCase):
     @unittest.skipIf(sys.platform.startswith('win'),
                      "'NamedTemporaryFile' not supported on Windows")
     def test_save(self):
+        """Test saving."""
         import xarray as xr
         import dask.array as da
         from dask.delayed import Delayed
@@ -1328,6 +1288,7 @@ class TestXRImage(unittest.TestCase):
         self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
 
     def test_histogram_stretch(self):
+        """Test histogram stretching."""
         import xarray as xr
         from trollimage import xrimage
 
@@ -1369,6 +1330,7 @@ class TestXRImage(unittest.TestCase):
         self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
 
     def test_logarithmic_stretch(self):
+        """Test logarithmic strecthing."""
         import xarray as xr
         from trollimage import xrimage
 
@@ -1410,7 +1372,7 @@ class TestXRImage(unittest.TestCase):
         self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
 
     def test_weber_fechner_stretch(self):
-        """S=2.3klog10I+C """
+        """Test applying S=2.3klog10I+C to the data."""
         import xarray as xr
         from trollimage import xrimage
 
@@ -1452,27 +1414,35 @@ class TestXRImage(unittest.TestCase):
         self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
 
     def test_jpeg_save(self):
+        """Test saving to jpeg."""
         pass
 
     def test_gtiff_save(self):
+        """Test saving to geotiff."""
         pass
 
     def test_save_masked(self):
+        """Test saving masked data."""
         pass
 
     def test_LA_save(self):
+        """Test LA saving."""
         pass
 
     def test_L_save(self):
+        """Test L saving."""
         pass
 
     def test_P_save(self):
+        """Test P saving."""
         pass
 
     def test_PA_save(self):
+        """Test PA saving."""
         pass
 
     def test_convert_modes(self):
+        """Test modes convertions."""
         import dask
         import xarray as xr
         from trollimage import xrimage
@@ -1782,7 +1752,7 @@ class TestXRImage(unittest.TestCase):
         self.assertTupleEqual((2, 4), bw.colors.shape)
 
     def test_stack(self):
-
+        """Test stack."""
         import xarray as xr
         from trollimage import xrimage
 
@@ -1810,9 +1780,11 @@ class TestXRImage(unittest.TestCase):
         np.testing.assert_allclose(bkg.data, res.data, rtol=1e-05)
 
     def test_merge(self):
+        """Test merge."""
         pass
 
     def test_blend(self):
+        """Test blend."""
         import xarray as xr
         from trollimage import xrimage
 
@@ -1854,13 +1826,15 @@ class TestXRImage(unittest.TestCase):
             img1.blend(wrongimg)
 
     def test_replace_luminance(self):
+        """Test luminance replacement."""
         pass
 
     def test_putalpha(self):
+        """Test putalpha."""
         pass
 
     def test_show(self):
-        """Test that the show commands calls PIL.show"""
+        """Test that the show commands calls PIL.show."""
         import xarray as xr
         from trollimage import xrimage
 
@@ -1873,7 +1847,7 @@ class TestXRImage(unittest.TestCase):
 
 
 def suite():
-    """The suite for test_image."""
+    """Create the suite for test_image."""
     loader = unittest.TestLoader()
     mysuite = unittest.TestSuite()
     mysuite.addTest(loader.loadTestsFromTestCase(TestEmptyImage))
