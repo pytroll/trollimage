@@ -752,6 +752,19 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'YCbCrA')
 
+    def test_regression_double_format_save(self):
+        """Test that double format information isn't passed to save."""
+        import xarray as xr
+        from trollimage import xrimage
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        with mock.patch.object(xrimage.XRImage, 'pil_save') as pil_save:
+            img = xrimage.XRImage(data)
+
+            img.save(filename='bla.png', fformat='png', format='png')
+            self.assertNotIn('format', pil_save.call_args_list[0][1])
+
     @unittest.skipIf(sys.platform.startswith('win'),
                      "'NamedTemporaryFile' not supported on Windows")
     def test_save(self):

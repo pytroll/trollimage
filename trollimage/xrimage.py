@@ -270,7 +270,8 @@ class XRImage(object):
             the caller.
 
         """
-        fformat = fformat or os.path.splitext(filename)[1][1:4]
+        kwformat = format_kwargs.pop('format', None)
+        fformat = fformat or kwformat or os.path.splitext(filename)[1][1:4]
         if fformat in ('tif', 'jp2') and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
