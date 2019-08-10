@@ -780,10 +780,10 @@ class XRImage(object):
                              coords={'bands': self.data['bands']})
 
 
-        self.crude_stretch(left, right, linear=False)
+        self.crude_stretch(left, right, linear=True)
         
 
-    def crude_stretch(self, min_stretch=None, max_stretch=None, linear=True):
+    def crude_stretch(self, min_stretch=None, max_stretch=None, linear=False):
         """Perform simple linear stretching.
 
         This is done without any cutoff on the current image and normalizes to
