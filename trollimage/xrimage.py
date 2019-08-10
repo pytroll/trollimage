@@ -707,6 +707,8 @@ class XRImage(object):
                      stretch, str(kwargs))
 
         # FIXME: do not apply stretch to alpha channel
+        test_chn_max = self.data[0].max()
+        test_chn_min = self.data[0].min()
 
         if isinstance(stretch, (tuple, list)):
             if len(stretch) == 2:
@@ -745,7 +747,7 @@ class XRImage(object):
         data_arr = xr.DataArray(data, dims=dims)
         # delayed will provide us the fully computed xarray with ndarray
         left, right = data_arr.quantile([cutoffs[0], 1. - cutoffs[1]], dim=['x', 'y'])
-        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+        #logger.debug("Interval: left=%s, right=%s", str(left), str(right))
         return left.data, right.data
 
     def stretch_linear(self, cutoffs=(0.005, 0.005)):
@@ -777,9 +779,11 @@ class XRImage(object):
         right = xr.DataArray(right_data, dims=('bands',),
                              coords={'bands': self.data['bands']})
 
-        self.crude_stretch(left, right)
 
-    def crude_stretch(self, min_stretch=None, max_stretch=None):
+        self.crude_stretch(left, right, linear=False)
+        
+
+    def crude_stretch(self, min_stretch=None, max_stretch=None, linear=True):
         """Perform simple linear stretching.
 
         This is done without any cutoff on the current image and normalizes to
@@ -788,14 +792,33 @@ class XRImage(object):
 
         # store enanchement defined max and min stretch values in output info attribute
         outputinfo_data = dict()
-        if min_stretch is not None:
-            outputinfo_data['min_value'] = min_stretch
-        if max_stretch is not None:
-            outputinfo_data['max_value'] = max_stretch
+
+        if not linear:
+            if min_stretch is not None:
+                if(isinstance(min_stretch, xr.DataArray)):
+                    if(min_stretch.values.shape[0]==1):
+                        outputinfo_data['min_value'] = min_stretch.values
+                else:
+                    outputinfo_data['min_value'] = min_stretch
+            if max_stretch is not None:
+                if (isinstance(max_stretch, xr.DataArray)):
+                    if (max_stretch.values.shape[0] == 1):
+                        outputinfo_data['max_value'] = max_stretch.values
+                else:
+                    outputinfo_data['max_value'] = max_stretch
+        else:
+            # If crude_stretch is performed by linear, store min and max data values instead of min and max stretch
+            # because don't want to clip data outside the "cutoffs" values
+            if min_stretch is not None:
+                outputinfo_data['min_value'] = self.data.min().values
+            if max_stretch is not None:
+                outputinfo_data['max_value'] = self.data.max().values
+            #
+
         if len(outputinfo_data) > 0:
-            if 'outputinfo' not in self.data.attrs:
-                self.data.attrs['outputinfo'] = dict()
-            self.data.attrs['outputinfo'].update(outputinfo_data)
+            if 'output_info' not in self.data.attrs:
+                self.data.attrs['output_info'] = dict()
+            self.data.attrs['output_info'].update(outputinfo_data)
 
         if min_stretch is None:
             non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
@@ -1090,8 +1113,8 @@ class XRImage(object):
         self.pil_image().save(b, format='png')
         return b.getvalue()
 
-    def set_outputinfo(self, **kwargs):
+    def set_output_info(self, **kwargs):
         """Store additional data in xrimage outputinfo attribute"""
-        if 'outputinfo' not in self.data.attrs:
-            self.data.attrs['outputinfo'] = dict()
-        self.data.attrs['outputinfo'].update(kwargs)
+        if 'output_info' not in self.data.attrs:
+            self.data.attrs['output_info'] = dict()
+        self.data.attrs['output_info'].update(kwargs)
