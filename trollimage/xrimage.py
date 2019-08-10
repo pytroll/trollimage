@@ -707,9 +707,8 @@ class XRImage(object):
                      stretch, str(kwargs))
 
         # FIXME: do not apply stretch to alpha channel
-        #
-        test_chn_max = self.data[0].max()
-        test_chn_min = self.data[0].min()
+        #test_chn_max = self.data[0].max()
+        #test_chn_min = self.data[0].min()
 
         if isinstance(stretch, (tuple, list)):
             if len(stretch) == 2:
