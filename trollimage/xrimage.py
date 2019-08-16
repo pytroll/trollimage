@@ -707,8 +707,8 @@ class XRImage(object):
                      stretch, str(kwargs))
 
         # FIXME: do not apply stretch to alpha channel
-        test_chn_max = self.data[0].max()
-        test_chn_min = self.data[0].min()
+        # test_chn_max = self.data[0].max()
+        # test_chn_min = self.data[0].min()
 
         if isinstance(stretch, (tuple, list)):
             if len(stretch) == 2:
@@ -747,7 +747,7 @@ class XRImage(object):
         data_arr = xr.DataArray(data, dims=dims)
         # delayed will provide us the fully computed xarray with ndarray
         left, right = data_arr.quantile([cutoffs[0], 1. - cutoffs[1]], dim=['x', 'y'])
-        #logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+        # logger.debug("Interval: left=%s, right=%s", str(left), str(right))
         return left.data, right.data
 
     def stretch_linear(self, cutoffs=(0.005, 0.005)):
@@ -779,9 +779,7 @@ class XRImage(object):
         right = xr.DataArray(right_data, dims=('bands',),
                              coords={'bands': self.data['bands']})
 
-
         self.crude_stretch(left, right, linear=True)
-        
 
     def crude_stretch(self, min_stretch=None, max_stretch=None, linear=False):
         """Perform simple linear stretching.
@@ -796,7 +794,7 @@ class XRImage(object):
         if not linear:
             if min_stretch is not None:
                 if(isinstance(min_stretch, xr.DataArray)):
-                    if(min_stretch.values.shape[0]==1):
+                    if(min_stretch.values.shape[0] == 1):
                         outputinfo_data['min_value'] = min_stretch.values
                 else:
                     outputinfo_data['min_value'] = min_stretch

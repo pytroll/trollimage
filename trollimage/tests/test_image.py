@@ -1851,8 +1851,8 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         output_attrib = {"physic_unit": "KELVIN", "physic_value": "T"}
 
-        img.set_outputinfo(**output_attrib)
-        self.assertDictEqual(img.data.attrs["outputinfo"], output_attrib)
+        img.set_output_info(**output_attrib)
+        self.assertDictEqual(img.data.attrs["output_info"], output_attrib)
 
     def test_outputinfo_stretch(self):
         """Test saving of stretch values in the image attributes"""
@@ -1867,7 +1867,7 @@ class TestXRImage(unittest.TestCase):
         output_stretch = {"min_value": min_stretch, "max_value": max_stretch}
 
         img.crude_stretch(min_stretch, max_stretch)
-        self.assertDictEqual(img.data.attrs["outputinfo"], output_stretch)
+        self.assertDictEqual(img.data.attrs["output_info"], output_stretch)
 
 
 
