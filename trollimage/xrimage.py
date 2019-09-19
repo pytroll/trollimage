@@ -829,7 +829,7 @@ class XRImage(object):
         else:
             scale_factor = 1.0 / delta
         attrs = self.data.attrs
-        offset = - min_stretch * scale_factor
+        offset = -min_stretch * scale_factor
         self.data *= scale_factor
         self.data += offset
         self.data.attrs = attrs
