@@ -327,7 +327,11 @@ class XRImage(object):
                                          photometric_map[mode.upper()])
 
             try:
-                crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
+                area = data.attrs['area']
+                if hasattr(area, 'crs'):
+                    crs = rasterio.crs.CRS.from_wkt(area.crs.to_wkt())
+                else:
+                    crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
                 west, south, east, north = data.attrs['area'].area_extent
                 height, width = data.sizes['y'], data.sizes['x']
                 transform = rasterio.transform.from_bounds(west, south,
