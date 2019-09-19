@@ -1209,8 +1209,10 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         img.gamma(.5)
         self.assertTrue(np.allclose(img.data.values, arr ** 2))
+        self.assertDictEqual(img.data.attrs['enhancement_history'][0], {'gamma': 0.5})
 
         img.gamma([2., 2., 2.])
+        self.assertEqual(len(img.data.attrs['enhancement_history']), 2)
         self.assertTrue(np.allclose(img.data.values, arr))
 
     def test_crude_stretch(self):
@@ -1226,6 +1228,11 @@ class TestXRImage(unittest.TestCase):
         red = img.data.sel(bands='R')
         green = img.data.sel(bands='G')
         blue = img.data.sel(bands='B')
+        enhs = img.data.attrs['enhancement_history'][0]
+        scale_expected = np.array([0.01388889, 0.01388889, 0.01388889])
+        offset_expected = np.array([0., -0.01388889, -0.02777778])
+        np.testing.assert_allclose(enhs['scale'].values, scale_expected)
+        np.testing.assert_allclose(enhs['offset'].values, offset_expected)
         np.testing.assert_allclose(red, arr[:, :, 0] / 72.)
         np.testing.assert_allclose(green, (arr[:, :, 1] - 1.) / (73. - 1.))
         np.testing.assert_allclose(blue, (arr[:, :, 2] - 2.) / (74. - 2.))
@@ -1248,7 +1255,8 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
 
         img.invert(True)
-
+        enhs = img.data.attrs['enhancement_history'][0]
+        self.assertDictEqual(enhs, {'scale': -1, 'offset': 1})
         self.assertTrue(np.allclose(img.data.values, 1 - arr))
 
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
@@ -1272,6 +1280,9 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch_linear()
+        enhs = img.data.attrs['enhancement_history'][0]
+        np.testing.assert_allclose(enhs['scale'].values, np.array([1.03815937, 1.03815937, 1.03815937]))
+        np.testing.assert_allclose(enhs['offset'].values, np.array([-0.00505051, -0.01907969, -0.03310887]), atol=1e-8)
         res = np.array([[[-0.005051, -0.005051, -0.005051],
                          [0.037037, 0.037037, 0.037037],
                          [0.079125, 0.079125, 0.079125],
@@ -1310,6 +1321,8 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch('histogram')
+        enhs = img.data.attrs['enhancement_history'][0]
+        self.assertDictEqual(enhs, {'hist_equalize': True})
         res = np.array([[[0., 0., 0.],
                          [0.04166667, 0.04166667, 0.04166667],
                          [0.08333333, 0.08333333, 0.08333333],
@@ -1352,6 +1365,8 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch(stretch='logarithmic')
+        enhs = img.data.attrs['enhancement_history'][0]
+        self.assertDictEqual(enhs, {'log_factor': 100.0})
         res = np.array([[[0., 0., 0.],
                          [0.35484693, 0.35484693, 0.35484693],
                          [0.48307087, 0.48307087, 0.48307087],
@@ -1394,6 +1409,8 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch_weber_fechner(2.5, 0.2)
+        enhs = img.data.attrs['enhancement_history'][0]
+        self.assertDictEqual(enhs, {'weber_fechner': (2.5, 0.2)})
         res = np.array([[[-np.inf, -6.73656795, -5.0037],
                          [-3.99003723, -3.27083205, -2.71297317],
                          [-2.25716928, -1.87179258, -1.5379641],

@@ -177,6 +177,9 @@ class XRImage(object):
     installed, it can save to geotiff and jpeg2000 with geographical
     information.
 
+    The enhancements functions are recording some parameters in the image's
+    data attribute called `enhancement_history`.
+
     """
 
     def __init__(self, data):
@@ -690,7 +693,7 @@ class XRImage(object):
                             dims=['bands'],
                             coords={'bands': self.data['bands']})
 
-    def gamma(self, gamma=1.0):
+    def gamma(self, gamma=None):
         """Apply gamma correction to the channels of the image.
 
         If *gamma* is a tuple, then it should have as many elements as
@@ -703,7 +706,7 @@ class XRImage(object):
         """
         if isinstance(gamma, (list, tuple)):
             gamma = self.xrify_tuples(gamma)
-        elif gamma == 1.0:
+        elif gamma is None or gamma == 1.0:
             return
 
         logger.debug("Applying gamma %s", str(gamma))
@@ -711,6 +714,7 @@ class XRImage(object):
         self.data = self.data.clip(min=0)
         self.data **= 1.0 / gamma
         self.data.attrs = attrs
+        self.data.attrs.setdefault('enhancement_history', []).append({'gamma': gamma})
 
     def stretch(self, stretch="crude", **kwargs):
         """Apply stretching to the current image.
@@ -829,9 +833,12 @@ class XRImage(object):
         else:
             scale_factor = 1.0 / delta
         attrs = self.data.attrs
-        self.data -= min_stretch
+        offset = -min_stretch * scale_factor
         self.data *= scale_factor
+        self.data += offset
         self.data.attrs = attrs
+        self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
+                                                                      'offset': offset})
 
     def stretch_hist_equalize(self, approximate=False):
         """Stretch the current image's colors through histogram equalization.
@@ -879,6 +886,7 @@ class XRImage(object):
             band_results.append(self.data.sel(bands='A'))
         self.data.data = da.stack(band_results,
                                   axis=self.data.dims.index('bands'))
+        self.data.attrs.setdefault('enhancement_history', []).append({'hist_equalize': True})
 
     def stretch_logarithmic(self, factor=100.):
         """Move data into range [1:factor] through normalized logarithm."""
@@ -906,6 +914,7 @@ class XRImage(object):
             band_results.append(self.data.sel(bands='A'))
         self.data.data = da.stack(band_results,
                                   axis=self.data.dims.index('bands'))
+        self.data.attrs.setdefault('enhancement_history', []).append({'log_factor': factor})
 
     def stretch_weber_fechner(self, k, s0):
         """Stretch according to the Weber-Fechner law.
@@ -918,6 +927,7 @@ class XRImage(object):
         attrs = self.data.attrs
         self.data = k * xu.log(self.data / s0)
         self.data.attrs = attrs
+        self.data.attrs.setdefault('enhancement_history', []).append({'weber_fechner': (k, s0)})
 
     def invert(self, invert=True):
         """Inverts all the channels of a image according to *invert*.
@@ -940,6 +950,8 @@ class XRImage(object):
         attrs = self.data.attrs
         self.data = self.data * scale + offset
         self.data.attrs = attrs
+        self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale,
+                                                                      'offset': offset})
 
     def stack(self, img):
         """Stack the provided image on top of the current image."""
