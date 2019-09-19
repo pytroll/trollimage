@@ -177,6 +177,9 @@ class XRImage(object):
     installed, it can save to geotiff and jpeg2000 with geographical
     information.
 
+    The enhancements functions are recording some parameters in the image's
+    data attribute called `enhancement_history`.
+
     """
 
     def __init__(self, data):
