@@ -1,3 +1,20 @@
+## Version 1.10.0 (2019/09/20)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 53](https://github.com/pytroll/trollimage/pull/53) - Fix double format passing in saving functions
+
+#### Features added
+
+* [PR 55](https://github.com/pytroll/trollimage/pull/55) - Add enhancement-history to the image
+* [PR 54](https://github.com/pytroll/trollimage/pull/54) - Add ability to use AreaDefinitions new "crs" property
+* [PR 52](https://github.com/pytroll/trollimage/pull/52) - Add 'colors' and 'values' keyword arguments to Colormap
+
+In this release 4 pull requests were closed.
+
+
 ## Version 1.9.0 (2019/06/18)
 
 ### Pull Requests Merged
