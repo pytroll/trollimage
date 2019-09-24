@@ -48,6 +48,8 @@ try:
     import rasterio
 except ImportError:
     rasterio = None
+else:
+    import osgeo.gdal
 
 try:
     # rasterio 1.0+
@@ -331,7 +333,7 @@ class XRImage(object):
 
             try:
                 area = data.attrs['area']
-                if hasattr(area, 'crs'):
+                if hasattr(area, 'crs') and osgeo.gdal.VersionInfo().startswith('3'):
                     crs = rasterio.crs.CRS.from_wkt(area.crs.to_wkt(version='WKT1_GDAL'))
                 else:
                     crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
