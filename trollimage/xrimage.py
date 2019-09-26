@@ -331,8 +331,12 @@ class XRImage(object):
 
             try:
                 area = data.attrs['area']
+                if rasterio.__gdal_version__ >= '3':
+                    wkt_version = 'WKT2_2018'
+                else:
+                    wkt_version = 'WKT1_GDAL'
                 if hasattr(area, 'crs'):
-                    crs = rasterio.crs.CRS.from_wkt(area.crs.to_wkt())
+                    crs = rasterio.crs.CRS.from_wkt(area.crs.to_wkt(version=wkt_version))
                 else:
                     crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
                 west, south, east, north = data.attrs['area'].area_extent
