@@ -1,3 +1,14 @@
+## Version 1.10.1 (2019/09/26)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 56](https://github.com/pytroll/trollimage/pull/56) - Fix WKT version used to convert CRS to GeoTIFF CRS
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.10.0 (2019/09/20)
 
 ### Pull Requests Merged
