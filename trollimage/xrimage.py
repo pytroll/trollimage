@@ -41,6 +41,7 @@ import xarray as xr
 import xarray.ufuncs as xu
 import dask
 import dask.array as da
+from dask.delayed import delayed
 
 from trollimage.image import check_image_format
 
@@ -416,6 +417,41 @@ class XRImage(object):
         if compute:
             return delay.compute()
         return delay
+
+    @delayed(nout=1, pure=True)
+    def _delayed_apply_pil(self, fun, pil_args, pil_kwargs, fun_args, fun_kwargs):
+        if pil_args is None:
+            pil_args = tuple()
+        if pil_kwargs is None:
+            pil_kwargs = dict()
+        if fun_args is None:
+            fun_args = tuple()
+        if fun_kwargs is None:
+            fun_kwargs = dict()
+        new_img = fun(self.pil_image(*pil_args, **pil_kwargs), *fun_args, **fun_kwargs)
+        return np.array(new_img) / self.data.dtype.type(255.0)
+
+    def apply_pil(self, fun, output_mode, pil_args, pil_kwargs, fun_args, fun_kwargs):
+        """Apply a function `fun` on the pillow image corresponding to the instance of the XRImage.
+
+        The function shall take a pil image as first argument, and is then passed fun_args and fun_kwargs.
+        It is expected to return the modified pil image.
+        This function returns a new XRImage instance with the modified image data.
+
+        The pil_args and pil_kwargs are passed the the `pil_image` method the XRImage instance.
+
+        """
+        new_array = self._delayed_apply_pil(fun, pil_args, pil_kwargs, fun_args, fun_kwargs)
+        bands = len(output_mode)
+        arr = da.from_delayed(new_array, dtype=self.data.dtype,
+                              shape=(self.data.sizes['y'], self.data.sizes['x'], bands))
+
+        new_data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
+                                coords={'y': self.data.coords['y'],
+                                        'x': self.data.coords['x'],
+                                        'bands': list(output_mode)},
+                                attrs=self.data.attrs)
+        return XRImage(new_data)
 
     def _pngmeta(self):
         """Return GeoImage.tags as a PNG metadata object.
