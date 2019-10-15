@@ -1907,9 +1907,9 @@ class TestXRImage(unittest.TestCase):
         res = img.apply_pil(dummy_fun, 'RGB',
                             fun_args=('Hey', 'Jude'),
                             fun_kwargs={'chorus': "La lala lalalala"})
-        assert dummy_args == [(), {}]
+        self.assertEqual(dummy_args, [(), {}])
         res.data.data.compute()
-        assert dummy_args == [('Hey', 'Jude'), {'chorus': "La lala lalalala"}]
+        self.assertEqual(dummy_args, [('Hey', 'Jude'), {'chorus': "La lala lalalala"}])
 
 
 def suite():
