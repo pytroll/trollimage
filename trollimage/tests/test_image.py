@@ -1875,6 +1875,42 @@ class TestXRImage(unittest.TestCase):
             img.show()
             s.assert_called_once()
 
+    def test_apply_pil(self):
+        """Test the apply_pil method."""
+        import xarray as xr
+        from trollimage import xrimage
+
+        np_data = np.arange(75).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(np_data, dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+
+        dummy_args = [(), {}]
+
+        def dummy_fun(pil_obj, *args, **kwargs):
+            dummy_args[0] = args
+            dummy_args[1] = kwargs
+            return pil_obj
+
+        img = xrimage.XRImage(data)
+        pi = mock.MagicMock()
+        img.pil_image = pi
+        res = img.apply_pil(dummy_fun, 'RGB')
+        # check that the pil image generation is delayed
+        pi.assert_not_called()
+        # make it happen
+        res.data.data.compute()
+        pi.return_value.convert.assert_called_with('RGB')
+
+        img = xrimage.XRImage(data)
+        pi = mock.MagicMock()
+        img.pil_image = pi
+        res = img.apply_pil(dummy_fun, 'RGB',
+                            fun_args=('Hey', 'Jude'),
+                            fun_kwargs={'chorus': "La lala lalalala"})
+        assert dummy_args == [(), {}]
+        res.data.data.compute()
+        assert dummy_args == [('Hey', 'Jude'), {'chorus': "La lala lalalala"}]
+
 
 def suite():
     """Create the suite for test_image."""

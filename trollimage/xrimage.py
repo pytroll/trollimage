@@ -433,7 +433,7 @@ class XRImage(object):
             new_img = new_img.convert(output_mode)
         return np.array(new_img) / self.data.dtype.type(255.0)
 
-    def apply_pil(self, fun, output_mode, pil_args, pil_kwargs, fun_args, fun_kwargs):
+    def apply_pil(self, fun, output_mode, pil_args=None, pil_kwargs=None, fun_args=None, fun_kwargs=None):
         """Apply a function `fun` on the pillow image corresponding to the instance of the XRImage.
 
         The function shall take a pil image as first argument, and is then passed fun_args and fun_kwargs.
