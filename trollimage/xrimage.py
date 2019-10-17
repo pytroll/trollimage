@@ -419,7 +419,7 @@ class XRImage(object):
         return delay
 
     @delayed(nout=1, pure=True)
-    def _delayed_apply_pil(self, fun, pil_args, pil_kwargs, fun_args, fun_kwargs, output_mode=None):
+    def _delayed_apply_pil(self, fun, pil_args, pil_kwargs, fun_args, fun_kwargs, image_mda=None, output_mode=None):
         if pil_args is None:
             pil_args = tuple()
         if pil_kwargs is None:
@@ -428,7 +428,9 @@ class XRImage(object):
             fun_args = tuple()
         if fun_kwargs is None:
             fun_kwargs = dict()
-        new_img = fun(self.pil_image(*pil_args, **pil_kwargs), *fun_args, **fun_kwargs)
+        if image_mda is None:
+            image_mda = dict()
+        new_img = fun(self.pil_image(*pil_args, **pil_kwargs), *fun_args, image_mda=image_mda, **fun_kwargs)
         if output_mode is not None:
             new_img = new_img.convert(output_mode)
         return np.array(new_img) / self.data.dtype.type(255.0)
@@ -437,13 +439,15 @@ class XRImage(object):
         """Apply a function `fun` on the pillow image corresponding to the instance of the XRImage.
 
         The function shall take a pil image as first argument, and is then passed fun_args and fun_kwargs.
+        In addition, the current images's metadata is passed as a keyword argument called `image_mda`.
         It is expected to return the modified pil image.
         This function returns a new XRImage instance with the modified image data.
 
         The pil_args and pil_kwargs are passed to the `pil_image` method of the XRImage instance.
 
         """
-        new_array = self._delayed_apply_pil(fun, pil_args, pil_kwargs, fun_args, fun_kwargs, output_mode)
+        new_array = self._delayed_apply_pil(fun, pil_args, pil_kwargs, fun_args, fun_kwargs,
+                                            self.data.attrs, output_mode)
         bands = len(output_mode)
         arr = da.from_delayed(new_array, dtype=self.data.dtype,
                               shape=(self.data.sizes['y'], self.data.sizes['x'], bands))

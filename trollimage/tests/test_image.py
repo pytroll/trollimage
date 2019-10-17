@@ -23,12 +23,15 @@
 # along with mpop.  If not, see <http://www.gnu.org/licenses/>.
 """Module for testing the image and xrimage modules."""
 import os
-import sys
 import random
-import unittest
+import sys
 import tempfile
+import unittest
+from collections import OrderedDict
 from tempfile import NamedTemporaryFile
+
 import numpy as np
+
 from trollimage import image
 
 try:
@@ -1884,7 +1887,7 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(np_data, dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
 
-        dummy_args = [(), {}]
+        dummy_args = [(), {'image_mda': OrderedDict()}]
 
         def dummy_fun(pil_obj, *args, **kwargs):
             dummy_args[0] = args
@@ -1907,9 +1910,9 @@ class TestXRImage(unittest.TestCase):
         res = img.apply_pil(dummy_fun, 'RGB',
                             fun_args=('Hey', 'Jude'),
                             fun_kwargs={'chorus': "La lala lalalala"})
-        self.assertEqual(dummy_args, [(), {}])
+        self.assertEqual(dummy_args, [(), {'image_mda': OrderedDict()}])
         res.data.data.compute()
-        self.assertEqual(dummy_args, [('Hey', 'Jude'), {'chorus': "La lala lalalala"}])
+        self.assertEqual(dummy_args, [('Hey', 'Jude'), {'chorus': "La lala lalalala", 'image_mda': OrderedDict()}])
 
 
 def suite():
