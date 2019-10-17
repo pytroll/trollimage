@@ -440,7 +440,7 @@ class XRImage(object):
         It is expected to return the modified pil image.
         This function returns a new XRImage instance with the modified image data.
 
-        The pil_args and pil_kwargs are passed the the `pil_image` method the XRImage instance.
+        The pil_args and pil_kwargs are passed to the `pil_image` method of the XRImage instance.
 
         """
         new_array = self._delayed_apply_pil(fun, pil_args, pil_kwargs, fun_args, fun_kwargs, output_mode)
