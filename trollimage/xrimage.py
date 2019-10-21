@@ -62,6 +62,23 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class RIOTag(object):
+    """Rasterio wrapper to allow da.store on tag."""
+
+    def __init__(self, rfile, name):
+        """Init the object.
+
+        rfile should be an open file.
+        """
+        self.rfile = rfile
+        self.name = name
+
+    def __setitem__(self, key, item):
+        """Put the data in the tag."""
+        kwargs = {self.name: item.item()}
+        self.rfile.update_tags(**kwargs)
+
+
 class RIOFile(object):
     """Rasterio wrapper to allow da.store to do window saving."""
 
@@ -374,6 +391,16 @@ class XRImage(object):
         r_file.open()
         if not keep_palette:
             r_file.colorinterp = color_interp(data)
+
+        da_tags = []
+        for key, val in list(tags.items()):
+            try:
+                if isinstance(val.data, da.Array):
+                    da_tags.append((val.data, RIOTag(r_file.rfile, key)))
+                    tags.pop(key)
+            except AttributeError:
+                continue
+
         r_file.rfile.update_tags(**tags)
 
         if keep_palette and cmap is not None:
@@ -386,15 +413,17 @@ class XRImage(object):
             except AttributeError:
                 raise ValueError("Colormap is not formatted correctly")
 
+        to_store = zip(*([(data.data, r_file)] + da_tags))
+
         if compute:
             # write data to the file now
-            res = da.store(data.data, r_file)
+            res = da.store(*to_store)
             r_file.close()
             return res
         # provide the data object and the opened file so the caller can
         # store them when they would like. Caller is responsible for
         # closing the file
-        return data.data, r_file
+        return to_store
 
     def pil_save(self, filename, fformat=None, fill_value=None,
                  compute=True, **format_kwargs):
