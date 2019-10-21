@@ -1887,7 +1887,7 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(np_data, dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
 
-        dummy_args = [(), {'image_mda': OrderedDict()}]
+        dummy_args = [(OrderedDict(), ), {}]
 
         def dummy_fun(pil_obj, *args, **kwargs):
             dummy_args[0] = args
@@ -1910,9 +1910,9 @@ class TestXRImage(unittest.TestCase):
         res = img.apply_pil(dummy_fun, 'RGB',
                             fun_args=('Hey', 'Jude'),
                             fun_kwargs={'chorus': "La lala lalalala"})
-        self.assertEqual(dummy_args, [(), {'image_mda': OrderedDict()}])
+        self.assertEqual(dummy_args, [({}, ), {}])
         res.data.data.compute()
-        self.assertEqual(dummy_args, [('Hey', 'Jude'), {'chorus': "La lala lalalala", 'image_mda': OrderedDict()}])
+        self.assertEqual(dummy_args, [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}])
 
 
 def suite():

@@ -419,7 +419,8 @@ class XRImage(object):
         return delay
 
     @delayed(nout=1, pure=True)
-    def _delayed_apply_pil(self, fun, pil_args, pil_kwargs, fun_args, fun_kwargs, image_mda=None, output_mode=None):
+    def _delayed_apply_pil(self, fun, pil_args, pil_kwargs, fun_args, fun_kwargs,
+                           image_metadata=None, output_mode=None):
         if pil_args is None:
             pil_args = tuple()
         if pil_kwargs is None:
@@ -428,9 +429,9 @@ class XRImage(object):
             fun_args = tuple()
         if fun_kwargs is None:
             fun_kwargs = dict()
-        if image_mda is None:
-            image_mda = dict()
-        new_img = fun(self.pil_image(*pil_args, **pil_kwargs), *fun_args, image_mda=image_mda, **fun_kwargs)
+        if image_metadata is None:
+            image_metadata = dict()
+        new_img = fun(self.pil_image(*pil_args, **pil_kwargs), image_metadata, *fun_args, **fun_kwargs)
         if output_mode is not None:
             new_img = new_img.convert(output_mode)
         return np.array(new_img) / self.data.dtype.type(255.0)
