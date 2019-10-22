@@ -961,7 +961,7 @@ class TestXRImage(unittest.TestCase):
             delay = img.save(tmp.name, compute=False)
             self.assertIsInstance(delay, tuple)
             self.assertIsInstance(delay[0], da.Array)
-            self.assertIsInstance(delay[1], xrimage.RIOFile)
+            self.assertIsInstance(delay[1], xrimage.RIODataset)
             da.store(*delay)
             delay[1].close()
 
@@ -1034,7 +1034,7 @@ class TestXRImage(unittest.TestCase):
             delay = img.save(tmp.name, compute=False)
             self.assertIsInstance(delay, tuple)
             self.assertIsInstance(delay[0], da.Array)
-            self.assertIsInstance(delay[1], xrimage.RIOFile)
+            self.assertIsInstance(delay[1], xrimage.RIODataset)
             da.store(*delay)
             delay[1].close()
 
@@ -1200,6 +1200,25 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, overviews=[2, 4])
             with rio.open(tmp.name) as f:
                 self.assertEqual(len(f.overviews(1)), 2)
+
+    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    def test_save_tags(self):
+        """Test saving geotiffs with tags."""
+        import xarray as xr
+        from trollimage import xrimage
+        import rasterio as rio
+
+        # numpy array image
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        tags = {'avg': img.data.mean(), 'current_song': 'disco inferno'}
+        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, tags=tags)
+            tags['avg'] = '37.0'
+            with rio.open(tmp.name) as f:
+                self.assertEqual(f.tags(), tags)
 
     def test_gamma(self):
         """Test gamma correction."""
