@@ -34,6 +34,7 @@ chunks can be saved in parallel.
 
 import logging
 import os
+import threading
 
 import numpy as np
 from PIL import Image as PILImage
@@ -62,23 +63,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class RIOTag(object):
-    """Rasterio wrapper to allow da.store on tag."""
-
-    def __init__(self, rfile, name):
-        """Init the object.
-
-        rfile should be an open file.
-        """
-        self.rfile = rfile
-        self.name = name
-
-    def __setitem__(self, key, item):
-        """Put the data in the tag."""
-        kwargs = {self.name: item.item()}
-        self.rfile.update_tags(**kwargs)
-
-
 class RIOFile(object):
     """Rasterio wrapper to allow da.store to do window saving."""
 
@@ -88,47 +72,24 @@ class RIOFile(object):
         self.mode = mode
         self.kwargs = kwargs
         self.rfile = None
-        self._closed = True
-        self.overviews = kwargs.pop('overviews', None)
+        self.lock = threading.Lock()
 
-    def __setitem__(self, key, item):
-        """Put the data chunk in the image."""
-        if len(key) == 3:
-            indexes = list(range(
-                key[0].start + 1,
-                key[0].stop + 1,
-                key[0].step or 1
-            ))
-            y = key[1]
-            x = key[2]
-        else:
-            indexes = 1
-            y = key[0]
-            x = key[1]
-        chy_off = y.start
-        chy = y.stop - y.start
-        chx_off = x.start
-        chx = x.stop - x.start
-
-        # band indexes
-        self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
-                         indexes=indexes)
+    @property
+    def closed(self):
+        """Check if the file is closed."""
+        return self.rfile is None or self.rfile.closed
 
     def open(self, mode=None):
         """Open the file."""
         mode = mode or self.mode
-        if self._closed:
+        if self.closed:
             self.rfile = rasterio.open(self.path, mode, **self.kwargs)
-            self._closed = False
 
     def close(self):
         """Close the file."""
-        if not self._closed:
-            if self.overviews:
-                logger.debug('Building overviews %s', str(self.overviews))
-                self.rfile.build_overviews(self.overviews)
-            self.rfile.close()
-            self._closed = True
+        with self.lock:
+            if not self.closed:
+                self.rfile.close()
 
     def __enter__(self):
         """Enter method."""
@@ -158,6 +119,82 @@ class RIOFile(object):
             logger.warning("Rasterio 1.0+ required for setting colorinterp")
         else:
             self.rfile.colorinterp = val
+
+    def write(self, *args, **kwargs):
+        """Write to the file."""
+        with self.lock:
+            self.open('a')
+            return self.rfile.write(*args, **kwargs)
+
+    def build_overviews(self, *args, **kwargs):
+        """Write overviews."""
+        with self.lock:
+            self.open('a')
+            return self.rfile.build_overviews(*args, **kwargs)
+
+    def update_tags(self, *args, **kwargs):
+        """Update tags."""
+        with self.lock:
+            self.open('a')
+            return self.rfile.update_tags(*args, **kwargs)
+
+
+class RIOTag:
+    """Rasterio wrapper to allow da.store on tag."""
+
+    def __init__(self, rfile, name):
+        """Init the rasterio tag."""
+        self.rfile = rfile
+        self.name = name
+
+    def __setitem__(self, key, item):
+        """Put the data in the tag."""
+        kwargs = {self.name: item.item()}
+        self.rfile.update_tags(**kwargs)
+
+    def close(self):
+        """Close the file."""
+        return self.rfile.close()
+
+
+class RIODataset:
+    """A wrapper for a rasterio dataset."""
+
+    def __init__(self, rfile, overviews=None):
+        """Init the rasterio dataset."""
+        self.rfile = rfile
+        self.overviews = overviews
+
+    def __setitem__(self, key, item):
+        """Put the data chunk in the image."""
+        if len(key) == 3:
+            indexes = list(range(
+                key[0].start + 1,
+                key[0].stop + 1,
+                key[0].step or 1
+            ))
+            y = key[1]
+            x = key[2]
+        else:
+            indexes = 1
+            y = key[0]
+            x = key[1]
+        chy_off = y.start
+        chy = y.stop - y.start
+        chx_off = x.start
+        chx = x.stop - x.start
+
+        # band indexes
+        self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
+                         indexes=indexes)
+
+    def close(self):
+        """Close the file."""
+        if self.overviews:
+            logger.debug('Building overviews %s', str(self.overviews))
+            self.rfile.build_overviews(self.overviews)
+
+        return self.rfile.close()
 
 
 def color_interp(data):
@@ -304,7 +341,7 @@ class XRImage(object):
 
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, tags=None,
-                 keep_palette=False, cmap=None,
+                 keep_palette=False, cmap=None, overviews=None,
                  **format_kwargs):
         """Save the image using rasterio.
 
@@ -392,17 +429,6 @@ class XRImage(object):
         if not keep_palette:
             r_file.colorinterp = color_interp(data)
 
-        da_tags = []
-        for key, val in list(tags.items()):
-            try:
-                if isinstance(val.data, da.Array):
-                    da_tags.append((val.data, RIOTag(r_file.rfile, key)))
-                    tags.pop(key)
-            except AttributeError:
-                continue
-
-        r_file.rfile.update_tags(**tags)
-
         if keep_palette and cmap is not None:
             if data.dtype != 'uint8':
                 raise ValueError('Rasterio only supports 8-bit colormaps')
@@ -413,7 +439,20 @@ class XRImage(object):
             except AttributeError:
                 raise ValueError("Colormap is not formatted correctly")
 
-        to_store = zip(*([(data.data, r_file)] + da_tags))
+        da_tags = []
+        for key, val in list(tags.items()):
+            try:
+                if isinstance(val.data, da.Array):
+                    da_tags.append((val.data, RIOTag(r_file, key)))
+                    tags.pop(key)
+            except AttributeError:
+                continue
+
+        r_file.rfile.update_tags(**tags)
+
+        r_dataset = RIODataset(r_file, overviews)
+
+        to_store = zip(*([(data.data, r_dataset)] + da_tags))
 
         if compute:
             # write data to the file now
