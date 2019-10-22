@@ -23,12 +23,15 @@
 # along with mpop.  If not, see <http://www.gnu.org/licenses/>.
 """Module for testing the image and xrimage modules."""
 import os
-import sys
 import random
-import unittest
+import sys
 import tempfile
+import unittest
+from collections import OrderedDict
 from tempfile import NamedTemporaryFile
+
 import numpy as np
+
 from trollimage import image
 
 try:
@@ -1612,6 +1615,18 @@ class TestXRImage(unittest.TestCase):
             self.assertTrue(img2.mode == 'RGBA')
             self.assertTrue(len(img2.data.coords['bands']) == 4)
 
+    def test_final_mode(self):
+        """Test final_mode."""
+        import xarray as xr
+        from trollimage import xrimage
+
+        # numpy array image
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertEqual(img.final_mode(None), 'RGBA')
+        self.assertEqual(img.final_mode(0), 'RGB')
+
     def test_colorize(self):
         """Test colorize with an RGB colormap."""
         import xarray as xr
@@ -1874,6 +1889,42 @@ class TestXRImage(unittest.TestCase):
         with mock.patch.object(xrimage.PILImage.Image, 'show', return_value=None) as s:
             img.show()
             s.assert_called_once()
+
+    def test_apply_pil(self):
+        """Test the apply_pil method."""
+        import xarray as xr
+        from trollimage import xrimage
+
+        np_data = np.arange(75).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(np_data, dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+
+        dummy_args = [(OrderedDict(), ), {}]
+
+        def dummy_fun(pil_obj, *args, **kwargs):
+            dummy_args[0] = args
+            dummy_args[1] = kwargs
+            return pil_obj
+
+        img = xrimage.XRImage(data)
+        pi = mock.MagicMock()
+        img.pil_image = pi
+        res = img.apply_pil(dummy_fun, 'RGB')
+        # check that the pil image generation is delayed
+        pi.assert_not_called()
+        # make it happen
+        res.data.data.compute()
+        pi.return_value.convert.assert_called_with('RGB')
+
+        img = xrimage.XRImage(data)
+        pi = mock.MagicMock()
+        img.pil_image = pi
+        res = img.apply_pil(dummy_fun, 'RGB',
+                            fun_args=('Hey', 'Jude'),
+                            fun_kwargs={'chorus': "La lala lalalala"})
+        self.assertEqual(dummy_args, [({}, ), {}])
+        res.data.data.compute()
+        self.assertEqual(dummy_args, [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}])
 
 
 def suite():
