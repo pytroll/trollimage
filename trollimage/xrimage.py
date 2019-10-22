@@ -659,6 +659,13 @@ class XRImage(object):
                       DeprecationWarning)
         return self.finalize(fill_value, dtype, keep_palette, cmap)
 
+    def final_mode(self, fill_value=None):
+        """Get the mode of the finalized image when provided this fill_value."""
+        if fill_value is None and not self.mode.endswith('A'):
+            return self.mode + 'A'
+        else:
+            return self.mode
+
     def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
         """Finalize the image to be written to an output file.
 

@@ -1615,6 +1615,18 @@ class TestXRImage(unittest.TestCase):
             self.assertTrue(img2.mode == 'RGBA')
             self.assertTrue(len(img2.data.coords['bands']) == 4)
 
+    def test_final_mode(self):
+        """Test final_mode."""
+        import xarray as xr
+        from trollimage import xrimage
+
+        # numpy array image
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertEqual(img.final_mode(None), 'RGBA')
+        self.assertEqual(img.final_mode(0), 'RGB')
+
     def test_colorize(self):
         """Test colorize with an RGB colormap."""
         import xarray as xr
