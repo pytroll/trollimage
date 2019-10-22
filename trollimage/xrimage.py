@@ -39,7 +39,6 @@ import threading
 import numpy as np
 from PIL import Image as PILImage
 import xarray as xr
-import xarray.ufuncs as xu
 import dask
 import dask.array as da
 
@@ -449,15 +448,20 @@ class XRImage(object):
                 continue
 
         r_file.rfile.update_tags(**tags)
-
         r_dataset = RIODataset(r_file, overviews)
 
-        to_store = zip(*([(data.data, r_dataset)] + da_tags))
+        to_store = (data.data, r_dataset)
+        if da_tags:
+            to_store = list(zip(*([to_store] + da_tags)))
 
         if compute:
             # write data to the file now
             res = da.store(*to_store)
-            r_file.close()
+            to_close = to_store[1]
+            if not isinstance(to_close, tuple):
+                to_close = [to_close]
+            for item in to_close:
+                item.close()
             return res
         # provide the data object and the opened file so the caller can
         # store them when they would like. Caller is responsible for
@@ -997,7 +1001,7 @@ class XRImage(object):
 
         """
         attrs = self.data.attrs
-        self.data = k * xu.log(self.data / s0)
+        self.data = k * np.log(self.data / s0)
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'weber_fechner': (k, s0)})
 
