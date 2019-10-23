@@ -224,6 +224,45 @@ def color_interp(data):
         return [colors[band] for band in data['bands'].values]
 
 
+def combine_scales_offsets(*args):
+    """Combine ``(scale, offset)`` tuples in one, considering they are applied from left to right.
+
+    For example, if we have our base data called ```orig_data`` and apply to it
+    ``(scale_1, offset_1)``, then ``(scale_2, offset_2)`` such that::
+
+      data_1 = orig_data * scale_1 + offset_1
+      data_2 = data_1 * scale_2 + offset_2
+
+    this function will return the tuple ``(scale, offset)`` such that::
+
+      data_2 = orig_data * scale + offset
+
+    given the arguments ``(scale_1, offset_1), (scale_2, offset_2)``.
+
+    """
+    cscale = 1
+    coffset = 0
+    for scale, offset in args:
+        cscale *= scale
+        coffset = coffset * scale + offset
+    return cscale, coffset
+
+
+def invert_scale_offset(scale, offset):
+    """Invert scale and offset to allow reverse transformation.
+
+    Ie, it will return ``rscale, roffset`` such that::
+
+      orig_data = rscale * data + roffset
+
+    if::
+
+      data = scale * orig_data + offset
+
+    """
+    return 1 / scale, -offset / scale
+
+
 class XRImage(object):
     """Image class using an :class:`xarray.DataArray` as internal storage.
 
@@ -342,12 +381,35 @@ class XRImage(object):
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, tags=None,
                  keep_palette=False, cmap=None, overviews=None,
+                 include_scale_offset_tags=False,
                  **format_kwargs):
         """Save the image using rasterio.
 
-        Overviews can be added to the file using the `overviews` kwarg, eg::
+        Args:
+            filename (string): The filename to save to.
+            fformat (string): The format to save to. If not specified (default),
+                it will be infered from the file extension.
+            fill_value (number): The value to fill the missing data with.
+                Default is ``None``, translating to trying to keep the data
+                transparent.
+            dtype (np.dtype): The type to save the data to. Defaults to
+                np.uint8.
+            compute (bool): Whether (default) or not to compute the lazy data.
+            tags (dict): Tags to include in the file.
+            keep_palette (bool): Whether or not (default) to keep the image in
+                P mode.
+            cmap (colormap): The colormap to use for the data.
+            overviews (list): The reduction factors of the overviews to include
+                in the image, eg::
 
-          img.rio_save('myfile.tif', overviews=[2, 4, 8, 16])
+                    img.rio_save('myfile.tif', overviews=[2, 4, 8, 16])
+
+            include_scale_offset_tags (bool): Whether or not (default) to
+                include a ``scale`` and an ``offset`` tag in the data that would
+                help retrieving original data values from pixel values.
+
+        Returns:
+            The delayed or computed resulf of the saving.
 
         """
         fformat = fformat or os.path.splitext(filename)[1][1:]
@@ -363,7 +425,6 @@ class XRImage(object):
         data, mode = self.finalize(fill_value, dtype=dtype,
                                    keep_palette=keep_palette, cmap=cmap)
         data = data.transpose('bands', 'y', 'x')
-        data.attrs = self.data.attrs
 
         crs = None
         gcps = None
@@ -414,6 +475,10 @@ class XRImage(object):
                 tags.setdefault('TIFFTAG_DATETIME', stime_str)
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
+
+        if include_scale_offset_tags:
+            scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
+            tags['scale'], tags['offset'] = invert_scale_offset(scale, offset)
 
         # FIXME add metadata
         r_file = RIOFile(filename, 'w', driver=driver,
@@ -489,6 +554,20 @@ class XRImage(object):
         if compute:
             return delay.compute()
         return delay
+
+    def get_scaling_from_history(self, history=None):
+        """Merge the scales and offsets from the history.
+
+        If ``history`` isn't provided, the history of the current image will be
+        used.
+        """
+        if history is None:
+            history = self.data.attrs.get('enhancement_history', [])
+        try:
+            scaling = [(item['scale'], item['offset']) for item in history]
+        except KeyError as err:
+            raise NotImplementedError('Can only get combine scaling from a list of scaling operations: %s' % str(err))
+        return combine_scales_offsets(*scaling)
 
     @delayed(nout=1, pure=True)
     def _delayed_apply_pil(self, fun, pil_args, pil_kwargs, fun_args, fun_kwargs,
@@ -600,7 +679,9 @@ class XRImage(object):
         if np.issubdtype(data.dtype, np.integer):
             # xarray sometimes upcasts this calculation, so cast again
             null_mask = self._scale_to_dtype(null_mask, data.dtype).astype(data.dtype)
+        attrs = data.attrs.copy()
         data = xr.concat([data, null_mask], dim="bands")
+        data.attrs = attrs
         return data
 
     def _scale_to_dtype(self, data, dtype):
@@ -612,6 +693,7 @@ class XRImage(object):
         be in the 0-1 range already.
 
         """
+        attrs = data.attrs.copy()
         if np.issubdtype(dtype, np.integer):
             if np.issubdtype(data, np.integer):
                 # preserve integer data type
@@ -619,8 +701,12 @@ class XRImage(object):
             else:
                 # scale float data (assumed to be 0 to 1) to full integer space
                 dinfo = np.iinfo(dtype)
-                data = data.clip(0, 1) * (dinfo.max - dinfo.min) + dinfo.min
+                scale = dinfo.max - dinfo.min
+                offset = dinfo.min
+                data = data.clip(0, 1) * scale + offset
+                attrs.setdefault('enhancement_history', list()).append({'scale': scale, 'offset': offset})
             data = data.round()
+        data.attrs = attrs
         return data
 
     def _check_modes(self, modes):
@@ -767,31 +853,37 @@ class XRImage(object):
                            "setting fill_value to 0")
             fill_value = 0
 
-        final_data = self.data
+        final_data = self.data.copy()
+        final_data.attrs['enhancement_history'] = self.data.attrs['enhancement_history'].copy()
         # if the data are integers then this fill value will be used to check for invalid values
-        ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
-        if not keep_palette:
-            if fill_value is None and not self.mode.endswith('A'):
-                # We don't have a fill value or an alpha, let's add an alpha
-                alpha = self._create_alpha(final_data, fill_value=ifill)
-                final_data = self._scale_to_dtype(final_data, dtype).astype(dtype)
-                final_data = self._add_alpha(final_data, alpha=alpha)
-            else:
-                # scale float data to the proper dtype
-                # this method doesn't cast yet so that we can keep track of NULL values
-                final_data = self._scale_to_dtype(final_data, dtype)
-                # Add fill_value after all other calculations have been done to
-                # make sure it is not scaled for the data type
-                if ifill is not None and fill_value is not None:
-                    # cast fill value to output type so we don't change data type
-                    fill_value = dtype(fill_value)
-                    # integer fields have special fill values
-                    final_data = final_data.where(final_data != ifill, dtype(fill_value))
-                elif fill_value is not None:
-                    final_data = final_data.fillna(dtype(fill_value))
+        with xr.set_options(keep_attrs=True):
+            ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
+            if not keep_palette:
+                if fill_value is None and not self.mode.endswith('A'):
+                    # We don't have a fill value or an alpha, let's add an alpha
+                    alpha = self._create_alpha(final_data, fill_value=ifill)
+                    final_data = self._scale_to_dtype(final_data, dtype)
+                    attrs = final_data.attrs
+                    final_data = final_data.astype(dtype)
+                    final_data = self._add_alpha(final_data, alpha=alpha)
+                    final_data.attrs = attrs
+                else:
+                    # scale float data to the proper dtype
+                    # this method doesn't cast yet so that we can keep track of NULL values
+                    final_data = self._scale_to_dtype(final_data, dtype)
+                    attrs = final_data.attrs
+                    # Add fill_value after all other calculations have been done to
+                    # make sure it is not scaled for the data type
+                    if ifill is not None and fill_value is not None:
+                        # cast fill value to output type so we don't change data type
+                        fill_value = dtype(fill_value)
+                        # integer fields have special fill values
+                        final_data = final_data.where(final_data != ifill, dtype(fill_value))
+                    elif fill_value is not None:
+                        final_data = final_data.fillna(dtype(fill_value))
 
-        final_data = final_data.astype(dtype)
-        final_data.attrs = self.data.attrs
+                    final_data = final_data.astype(dtype)
+                    final_data.attrs = attrs
         return final_data, ''.join(final_data['bands'].values)
 
     def pil_image(self, fill_value=None, compute=True):
