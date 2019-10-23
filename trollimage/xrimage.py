@@ -854,7 +854,10 @@ class XRImage(object):
             fill_value = 0
 
         final_data = self.data.copy()
-        final_data.attrs['enhancement_history'] = self.data.attrs['enhancement_history'].copy()
+        try:
+            final_data.attrs['enhancement_history'] = self.data.attrs['enhancement_history'].copy()
+        except KeyError:
+            pass
         # if the data are integers then this fill value will be used to check for invalid values
         with xr.set_options(keep_attrs=True):
             ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
