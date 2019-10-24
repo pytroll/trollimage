@@ -1,3 +1,20 @@
+## Version 1.11.0 (2019/10/24)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 58](https://github.com/pytroll/trollimage/pull/58) - Make tags containing values to compute use store for saving
+
+#### Features added
+
+* [PR 60](https://github.com/pytroll/trollimage/pull/60) - Add tests on py 3.7
+* [PR 59](https://github.com/pytroll/trollimage/pull/59) - Add scale and offset inclusion utility when rio saving
+* [PR 57](https://github.com/pytroll/trollimage/pull/57) - Add the `apply_pil` method
+
+In this release 4 pull requests were closed.
+
+
 ## Version 1.10.1 (2019/09/26)
 
 ### Pull Requests Merged
