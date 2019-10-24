@@ -1220,6 +1220,25 @@ class TestXRImage(unittest.TestCase):
             with rio.open(tmp.name) as f:
                 self.assertEqual(f.tags(), tags)
 
+    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    def test_save_scale_offset(self):
+        """Test saving geotiffs with tags."""
+        import xarray as xr
+        from trollimage import xrimage
+        import rasterio as rio
+
+        data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['L']})
+        img = xrimage.XRImage(data)
+        img.stretch()
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, include_scale_offset_tags=True)
+            tags = {'scale': 24.0 / 255, 'offset': 0}
+            with rio.open(tmp.name) as f:
+                ftags = f.tags()
+                for key, val in tags.items():
+                    self.assertAlmostEqual(float(ftags[key]), val)
+
     def test_gamma(self):
         """Test gamma correction."""
         import xarray as xr
