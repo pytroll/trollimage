@@ -2,6 +2,7 @@ language: python
 python:
 - '2.7'
 - '3.6'
+- '3.7'
 env:
     global:
         # Set defaults to avoid repeating in most cases
@@ -16,7 +17,7 @@ env:
         - CONDA_CHANNEL_PRIORITY=True
 
 install:
-    - git clone --depth 1 -b all-the-fixes git://github.com/djhoese/ci-helpers.git
+    - git clone --depth 1 git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda.sh
 script: coverage run --source=trollimage setup.py test
 after_success:
