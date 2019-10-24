@@ -409,7 +409,7 @@ class XRImage(object):
                 help retrieving original data values from pixel values.
 
         Returns:
-            The delayed or computed resulf of the saving.
+            The delayed or computed result of the saving.
 
         """
         fformat = fformat or os.path.splitext(filename)[1][1:]
