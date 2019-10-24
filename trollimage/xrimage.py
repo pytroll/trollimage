@@ -858,6 +858,7 @@ class XRImage(object):
             final_data.attrs['enhancement_history'] = self.data.attrs['enhancement_history'].copy()
         except KeyError:
             pass
+        attrs = final_data.attrs
         # if the data are integers then this fill value will be used to check for invalid values
         with xr.set_options(keep_attrs=True):
             ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
@@ -885,8 +886,9 @@ class XRImage(object):
                     elif fill_value is not None:
                         final_data = final_data.fillna(dtype(fill_value))
 
-                    final_data = final_data.astype(dtype)
-                    final_data.attrs = attrs
+            final_data = final_data.astype(dtype)
+            final_data.attrs = attrs
+
         return final_data, ''.join(final_data['bands'].values)
 
     def pil_image(self, fill_value=None, compute=True):
