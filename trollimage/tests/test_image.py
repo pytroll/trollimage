@@ -1227,16 +1227,16 @@ class TestXRImage(unittest.TestCase):
         from trollimage import xrimage
         import rasterio as rio
 
-        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
-            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
-        img = xrimage.XRImage(data / 75.0)
-        img.data.attrs['enhancement_history'] = [{'scale': 1.0 / 75, 'offset': 0}]
+        data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['L']})
+        img = xrimage.XRImage(data)
+        img.stretch()
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name, include_scale_offset_tags=True)
-            tags = {'scale': 75.0 / 255, 'offset': 0}
+            tags = {'scale': 24.0 / 255, 'offset': 0}
             with rio.open(tmp.name) as f:
+                ftags = f.tags()
                 for key, val in tags.items():
-                    ftags = f.tags()
                     self.assertAlmostEqual(float(ftags[key]), val)
 
     def test_gamma(self):
