@@ -855,7 +855,7 @@ class XRImage(object):
 
         final_data = self.data.copy()
         try:
-            final_data.attrs['enhancement_history'] = self.data.attrs['enhancement_history'].copy()
+            final_data.attrs['enhancement_history'] = list(self.data.attrs['enhancement_history'])
         except KeyError:
             pass
         attrs = final_data.attrs
