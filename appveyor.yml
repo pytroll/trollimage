@@ -3,7 +3,7 @@ environment:
     PYTHON: "C:\\conda"
     MINICONDA_VERSION: "latest"
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\ci-helpers\\appveyor\\windows_sdk.cmd"
-    CONDA_DEPENDENCIES: "pillow gdal xarray dask toolz mock coverage coveralls codecov rasterio pytest pytest-cov"
+    CONDA_DEPENDENCIES: "pillow gdal xarray dask coverage coveralls codecov rasterio pytest pytest-cov"
     CONDA_CHANNELS: "conda-forge"
     CONDA_CHANNEL_PRIORITY: "True"
 
