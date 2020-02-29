@@ -1,21 +1,11 @@
+"""Simple utilities functions to handle colormaps and other use cases."""
+
 from __future__ import division
-import matplotlib.pyplot as plt
 import numpy as np
-import numpy.ma as ma
-import pickle
-import matplotlib.cm as cm
-import matplotlib as mpl
 import sys
-from scipy import misc
-from trollimage.colormap import rdbu, spectral, greys, Colormap
+from trollimage.colormap import Colormap
 from trollimage.image import Image
 from PIL import Image as Pimage
-import matplotlib.colors as mcolors
-import matplotlib
-
-"""Some simple utilities functions to handle colormaps
-and to convert PIL image to GeoImage.
-"""
 
 def _hex_to_rgb(value):
     '''

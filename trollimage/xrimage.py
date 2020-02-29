@@ -294,10 +294,6 @@ class XRImage(object):
         if not hasattr(data, 'dims'):
             raise TypeError("Data must have a 'dims' attribute.")
 
-        # doesn't actually copy the data underneath
-        # we don't want our operations to change the user's data
-        data = data.copy()
-
         if 'y' not in data.dims or 'x' not in data.dims:
             if data.ndim != 2:
                 raise ValueError("Data must have a 'y' and 'x' dimension")
@@ -319,6 +315,11 @@ class XRImage(object):
                 data['bands'] = ['L']
             else:
                 raise ValueError("No 'bands' dimension provided.")
+
+        # doesn't actually copy the data underneath
+        # we don't want our operations to change the user's data
+        # we do this last in case `expand_dims` made the data read only
+        data = data.copy()
 
         return data
 

@@ -755,6 +755,22 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'YCbCrA')
 
+    def test_init_writability(self):
+        """Test data is writable after init.
+
+        Xarray >0.15 makes data read-only after expand_dims.
+
+        """
+        import xarray as xr
+        import numpy as np
+        from trollimage import xrimage
+        data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        self.assertEqual(img.mode, 'L')
+        n_arr = np.asarray(img.data)
+        # if this succeeds then its writable
+        n_arr[n_arr == 0.5] = 1
+
     def test_regression_double_format_save(self):
         """Test that double format information isn't passed to save."""
         import xarray as xr
