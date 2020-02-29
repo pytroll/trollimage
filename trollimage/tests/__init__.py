@@ -19,33 +19,4 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-"""The tests package.
-"""
-
-from trollimage import image, colormap
-from trollimage.tests import test_image, test_colormap
-import unittest
-import doctest
-
-
-def suite():
-    """The global test suite.
-    """
-    mysuite = unittest.TestSuite()
-    # Test the documentation strings
-    mysuite.addTests(doctest.DocTestSuite(image))
-    # Use the unittests also
-    mysuite.addTests(test_image.suite())
-
-    mysuite.addTests(doctest.DocTestSuite(colormap))
-    mysuite.addTests(test_colormap.suite())
-    
-    return mysuite
-
-
-def load_tests(loader, tests, pattern):
-    return suite()
-
-if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(suite())
+"""The tests package."""

@@ -1,5 +1,4 @@
 pillow
-six
 rasterio
 xarray
 dask[array]

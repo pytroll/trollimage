@@ -27,17 +27,12 @@ import random
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import numpy as np
-
 from trollimage import image
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 EPSILON = 0.0001
 
@@ -1979,21 +1974,3 @@ class TestXRImage(unittest.TestCase):
         self.assertEqual(dummy_args, [({}, ), {}])
         res.data.data.compute()
         self.assertEqual(dummy_args, [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}])
-
-
-def suite():
-    """Create the suite for test_image."""
-    loader = unittest.TestLoader()
-    mysuite = unittest.TestSuite()
-    mysuite.addTest(loader.loadTestsFromTestCase(TestEmptyImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestImageCreation))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestRegularImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestFlatImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestNoDataImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestXRImage))
-
-    return mysuite
-
-
-if __name__ == '__main__':
-    unittest.main()
