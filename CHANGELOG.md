@@ -1,13 +1,13 @@
-## Version 1.11.1 (2020/03/02)
+## Version 1.12.0 (2020/03/02)
 
 ### Pull Requests Merged
 
 #### Bugs fixed
 
+* [PR 64](https://github.com/pytroll/trollimage/pull/64) - Add long description for display by PyPI
 * [PR 63](https://github.com/pytroll/trollimage/pull/63) - Fix XRImage producing read-only data arrays and switch to pytest
 
-In this release 1 pull request was closed.
-
+In this release 2 pull requests were closed.
 
 ## Version 1.11.0 (2019/10/24)
 
