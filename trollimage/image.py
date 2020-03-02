@@ -33,7 +33,6 @@ import re
 from copy import deepcopy
 
 import numpy as np
-import six
 from PIL import Image as Pil
 
 try:
@@ -377,7 +376,7 @@ class Image(object):
         if self.is_empty():
             raise IOError("Cannot save an empty image")
 
-        if isinstance(filename, (str, six.text_type)):
+        if isinstance(filename, str):
             ensure_dir(filename)
 
         fformat = fformat or os.path.splitext(filename)[1][1:4]

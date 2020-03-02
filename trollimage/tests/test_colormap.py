@@ -19,9 +19,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-"""Test colormap.py
-"""
+"""Test colormap.py."""
 
 import unittest
 from trollimage import colormap
@@ -173,13 +171,3 @@ class TestColormapClass(unittest.TestCase):
                3: (255, 255, 255), 4: (0, 0, 0)}
 
         self.assertEqual(d, exp)
-
-
-def suite():
-    """The suite for test_colormap.
-    """
-    loader = unittest.TestLoader()
-    mysuite = unittest.TestSuite()
-    mysuite.addTest(loader.loadTestsFromTestCase(TestColormapClass))
-
-    return mysuite

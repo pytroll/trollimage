@@ -44,10 +44,10 @@ setup(name="trollimage",
       url="https://github.com/pytroll/trollimage",
       packages=['trollimage'],
       zip_safe=False,
-      install_requires=['numpy >=1.13', 'pillow', 'six'],
+      install_requires=['numpy >=1.13', 'pillow'],
+      python_requires='>=3.6',
       extras_require={
           'geotiff': ['rasterio'],
           'xarray': ['xarray', 'dask[array]'],
       },
-      test_suite='trollimage.tests.suite',
       )

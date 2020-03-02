@@ -27,17 +27,12 @@ import random
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import numpy as np
-
 from trollimage import image
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 EPSILON = 0.0001
 
@@ -754,6 +749,22 @@ class TestXRImage(unittest.TestCase):
             'y', 'x', 'bands'], coords={'bands': ['Y', 'Cb', 'Cr', 'A']})
         img = xrimage.XRImage(data)
         self.assertEqual(img.mode, 'YCbCrA')
+
+    def test_init_writability(self):
+        """Test data is writable after init.
+
+        Xarray >0.15 makes data read-only after expand_dims.
+
+        """
+        import xarray as xr
+        import numpy as np
+        from trollimage import xrimage
+        data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        self.assertEqual(img.mode, 'L')
+        n_arr = np.asarray(img.data)
+        # if this succeeds then its writable
+        n_arr[n_arr == 0.5] = 1
 
     def test_regression_double_format_save(self):
         """Test that double format information isn't passed to save."""
@@ -1963,21 +1974,3 @@ class TestXRImage(unittest.TestCase):
         self.assertEqual(dummy_args, [({}, ), {}])
         res.data.data.compute()
         self.assertEqual(dummy_args, [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}])
-
-
-def suite():
-    """Create the suite for test_image."""
-    loader = unittest.TestLoader()
-    mysuite = unittest.TestSuite()
-    mysuite.addTest(loader.loadTestsFromTestCase(TestEmptyImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestImageCreation))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestRegularImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestFlatImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestNoDataImage))
-    mysuite.addTest(loader.loadTestsFromTestCase(TestXRImage))
-
-    return mysuite
-
-
-if __name__ == '__main__':
-    unittest.main()
