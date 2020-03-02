@@ -28,10 +28,14 @@
 from setuptools import setup
 import versioneer
 
+with open('README.rst', 'r') as readme_file:
+    long_description = readme_file.read()
+
 setup(name="trollimage",
       version=versioneer.get_version(),
       cmdclass=versioneer.get_cmdclass(),
       description='Pytroll imaging library',
+      long_description=long_description,
       author='Martin Raspaud',
       author_email='martin.raspaud@smhi.se',
       classifiers=["Development Status :: 5 - Production/Stable",
