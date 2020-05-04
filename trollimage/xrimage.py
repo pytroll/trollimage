@@ -263,6 +263,25 @@ def invert_scale_offset(scale, offset):
     return 1 / scale, -offset / scale
 
 
+@delayed(nout=1, pure=True)
+def delayed_pil_save(img, *args, **kwargs):
+    """Dask delayed saving of PIL Image object.
+
+    Special wrapper to handle `fill_value` try/except catch and provide a
+    more useful error message.
+
+    """
+    try:
+        img.save(*args, **kwargs)
+    except OSError as e:
+        # ex: cannot write mode LA as JPEG
+        if "A as JPEG" in str(e):
+            new_msg = ("Image mode not supported for this format. Specify "
+                       "`fill_value=0` to set invalid values to black.")
+            raise OSError(new_msg) from e
+        raise
+
+
 class XRImage(object):
     """Image class using an :class:`xarray.DataArray` as internal storage.
 
@@ -551,7 +570,7 @@ class XRImage(object):
             format_kwargs['pnginfo'] = self._pngmeta()
 
         img = self.pil_image(fill_value, compute=False)
-        delay = img.save(filename, fformat, **format_kwargs)
+        delay = delayed_pil_save(img, filename, fformat, **format_kwargs)
         if compute:
             return delay.compute()
         return delay
