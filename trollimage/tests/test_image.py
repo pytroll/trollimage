@@ -1216,6 +1216,30 @@ class TestXRImage(unittest.TestCase):
             with rio.open(tmp.name) as f:
                 self.assertEqual(len(f.overviews(1)), 2)
 
+        # auto-levels
+        data = np.zeros(25*25*3, dtype=np.uint8).reshape(25, 25, 3)
+        data = xr.DataArray(data, dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, overviews=[], overviews_minsize=2)
+            with rio.open(tmp.name) as f:
+                self.assertEqual(len(f.overviews(1)), 4)
+
+        # auto-levels and resampling
+        data = np.zeros(25*25*3, dtype=np.uint8).reshape(25, 25, 3)
+        data = xr.DataArray(data, dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, overviews=[], overviews_minsize=2,
+                     overviews_resampling='average')
+            with rio.open(tmp.name) as f:
+                # no way to check resampling method from the file
+                self.assertEqual(len(f.overviews(1)), 4)
+
     @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
     def test_save_tags(self):
         """Test saving geotiffs with tags."""
