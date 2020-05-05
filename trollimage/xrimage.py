@@ -47,6 +47,7 @@ from trollimage.image import check_image_format
 
 try:
     import rasterio
+    from rasterio.enums import Resampling
 except ImportError:
     rasterio = None
 
@@ -73,6 +74,16 @@ class RIOFile(object):
         self.kwargs = kwargs
         self.rfile = None
         self.lock = threading.Lock()
+
+    @property
+    def width(self):
+        """Width of the band images."""
+        return self.kwargs['width']
+
+    @property
+    def height(self):
+        """Height of the band images."""
+        return self.kwargs['height']
 
     @property
     def closed(self):
@@ -160,10 +171,15 @@ class RIOTag:
 class RIODataset:
     """A wrapper for a rasterio dataset."""
 
-    def __init__(self, rfile, overviews=None):
+    def __init__(self, rfile, overviews=None, overviews_resampling=None,
+                 overviews_minsize=256):
         """Init the rasterio dataset."""
         self.rfile = rfile
         self.overviews = overviews
+        if overviews_resampling is None:
+            overviews_resampling = 'nearest'
+        self.overviews_resampling = Resampling[overviews_resampling]
+        self.overviews_minsize = overviews_minsize
 
     def __setitem__(self, key, item):
         """Put the data chunk in the image."""
@@ -190,9 +206,20 @@ class RIODataset:
 
     def close(self):
         """Close the file."""
-        if self.overviews:
-            logger.debug('Building overviews %s', str(self.overviews))
-            self.rfile.build_overviews(self.overviews)
+        print("Closing: ", self.overviews, self.overviews_resampling, self.overviews_minsize)
+        if self.overviews is not None:
+            overviews = self.overviews
+            # it's an empty list or tuple
+            if len(overviews) == 0 or overviews == 'auto':
+                from rasterio.rio.overview import get_maximum_overview_level
+                width = self.rfile.width
+                height = self.rfile.height
+                max_level = get_maximum_overview_level(
+                    width, height, self.overviews_minsize)
+                overviews = [2 ** j for j in range(1, max_level + 1)]
+            logger.debug('Building overviews %s with %s resampling',
+                         str(overviews), self.overviews_resampling.name)
+            self.rfile.build_overviews(overviews, resampling=self.overviews_resampling)
 
         return self.rfile.close()
 
@@ -401,6 +428,7 @@ class XRImage(object):
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, tags=None,
                  keep_palette=False, cmap=None, overviews=None,
+                 overviews_resampling=None, overviews_minsize=256,
                  include_scale_offset_tags=False,
                  **format_kwargs):
         """Save the image using rasterio.
@@ -424,6 +452,20 @@ class XRImage(object):
 
                     img.rio_save('myfile.tif', overviews=[2, 4, 8, 16])
 
+                If provided as an empty list, then levels will be
+                computed as powers of two until the last level has less
+                pixels than `overviews_minsize`.
+                Default is to not add overviews.
+            overviews_minsize (int): Minimum number of pixels for the smallest
+                overview size generated when `overviews` is auto-generated.
+                Defaults to 256.
+            overviews_resampling (str): Resampling method
+                to use when generating overviews. This must be the name of an
+                enum value from :class:`rasterio.enums.Resampling` and
+                only takes effect if the `overviews` keyword argument is
+                provided. Common values include `nearest` (default),
+                `bilinear`, `average`, and many others. See the rasterio
+                documentation for more information.
             include_scale_offset_tags (bool): Whether or not (default) to
                 include a ``scale`` and an ``offset`` tag in the data that would
                 help retrieving original data values from pixel values.
@@ -534,7 +576,10 @@ class XRImage(object):
                 continue
 
         r_file.rfile.update_tags(**tags)
-        r_dataset = RIODataset(r_file, overviews)
+        print(overviews)
+        r_dataset = RIODataset(r_file, overviews,
+                               overviews_resampling=overviews_resampling,
+                               overviews_minsize=overviews_minsize)
 
         to_store = (data.data, r_dataset)
         if da_tags:
