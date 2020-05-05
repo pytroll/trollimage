@@ -808,6 +808,10 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.jpg') as tmp:
             img.save(tmp.name, fill_value=0)
+        # Jpeg fails without fill value (no alpha handling)
+        with NamedTemporaryFile(suffix='.jpg') as tmp:
+            # make sure fill_value is mentioned in the error message
+            self.assertRaisesRegex(OSError, "fill_value", img.save, tmp.name)
         # As PNG that support alpha channel
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
