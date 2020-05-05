@@ -209,8 +209,8 @@ class RIODataset:
         print("Closing: ", self.overviews, self.overviews_resampling, self.overviews_minsize)
         if self.overviews is not None:
             overviews = self.overviews
-            # it's an empty list or tuple
-            if len(overviews) == 0 or overviews == 'auto':
+            # it's an empty list
+            if len(overviews) == 0:
                 from rasterio.rio.overview import get_maximum_overview_level
                 width = self.rfile.width
                 height = self.rfile.height
