@@ -428,7 +428,7 @@ class XRImage(object):
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, tags=None,
                  keep_palette=False, cmap=None, overviews=None,
-                 overviews_resampling=None, overviews_minsize=256,
+                 overviews_minsize=256, overviews_resampling=None,
                  include_scale_offset_tags=False,
                  **format_kwargs):
         """Save the image using rasterio.
