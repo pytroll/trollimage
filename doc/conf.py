@@ -251,4 +251,5 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/reference', None),
     'xarray': ('https://xarray.pydata.org/en/stable', None),
     'dask': ('https://dask.pydata.org/en/latest', None),
+    'rasterio': ('https://rasterio.readthedocs.io/en/latest', None),
 }
