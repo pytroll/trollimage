@@ -206,7 +206,6 @@ class RIODataset:
 
     def close(self):
         """Close the file."""
-        print("Closing: ", self.overviews, self.overviews_resampling, self.overviews_minsize)
         if self.overviews is not None:
             overviews = self.overviews
             # it's an empty list
@@ -576,7 +575,6 @@ class XRImage(object):
                 continue
 
         r_file.rfile.update_tags(**tags)
-        print(overviews)
         r_dataset = RIODataset(r_file, overviews,
                                overviews_resampling=overviews_resampling,
                                overviews_minsize=overviews_minsize)
