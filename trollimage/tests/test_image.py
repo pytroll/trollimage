@@ -1984,21 +1984,23 @@ class TestXRImage(unittest.TestCase):
             return pil_obj
 
         img = xrimage.XRImage(data)
-        pi = mock.MagicMock()
-        img.pil_image = pi
-        res = img.apply_pil(dummy_fun, 'RGB')
-        # check that the pil image generation is delayed
-        pi.assert_not_called()
-        # make it happen
-        res.data.data.compute()
-        pi.return_value.convert.assert_called_with('RGB')
+        with mock.patch.object(xrimage, "PILImage") as pi:
+            pil_img = mock.MagicMock()
+            pi.fromarray = mock.Mock(wraps=lambda *args, **kwargs: pil_img)
+            res = img.apply_pil(dummy_fun, 'RGB')
+            # check that the pil image generation is delayed
+            pi.fromarray.assert_not_called()
+            # make it happen
+            res.data.data.compute()
+            pil_img.convert.assert_called_with('RGB')
 
         img = xrimage.XRImage(data)
-        pi = mock.MagicMock()
-        img.pil_image = pi
-        res = img.apply_pil(dummy_fun, 'RGB',
-                            fun_args=('Hey', 'Jude'),
-                            fun_kwargs={'chorus': "La lala lalalala"})
-        self.assertEqual(dummy_args, [({}, ), {}])
-        res.data.data.compute()
-        self.assertEqual(dummy_args, [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}])
+        with mock.patch.object(xrimage, "PILImage") as pi:
+            pil_img = mock.MagicMock()
+            pi.fromarray = mock.Mock(wraps=lambda *args, **kwargs: pil_img)
+            res = img.apply_pil(dummy_fun, 'RGB',
+                                fun_args=('Hey', 'Jude'),
+                                fun_kwargs={'chorus': "La lala lalalala"})
+            self.assertEqual(dummy_args, [({}, ), {}])
+            res.data.data.compute()
+            self.assertEqual(dummy_args, [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}])
