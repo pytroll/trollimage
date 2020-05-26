@@ -633,19 +633,15 @@ class XRImage(object):
         return combine_scales_offsets(*scaling)
 
     @delayed(nout=1, pure=True)
-    def _delayed_apply_pil(self, fun, pil_args, pil_kwargs, fun_args, fun_kwargs,
+    def _delayed_apply_pil(self, fun, pil_image, fun_args, fun_kwargs,
                            image_metadata=None, output_mode=None):
-        if pil_args is None:
-            pil_args = tuple()
-        if pil_kwargs is None:
-            pil_kwargs = dict()
         if fun_args is None:
             fun_args = tuple()
         if fun_kwargs is None:
             fun_kwargs = dict()
         if image_metadata is None:
             image_metadata = dict()
-        new_img = fun(self.pil_image(*pil_args, **pil_kwargs), image_metadata, *fun_args, **fun_kwargs)
+        new_img = fun(pil_image, image_metadata, *fun_args, **fun_kwargs)
         if output_mode is not None:
             new_img = new_img.convert(output_mode)
         return np.array(new_img) / self.data.dtype.type(255.0)
@@ -661,8 +657,37 @@ class XRImage(object):
         The pil_args and pil_kwargs are passed to the `pil_image` method of the XRImage instance.
 
         """
-        new_array = self._delayed_apply_pil(fun, pil_args, pil_kwargs, fun_args, fun_kwargs,
-                                            self.data.attrs, output_mode)
+        if pil_args is None:
+            pil_args = tuple()
+        if pil_kwargs is None:
+            pil_kwargs = dict()
+        pil_image = self.pil_image(*pil_args, compute=False, **pil_kwargs)
+
+        # HACK: aggdraw.Font objects cause segmentation fault in dask tokenize
+        # Remove this when aggdraw is either updated to allow type(font_obj)
+        # or pycoast is updated to not accept Font objects
+        # See https://github.com/pytroll/pycoast/issues/43
+        # The last positional argument to the _burn_overlay function in Satpy
+        # is the 'overlay' dict. This could include aggdraw.Font objects so we
+        # completely remove it.
+        delayed_kwargs = {}
+        if fun.__name__ == "_burn_overlay":
+            from dask.base import tokenize
+            from dask.utils import funcname
+            func = self._delayed_apply_pil
+            if fun_args is None:
+                fun_args = tuple()
+            if fun_kwargs is None:
+                fun_kwargs = dict()
+            dask_key_name = "%s-%s" % (
+                funcname(func),
+                tokenize(func.key, *(fun, pil_image, fun_args[:-1], fun_kwargs, self.data.attrs, output_mode), pure=True),
+            )
+            delayed_kwargs['dask_key_name'] = dask_key_name
+
+        new_array = self._delayed_apply_pil(fun, pil_image, fun_args, fun_kwargs,
+                                            self.data.attrs, output_mode,
+                                            **delayed_kwargs)
         bands = len(output_mode)
         arr = da.from_delayed(new_array, dtype=self.data.dtype,
                               shape=(self.data.sizes['y'], self.data.sizes['x'], bands))
