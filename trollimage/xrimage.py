@@ -679,9 +679,11 @@ class XRImage(object):
                 fun_args = tuple()
             if fun_kwargs is None:
                 fun_kwargs = dict()
+            tokenize_args = (fun, pil_image, fun_args[:-1], fun_kwargs,
+                             self.data.attrs, output_mode)
             dask_key_name = "%s-%s" % (
                 funcname(func),
-                tokenize(func.key, *(fun, pil_image, fun_args[:-1], fun_kwargs, self.data.attrs, output_mode), pure=True),
+                tokenize(func.key, *tokenize_args, pure=True),
             )
             delayed_kwargs['dask_key_name'] = dask_key_name
 
