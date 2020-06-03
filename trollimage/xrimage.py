@@ -415,7 +415,7 @@ class XRImage(object):
         """
         kwformat = format_kwargs.pop('format', None)
         fformat = fformat or kwformat or os.path.splitext(filename)[1][1:]
-        if fformat in ('tif', 'jp2') and rasterio:
+        if fformat in ('tif', 'tiff', 'jp2') and rasterio:
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
                                  keep_palette=keep_palette, cmap=cmap,
@@ -477,6 +477,7 @@ class XRImage(object):
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
                    'tif': 'GTiff',
+                   'tiff': 'GTiff',
                    'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
 

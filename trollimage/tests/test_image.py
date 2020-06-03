@@ -1026,6 +1026,17 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], 255)
+        # test .tiff too
+        with NamedTemporaryFile(suffix='.tiff') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = np.arange(75).reshape(5, 5, 3)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)
 
         data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
                             dims=['y', 'x', 'bands'],
