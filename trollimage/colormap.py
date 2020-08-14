@@ -20,23 +20,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""A simple colormap module.
-"""
+"""A simple colormap module."""
 
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
 
 
 def colorize(arr, colors, values):
-    """Colorize a monochromatic array *arr*, based *colors* given for
-    *values*. Interpolation is used. *values* must be in ascending order.
+    """Colorize a monochromatic array *arr*, based *colors* given for *values*.
+
+    Interpolation is used. *values* must be in ascending order.
     """
-    hcolors = np.array([rgb2hcl(*i[:3]) for i in colors])
-    # unwrap colormap in hcl space
-    hcolors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcolors)[:, 0])))
+    return _colorize(arr, colors, values)
+
+
+def _colorize(arr, colors, values):
+    """Colorize the array."""
+    hcl_colors = _convert_colors_to_hcl(colors)
     channels = [np.interp(arr,
                           np.array(values),
-                          np.array(hcolors)[:, i])
+                          np.array(hcl_colors)[:, i])
                 for i in range(3)]
 
     channels = list(hcl2rgb(*channels))
@@ -49,14 +52,30 @@ def colorize(arr, colors, values):
     channels.extend(rest)
 
     try:
-        return [np.ma.array(channel, mask=arr.mask) for channel in channels]
+        channels = [np.ma.array(channel, mask=arr.mask) for channel in channels]
     except AttributeError:
-        return channels
+        pass
+    return np.stack(channels, axis=0)
 
 
-def palettize(arr, colors, values):
-    """From start *values* apply *colors* to *data*.
+def _convert_colors_to_hcl(colors):
+    hcl_colors = np.array([rgb2hcl(*i[:3]) for i in colors])
+    # unwrap colormap in hcl space
+    hcl_colors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcl_colors)[:, 0])))
+    return hcl_colors
+
+
+def colorize_dask(dask_array, colors, values):
+    """Colorize a dask array.
+
+    The channels are stacked on the first dimension.
     """
+    return dask_array.map_blocks(_colorize, colors, values, dtype=colors.dtype, new_axis=0,
+                                 chunks=[colors.shape[1]] + list(dask_array.chunks))
+
+
+def _palettize(arr, values):
+    """Apply palette to array."""
     new_arr = np.digitize(arr.ravel(),
                           np.concatenate((values,
                                           [max(np.nanmax(arr),
@@ -64,11 +83,19 @@ def palettize(arr, colors, values):
     new_arr -= 1
     new_arr = new_arr.clip(min=0, max=len(values) - 1)
     try:
-        new_arr = np.ma.array(new_arr.reshape(arr.shape), mask=arr.mask)
+        return np.ma.array(new_arr.reshape(arr.shape), mask=arr.mask)
     except AttributeError:
-        new_arr = new_arr.reshape(arr.shape)
+        return new_arr.reshape(arr.shape)
 
-    return new_arr, tuple(colors)
+
+def palettize(arr, colors, values):
+    """Apply *colors* to *data* from start *values*."""
+    return _palettize(arr, values), tuple(colors)
+
+
+def palettize_dask(darr, colors, values):
+    """Apply a palette to a dask array."""
+    return darr.map_blocks(_palettize, values, dtype=colors.dtype), tuple(colors)
 
 
 class Colormap(object):
@@ -89,6 +116,7 @@ class Colormap(object):
     """
 
     def __init__(self, *tuples, **kwargs):
+        """Set up the instance."""
         if 'colors' in kwargs and 'values' in kwargs:
             values = kwargs['values']
             colors = kwargs['colors']
@@ -99,31 +127,32 @@ class Colormap(object):
         self.colors = np.array(colors)
 
     def colorize(self, data):
-        """Colorize a monochromatic array *data*, based on the current colormap.
-        """
-        return colorize(data,
-                        self.colors,
-                        self.values)
+        """Colorize a monochromatic array *data*, based on the current colormap."""
+        try:
+            return colorize_dask(data, self.colors, self.values)
+        except AttributeError:
+            return colorize(data, self.colors, self.values)
 
     def palettize(self, data):
-        """Palettize a monochromatic array *data* based on the current colormap.
-        """
-        return palettize(data, self.colors, self.values)
+        """Palettize a monochromatic array *data* based on the current colormap."""
+        try:
+            return palettize_dask(data, self.colors, self.values)
+        except AttributeError:
+            return palettize(data, self.colors, self.values)
 
     def __add__(self, other):
+        """Append colormap together."""
         new = Colormap()
         new.values = np.concatenate((self.values, other.values))
         new.colors = np.concatenate((self.colors, other.colors))
         return new
 
     def reverse(self):
-        """Reverse the current colormap in place.
-        """
+        """Reverse the current colormap in place."""
         self.colors = np.flipud(self.colors)
 
     def set_range(self, min_val, max_val):
-        """Set the range of the colormap to [*min_val*, *max_val*]
-        """
+        """Set the range of the colormap to [*min_val*, *max_val*]."""
         if min_val > max_val:
             max_val, min_val = min_val, max_val
         self.values = (((self.values * 1.0 - self.values.min()) /
@@ -131,8 +160,7 @@ class Colormap(object):
                        * (max_val - min_val) + min_val)
 
     def to_rio(self):
-        """Converts the colormap to a rasterio colormap.
-        """
+        """Convert the colormap to a rasterio colormap."""
         self.colors = (((self.colors * 1.0 - self.colors.min()) /
                         (self.colors.max() - self.colors.min())) * 255)
         return dict(zip(self.values, tuple(map(tuple, self.colors))))
@@ -447,8 +475,7 @@ qualitative_colormaps = [set1, set2, set3,
 
 
 def colorbar(height, length, colormap):
-    """Return the channels of a colorbar.
-    """
+    """Return the channels of a colorbar."""
     cbar = np.tile(np.arange(length) * 1.0 / (length - 1), (height, 1))
     cbar = (cbar * (colormap.values.max() - colormap.values.min())
             + colormap.values.min())
@@ -457,8 +484,7 @@ def colorbar(height, length, colormap):
 
 
 def palettebar(height, length, colormap):
-    """Return the channels of a palettebar.
-    """
+    """Return the channels of a palettebar."""
     cbar = np.tile(np.arange(length) * 1.0 / (length - 1), (height, 1))
     cbar = (cbar * (colormap.values.max() + 1 - colormap.values.min())
             + colormap.values.min())
