@@ -31,31 +31,43 @@ def colorize(arr, colors, values):
 
     Interpolation is used. *values* must be in ascending order.
     """
-    return _colorize(arr, colors, values)
+    if can_be_block_mapped(arr):
+        return _colorize_dask(arr, colors, values)
+    else:
+        return _colorize(arr, colors, values)
+
+
+def can_be_block_mapped(data):
+    """Check if the array can be processed in chunks."""
+    return hasattr(data, 'map_blocks')
+
+
+def _colorize_dask(dask_array, colors, values):
+    """Colorize a dask array.
+
+    The channels are stacked on the first dimension.
+    """
+    return dask_array.map_blocks(_colorize, colors, values, dtype=colors.dtype, new_axis=0,
+                                 chunks=[colors.shape[1]] + list(dask_array.chunks))
 
 
 def _colorize(arr, colors, values):
     """Colorize the array."""
+    channels = _interpolate_colors(arr, colors, values)
+    alpha = _interpolate_alpha(arr, colors, values)
+    channels.extend(alpha)
+    channels = _mask_channels(channels, arr)
+    return np.stack(channels, axis=0)
+
+
+def _interpolate_colors(arr, colors, values):
     hcl_colors = _convert_colors_to_hcl(colors)
     channels = [np.interp(arr,
                           np.array(values),
                           np.array(hcl_colors)[:, i])
                 for i in range(3)]
-
     channels = list(hcl2rgb(*channels))
-
-    rest = [np.interp(arr,
-                      np.array(values),
-                      np.array(colors)[:, i + 3])
-            for i in range(np.array(colors).shape[1] - 3)]
-
-    channels.extend(rest)
-
-    try:
-        channels = [np.ma.array(channel, mask=arr.mask) for channel in channels]
-    except AttributeError:
-        pass
-    return np.stack(channels, axis=0)
+    return channels
 
 
 def _convert_colors_to_hcl(colors):
@@ -65,37 +77,59 @@ def _convert_colors_to_hcl(colors):
     return hcl_colors
 
 
-def colorize_dask(dask_array, colors, values):
-    """Colorize a dask array.
+def _interpolate_alpha(arr, colors, values):
+    alpha = [np.interp(arr,
+                       np.array(values),
+                       np.array(colors)[:, i + 3])
+             for i in range(np.array(colors).shape[1] - 3)]
+    return alpha
 
-    The channels are stacked on the first dimension.
-    """
-    return dask_array.map_blocks(_colorize, colors, values, dtype=colors.dtype, new_axis=0,
-                                 chunks=[colors.shape[1]] + list(dask_array.chunks))
+
+def _mask_channels(channels, arr):
+    """Mask the channels if arr is a masked array."""
+    try:
+        channels = [_mask_array(channel, arr) for channel in channels]
+    except AttributeError:
+        pass
+    return channels
+
+
+def _mask_array(new_array, arr):
+    """Mask new_array with the mask from array."""
+    try:
+        return np.ma.array(new_array, mask=arr.mask)
+    except AttributeError:
+        return new_array
+
+
+def palettize(arr, colors, values):
+    """Apply *colors* to *data* from start *values*."""
+    if can_be_block_mapped(arr):
+        return _palettize_dask(arr, colors, values), tuple(colors)
+    else:
+        return _palettize(arr, values), tuple(colors)
+
+
+def _palettize_dask(darr, colors, values):
+    """Apply a palette to a dask array."""
+    return darr.map_blocks(_palettize, values, dtype=colors.dtype)
 
 
 def _palettize(arr, values):
     """Apply palette to array."""
+    new_arr = _digitize_array(arr, values)
+    reshaped_array = new_arr.reshape(arr.shape)
+    return _mask_array(reshaped_array, arr)
+
+
+def _digitize_array(arr, values):
     new_arr = np.digitize(arr.ravel(),
                           np.concatenate((values,
                                           [max(np.nanmax(arr),
                                                values.max()) + 1])))
     new_arr -= 1
     new_arr = new_arr.clip(min=0, max=len(values) - 1)
-    try:
-        return np.ma.array(new_arr.reshape(arr.shape), mask=arr.mask)
-    except AttributeError:
-        return new_arr.reshape(arr.shape)
-
-
-def palettize(arr, colors, values):
-    """Apply *colors* to *data* from start *values*."""
-    return _palettize(arr, values), tuple(colors)
-
-
-def palettize_dask(darr, colors, values):
-    """Apply a palette to a dask array."""
-    return darr.map_blocks(_palettize, values, dtype=colors.dtype), tuple(colors)
+    return new_arr
 
 
 class Colormap(object):
@@ -128,17 +162,11 @@ class Colormap(object):
 
     def colorize(self, data):
         """Colorize a monochromatic array *data*, based on the current colormap."""
-        try:
-            return colorize_dask(data, self.colors, self.values)
-        except AttributeError:
-            return colorize(data, self.colors, self.values)
+        return colorize(data, self.colors, self.values)
 
     def palettize(self, data):
         """Palettize a monochromatic array *data* based on the current colormap."""
-        try:
-            return palettize_dask(data, self.colors, self.values)
-        except AttributeError:
-            return palettize(data, self.colors, self.values)
+        return palettize(data, self.colors, self.values)
 
     def __add__(self, other):
         """Append colormap together."""

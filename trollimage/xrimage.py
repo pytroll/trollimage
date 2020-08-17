@@ -35,14 +35,14 @@ chunks can be saved in parallel.
 import logging
 import os
 import threading
+from contextlib import suppress
 
-import numpy as np
-from PIL import Image as PILImage
-import xarray as xr
 import dask
 import dask.array as da
+import numpy as np
+import xarray as xr
+from PIL import Image as PILImage
 from dask.delayed import delayed
-
 from trollimage.image import check_image_format
 
 try:
@@ -113,10 +113,8 @@ class RIOFile(object):
 
     def __del__(self):
         """Delete the instance."""
-        try:
+        with suppress(IOError, OSError):
             self.close()
-        except (IOError, OSError):
-            pass
 
     @property
     def colorinterp(self):
@@ -1301,13 +1299,6 @@ class XRImage(object):
             self.channels[i].mask = np.logical_and(selfmask,
                                                    img.channels[i].mask)
 
-    @staticmethod
-    def _colorize(l_data, colormap):
-        # 'l_data' is (1, rows, cols)
-        # 'channels' will be a list of 3 (RGB) or 4 (RGBA) arrays
-        channels = colormap.colorize(l_data)
-        return np.concatenate(channels, axis=0)
-
     def colorize(self, colormap):
         """Colorize the current image using `colormap`.
 
@@ -1325,9 +1316,8 @@ class XRImage(object):
             alpha = None
 
         l_data = self.data.sel(bands=['L'])
-        new_data = l_data.data.map_blocks(self._colorize, colormap,
-                                          chunks=(colormap.colors.shape[1],) + l_data.data.chunks[1:],
-                                          dtype=np.float64)
+
+        new_data = colormap.colorize(l_data.data.squeeze())
 
         if colormap.colors.shape[1] == 4:
             mode = "RGBA"
@@ -1344,12 +1334,6 @@ class XRImage(object):
         dims = self.data.dims
         self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
 
-    @staticmethod
-    def _palettize(data, colormap):
-        """Operate in a dask-friendly manner."""
-        # returns data and palette, only need data
-        return colormap.palettize(data)[0]
-
     def palettize(self, colormap):
         """Palettize the current image using `colormap`.
 
@@ -1362,7 +1346,7 @@ class XRImage(object):
             raise ValueError("Image should be grayscale to colorize")
 
         l_data = self.data.sel(bands=['L'])
-        new_data = l_data.data.map_blocks(self._palettize, colormap, dtype=l_data.dtype)
+        new_data = colormap.palettize(l_data.data)[0]
         self.palette = tuple(colormap.colors)
 
         if self.mode == "L":
