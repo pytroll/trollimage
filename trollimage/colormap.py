@@ -53,15 +53,15 @@ def _colorize_dask(dask_array, colors, values):
 
 def _colorize(arr, colors, values):
     """Colorize the array."""
-    channels = _interpolate_colors(arr, colors, values)
+    channels = _interpolate_rgb_colors(arr, colors, values)
     alpha = _interpolate_alpha(arr, colors, values)
     channels.extend(alpha)
     channels = _mask_channels(channels, arr)
     return np.stack(channels, axis=0)
 
 
-def _interpolate_colors(arr, colors, values):
-    hcl_colors = _convert_colors_to_hcl(colors)
+def _interpolate_rgb_colors(arr, colors, values):
+    hcl_colors = _convert_rgb_list_to_hcl(colors)
     channels = [np.interp(arr,
                           np.array(values),
                           np.array(hcl_colors)[:, i])
@@ -70,11 +70,14 @@ def _interpolate_colors(arr, colors, values):
     return channels
 
 
-def _convert_colors_to_hcl(colors):
+def _convert_rgb_list_to_hcl(colors):
     hcl_colors = np.array([rgb2hcl(*i[:3]) for i in colors])
-    # unwrap colormap in hcl space
-    hcl_colors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcl_colors)[:, 0])))
+    _unwrap_colors_in_hcl_space(hcl_colors)
     return hcl_colors
+
+
+def _unwrap_colors_in_hcl_space(hcl_colors):
+    hcl_colors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcl_colors)[:, 0])))
 
 
 def _interpolate_alpha(arr, colors, values):
