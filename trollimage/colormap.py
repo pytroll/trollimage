@@ -30,6 +30,8 @@ def colorize(arr, colors, values):
     """Colorize a monochromatic array *arr*, based *colors* given for *values*.
 
     Interpolation is used. *values* must be in ascending order.
+
+    arr can be a numpy array, a numpy masked array or a dask array.
     """
     if can_be_block_mapped(arr):
         return _colorize_dask(arr, colors, values)
@@ -106,7 +108,10 @@ def _mask_array(new_array, arr):
 
 
 def palettize(arr, colors, values):
-    """Apply *colors* to *data* from start *values*."""
+    """Apply *colors* to *data* from start *values*.
+
+    arr can be a numpy array, a numpy masked array or a dask array.
+    """
     if can_be_block_mapped(arr):
         return _palettize_dask(arr, colors, values), tuple(colors)
     else:
