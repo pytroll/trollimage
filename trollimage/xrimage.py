@@ -1315,9 +1315,9 @@ class XRImage(object):
         else:
             alpha = None
 
-        l_data = self.data.sel(bands=['L'])
+        l_data = self.data.sel(bands='L')
 
-        new_data = colormap.colorize(l_data.data.squeeze())
+        new_data = colormap.colorize(l_data.data)
 
         if colormap.colors.shape[1] == 4:
             mode = "RGBA"
