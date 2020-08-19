@@ -21,9 +21,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-"""Setup for trollimage.
-"""
+"""Setup for trollimage."""
 
 from setuptools import setup
 import versioneer
@@ -54,4 +52,5 @@ setup(name="trollimage",
           'geotiff': ['rasterio'],
           'xarray': ['xarray', 'dask[array]'],
       },
+      tests_require=['xarray', 'dask[array]'],
       )
