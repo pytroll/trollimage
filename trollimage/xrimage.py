@@ -1346,8 +1346,7 @@ class XRImage(object):
             raise ValueError("Image should be grayscale to colorize")
 
         l_data = self.data.sel(bands=['L'])
-        new_data = colormap.palettize(l_data.data)[0]
-        self.palette = tuple(colormap.colors)
+        new_data, self.palette = colormap.palettize(l_data.data)
 
         if self.mode == "L":
             mode = "P"
