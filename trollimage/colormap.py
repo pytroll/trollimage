@@ -34,6 +34,10 @@ def colorize(arr, colors, values):
     Args:
         arr (numpy array, numpy masked array, dask array)
             data to be colorized.
+        colors (numpy array):
+            the colors to use (R, G, B)
+        values (numpy array):
+            the values corresponding to the colors in the array
     """
     if can_be_block_mapped(arr):
         return _colorize_dask(arr, colors, values)
@@ -113,8 +117,12 @@ def palettize(arr, colors, values):
     """Apply *colors* to *data* from start *values*.
 
     Args:
-        arr (numpy array, numpy masked array, dask array)
+        arr (numpy array, numpy masked array, dask array):
             data to be palettized.
+        colors (numpy array):
+            the colors to use (R, G, B)
+        values (numpy array):
+            the values corresponding to the colors in the array
     """
     if can_be_block_mapped(arr):
         return _palettize_dask(arr, colors, values), tuple(colors)
