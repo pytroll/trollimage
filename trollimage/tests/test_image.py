@@ -1006,16 +1006,7 @@ class TestXRImage(unittest.TestCase):
     def test_save_geotiff_datetime(self):
         """Test saving geotiffs when start_time is in the attributes."""
         import xarray as xr
-        from trollimage import xrimage
-        import rasterio as rio
         import datetime as dt
-
-        def _get_tags_after_writing_to_geotiff(data):
-            img = xrimage.XRImage(data)
-            with NamedTemporaryFile(suffix='.tif') as tmp:
-                img.save(tmp.name)
-                with rio.open(tmp.name) as f:
-                    return f.tags()
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -2062,3 +2053,14 @@ class TestXRImage(unittest.TestCase):
             # make it happen
             res.data.data.compute()
             pil_img.convert.assert_called_with('RGB')
+
+
+def _get_tags_after_writing_to_geotiff(data):
+    from trollimage import xrimage
+    import rasterio as rio
+
+    img = xrimage.XRImage(data)
+    with NamedTemporaryFile(suffix='.tif') as tmp:
+        img.save(tmp.name)
+        with rio.open(tmp.name) as f:
+            return f.tags()
