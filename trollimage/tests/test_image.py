@@ -1010,24 +1010,25 @@ class TestXRImage(unittest.TestCase):
         import rasterio as rio
         import datetime as dt
 
+        def _get_tags_after_writing_to_geotiff(data):
+            img = xrimage.XRImage(data)
+            with NamedTemporaryFile(suffix='.tif') as tmp:
+                img.save(tmp.name)
+                with rio.open(tmp.name) as f:
+                    return f.tags()
+
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
 
         # "None" as start_time in the attributes
         data.attrs['start_time'] = None
-        img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                assert "TIFFTAG_DATETIME" not in f.tags()
+        tags = _get_tags_after_writing_to_geotiff(data)
+        assert "TIFFTAG_DATETIME" not in tags
 
         # Valid datetime
         data.attrs['start_time'] = dt.datetime.utcnow()
-        img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                assert "TIFFTAG_DATETIME" in f.tags()
+        tags = _get_tags_after_writing_to_geotiff(data)
+        assert "TIFFTAG_DATETIME" in tags
 
     @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
