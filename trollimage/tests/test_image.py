@@ -1003,6 +1003,25 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[3][~not_null], 0)  # completely transparent
 
     @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_datetime(self):
+        """Test saving geotiffs when start_time is in the attributes."""
+        import xarray as xr
+        import datetime as dt
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+
+        # "None" as start_time in the attributes
+        data.attrs['start_time'] = None
+        tags = _get_tags_after_writing_to_geotiff(data)
+        assert "TIFFTAG_DATETIME" not in tags
+
+        # Valid datetime
+        data.attrs['start_time'] = dt.datetime.utcnow()
+        tags = _get_tags_after_writing_to_geotiff(data)
+        assert "TIFFTAG_DATETIME" in tags
+
+    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
         """Test saving geotiffs when input data is int."""
         import xarray as xr
@@ -2034,3 +2053,14 @@ class TestXRImage(unittest.TestCase):
             # make it happen
             res.data.data.compute()
             pil_img.convert.assert_called_with('RGB')
+
+
+def _get_tags_after_writing_to_geotiff(data):
+    from trollimage import xrimage
+    import rasterio as rio
+
+    img = xrimage.XRImage(data)
+    with NamedTemporaryFile(suffix='.tif') as tmp:
+        img.save(tmp.name)
+        with rio.open(tmp.name) as f:
+            return f.tags()
