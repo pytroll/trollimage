@@ -1,3 +1,43 @@
+## Version 1.14.0 (2020/09/18)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 71](https://github.com/pytroll/trollimage/pull/71) - Fix tiff tag writing if start_time is None
+
+#### Features added
+
+* [PR 70](https://github.com/pytroll/trollimage/pull/70) - Implement colorize for dask arrays
+
+In this release 2 pull requests were closed.
+
+
+## Version 1.13.0 (2020/06/08)
+
+### Issues Closed
+
+* [Issue 65](https://github.com/pytroll/trollimage/issues/65) - Writing to file.tiff raises KeyError ([PR 69](https://github.com/pytroll/trollimage/pull/69))
+* [Issue 61](https://github.com/pytroll/trollimage/issues/61) - Add rasterio overview resampling argument ([PR 67](https://github.com/pytroll/trollimage/pull/67))
+
+In this release 2 issues were closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 68](https://github.com/pytroll/trollimage/pull/68) - Add workaround for broken aggdraw.Font usage in satpy/pycoast
+
+#### Features added
+
+* [PR 69](https://github.com/pytroll/trollimage/pull/69) - Add .tiff as recognized geotiff extension ([65](https://github.com/pytroll/trollimage/issues/65))
+* [PR 67](https://github.com/pytroll/trollimage/pull/67) - Add option for geotiff overview resampling and auto-levels ([61](https://github.com/pytroll/trollimage/issues/61))
+* [PR 66](https://github.com/pytroll/trollimage/pull/66) - Add more helpful error message when saving JPEG with alpha band
+
+In this release 4 pull requests were closed.
+
+
 ## Version 1.12.0 (2020/03/02)
 
 ### Pull Requests Merged
