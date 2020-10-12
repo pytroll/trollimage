@@ -418,9 +418,8 @@ class XRImage(object):
                                  fill_value=fill_value, compute=compute,
                                  keep_palette=keep_palette, cmap=cmap,
                                  **format_kwargs)
-        else:
-            return self.pil_save(filename, fformat, fill_value,
-                                 compute=compute, **format_kwargs)
+        return self.pil_save(filename, fformat, fill_value,
+                             compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, tags=None,
@@ -903,8 +902,7 @@ class XRImage(object):
         """Get the mode of the finalized image when provided this fill_value."""
         if fill_value is None and not self.mode.endswith('A'):
             return self.mode + 'A'
-        else:
-            return self.mode
+        return self.mode
 
     def _add_alpha_and_scale(self, data, ifill, dtype):
         alpha = self._create_alpha(data, fill_value=ifill)
@@ -932,11 +930,11 @@ class XRImage(object):
         if fill_value is None and not self.mode.endswith('A'):
             # We don't have a fill value or an alpha, let's add an alpha
             return self._add_alpha_and_scale(data, ifill, dtype)
-        else:
-            # scale float data to the proper dtype
-            # this method doesn't cast yet so that we can keep track of NULL values
-            data = self._scale_to_dtype(data, dtype)
-            data = self._replace_fill_value(data, ifill, fill_value, dtype)
+
+        # scale float data to the proper dtype
+        # this method doesn't cast yet so that we can keep track of NULL values
+        data = self._scale_to_dtype(data, dtype)
+        data = self._replace_fill_value(data, ifill, fill_value, dtype)
         return data
 
     def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False):
