@@ -1413,10 +1413,10 @@ class XRImage(object):
             raise ValueError(
                     "Expected self.mode='RGBA', got {md!s}".format(
                         md=self.mode))
-        elif not isinstance(src, XRImage):
+        if not isinstance(src, XRImage):
             raise TypeError("Expected XRImage, got {tp!s}".format(
                 tp=type(src)))
-        elif src.mode != "RGBA":
+        if src.mode != "RGBA":
             raise ValueError("Expected src.mode='RGBA', got {sm!s}".format(
                 sm=src.mode))
 
