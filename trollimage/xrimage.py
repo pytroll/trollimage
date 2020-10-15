@@ -924,18 +924,32 @@ class XRImage(object):
 
         return data
 
-    def _scale_and_fill_data(self, data, fill_value, dtype):
+    def _get_input_fill_value(self, data):
         # if the data are integers then this fill value will be used to check for invalid values
-        ifill = data.attrs.get('_FillValue') if np.issubdtype(data, np.integer) else None
-        if fill_value is None and not self.mode.endswith('A'):
-            # We don't have a fill value or an alpha, let's add an alpha
-            return self._add_alpha_and_scale(data, ifill, dtype)
+        if np.issubdtype(data, np.integer):
+            return data.attrs.get('_FillValue')
+        return None
 
+    def _scale_and_replace_fill_value(self, data, input_fill_value, fill_value, dtype):
         # scale float data to the proper dtype
         # this method doesn't cast yet so that we can keep track of NULL values
         data = self._scale_to_dtype(data, dtype)
-        data = self._replace_fill_value(data, ifill, fill_value, dtype)
+        data = self._replace_fill_value(data, input_fill_value, fill_value, dtype)
         return data
+
+    def _scale_alpha_or_fill_data(self, data, fill_value, dtype):
+        input_fill_value = self._get_input_fill_value(data)
+        needs_alpha = fill_value is None and not self.mode.endswith('A')
+        if needs_alpha:
+            # We don't have a fill value or an alpha, let's add an alpha
+            return self._add_alpha_and_scale(data, input_fill_value, dtype)
+        return self._scale_and_replace_fill_value(data, input_fill_value, fill_value, dtype)
+
+    def _convert_palette_and_finalize(self, **kwargs):
+        if self.mode == "P":
+            return self.convert("RGB").finalize(**kwargs)
+        if self.mode == "PA":
+            return self.convert("RGBA").finalize(**kwargs)
 
     def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False):
         """Finalize the image to be written to an output file.
@@ -973,12 +987,10 @@ class XRImage(object):
             keep_palette = False
 
         if not keep_palette:
-            if self.mode == "P":
-                return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype,
-                                                    keep_palette=keep_palette)
-            if self.mode == "PA":
-                return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype,
-                                                     keep_palette=keep_palette)
+            return self._convert_palette_and_finalize(
+                fill_value=fill_value, dtype=dtype,
+                keep_palette=keep_palette,
+            )
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
@@ -993,7 +1005,7 @@ class XRImage(object):
         with xr.set_options(keep_attrs=True):
             attrs = final_data.attrs
             if not keep_palette:
-                final_data = self._scale_and_fill_data(final_data, fill_value, dtype)
+                final_data = self._scale_alpha_or_fill_data(final_data, fill_value, dtype)
             final_data = final_data.astype(dtype)
             final_data.attrs = attrs
 
