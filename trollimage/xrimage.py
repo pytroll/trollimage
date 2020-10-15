@@ -945,12 +945,6 @@ class XRImage(object):
             return self._add_alpha_and_scale(data, input_fill_value, dtype)
         return self._scale_and_replace_fill_value(data, input_fill_value, fill_value, dtype)
 
-    def _convert_palette_and_finalize(self, **kwargs):
-        if self.mode == "P":
-            return self.convert("RGB").finalize(**kwargs)
-        if self.mode == "PA":
-            return self.convert("RGBA").finalize(**kwargs)
-
     def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False):
         """Finalize the image to be written to an output file.
 
@@ -987,10 +981,14 @@ class XRImage(object):
             keep_palette = False
 
         if not keep_palette:
-            return self._convert_palette_and_finalize(
+            finalize_kwargs = dict(
                 fill_value=fill_value, dtype=dtype,
                 keep_palette=keep_palette,
             )
+            if self.mode == "P":
+                return self.convert("RGB").finalize(**finalize_kwargs)
+            if self.mode == "PA":
+                return self.convert("RGBA").finalize(**finalize_kwargs)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
