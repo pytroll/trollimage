@@ -418,9 +418,8 @@ class XRImage(object):
                                  fill_value=fill_value, compute=compute,
                                  keep_palette=keep_palette, cmap=cmap,
                                  **format_kwargs)
-        else:
-            return self.pil_save(filename, fformat, fill_value,
-                                 compute=compute, **format_kwargs)
+        return self.pil_save(filename, fformat, fill_value,
+                             compute=compute, **format_kwargs)
 
     def rio_save(self, filename, fformat=None, fill_value=None,
                  dtype=np.uint8, compute=True, tags=None,
@@ -483,7 +482,7 @@ class XRImage(object):
             tags = {}
 
         data, mode = self.finalize(fill_value, dtype=dtype,
-                                   keep_palette=keep_palette, cmap=cmap)
+                                   keep_palette=keep_palette)
         data = data.transpose('bands', 'y', 'x')
 
         crs = None
@@ -899,21 +898,54 @@ class XRImage(object):
             new_img.palette = self.palette
         return new_img
 
-    def _finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
-        """Wrap around 'finalize' method for backwards compatibility."""
-        import warnings
-        warnings.warn("'_finalize' is deprecated, use 'finalize' instead.",
-                      DeprecationWarning)
-        return self.finalize(fill_value, dtype, keep_palette, cmap)
-
     def final_mode(self, fill_value=None):
         """Get the mode of the finalized image when provided this fill_value."""
         if fill_value is None and not self.mode.endswith('A'):
             return self.mode + 'A'
-        else:
-            return self.mode
+        return self.mode
 
-    def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False, cmap=None):
+    def _add_alpha_and_scale(self, data, ifill, dtype):
+        alpha = self._create_alpha(data, fill_value=ifill)
+        data = self._scale_to_dtype(data, dtype)
+        data = data.astype(dtype)
+        data = self._add_alpha(data, alpha=alpha)
+        return data
+
+    def _replace_fill_value(self, data, ifill, fill_value, dtype):
+        # Add fill_value after all other calculations have been done to
+        # make sure it is not scaled for the data type
+        if ifill is not None and fill_value is not None:
+            # cast fill value to output type so we don't change data type
+            fill_value = dtype(fill_value)
+            # integer fields have special fill values
+            data = data.where(data != ifill, dtype(fill_value))
+        elif fill_value is not None:
+            data = data.fillna(dtype(fill_value))
+
+        return data
+
+    def _get_input_fill_value(self, data):
+        # if the data are integers then this fill value will be used to check for invalid values
+        if np.issubdtype(data, np.integer):
+            return data.attrs.get('_FillValue')
+        return None
+
+    def _scale_and_replace_fill_value(self, data, input_fill_value, fill_value, dtype):
+        # scale float data to the proper dtype
+        # this method doesn't cast yet so that we can keep track of NULL values
+        data = self._scale_to_dtype(data, dtype)
+        data = self._replace_fill_value(data, input_fill_value, fill_value, dtype)
+        return data
+
+    def _scale_alpha_or_fill_data(self, data, fill_value, dtype):
+        input_fill_value = self._get_input_fill_value(data)
+        needs_alpha = fill_value is None and not self.mode.endswith('A')
+        if needs_alpha:
+            # We don't have a fill value or an alpha, let's add an alpha
+            return self._add_alpha_and_scale(data, input_fill_value, dtype)
+        return self._scale_and_replace_fill_value(data, input_fill_value, fill_value, dtype)
+
+    def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False):
         """Finalize the image to be written to an output file.
 
         This adds an alpha band or fills data with a fill_value (if
@@ -925,17 +957,38 @@ class XRImage(object):
         determined by a special ``_FillValue`` attribute in the
         ``DataArray`` ``.attrs`` dictionary.
 
+        Args:
+            fill_value (int or float or None): Output value to use to
+                represent invalid or missing pixels. By default this is
+                `None` meaning an Alpha channel will be used to represent
+                the invalid values; transparent for invalid, opaque
+                otherwise. Some output formats do not support alpha channels
+                so a ``fill_value`` must be provided. This is determined by
+                the underlying library doing the writing (pillow or rasterio).
+            dtype (numpy.dtype): Output data type to convert the current image
+                data to. Default is unsigned 8-bit integer
+                (:class:`numpy.uint8`).
+            keep_palette (bool): Whether to convert a paletted image to RGB/A
+                or not. If ``False`` (default) then ``P`` mode images will be
+                converted to ``RGB`` and ``PA`` will be converted to ``RGBA``.
+                If ``True``, images with mode ``P`` or ``PA`` are kept as is
+                and will not be scaled in order for their index values into a
+                palette to be maintained. This flag should always be ``False``
+                for non-paletted images.
+
         """
         if keep_palette and not self.mode.startswith('P'):
             keep_palette = False
 
         if not keep_palette:
+            finalize_kwargs = dict(
+                fill_value=fill_value, dtype=dtype,
+                keep_palette=keep_palette,
+            )
             if self.mode == "P":
-                return self.convert("RGB").finalize(fill_value=fill_value, dtype=dtype,
-                                                    keep_palette=keep_palette, cmap=cmap)
+                return self.convert("RGB").finalize(**finalize_kwargs)
             if self.mode == "PA":
-                return self.convert("RGBA").finalize(fill_value=fill_value, dtype=dtype,
-                                                     keep_palette=keep_palette, cmap=cmap)
+                return self.convert("RGBA").finalize(**finalize_kwargs)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
             logger.warning("Image with floats cannot be transparent, so "
@@ -947,34 +1000,10 @@ class XRImage(object):
             final_data.attrs['enhancement_history'] = list(self.data.attrs['enhancement_history'])
         except KeyError:
             pass
-        attrs = final_data.attrs
-        # if the data are integers then this fill value will be used to check for invalid values
         with xr.set_options(keep_attrs=True):
-            ifill = final_data.attrs.get('_FillValue') if np.issubdtype(final_data, np.integer) else None
+            attrs = final_data.attrs
             if not keep_palette:
-                if fill_value is None and not self.mode.endswith('A'):
-                    # We don't have a fill value or an alpha, let's add an alpha
-                    alpha = self._create_alpha(final_data, fill_value=ifill)
-                    final_data = self._scale_to_dtype(final_data, dtype)
-                    attrs = final_data.attrs
-                    final_data = final_data.astype(dtype)
-                    final_data = self._add_alpha(final_data, alpha=alpha)
-                    final_data.attrs = attrs
-                else:
-                    # scale float data to the proper dtype
-                    # this method doesn't cast yet so that we can keep track of NULL values
-                    final_data = self._scale_to_dtype(final_data, dtype)
-                    attrs = final_data.attrs
-                    # Add fill_value after all other calculations have been done to
-                    # make sure it is not scaled for the data type
-                    if ifill is not None and fill_value is not None:
-                        # cast fill value to output type so we don't change data type
-                        fill_value = dtype(fill_value)
-                        # integer fields have special fill values
-                        final_data = final_data.where(final_data != ifill, dtype(fill_value))
-                    elif fill_value is not None:
-                        final_data = final_data.fillna(dtype(fill_value))
-
+                final_data = self._scale_alpha_or_fill_data(final_data, fill_value, dtype)
             final_data = final_data.astype(dtype)
             final_data.attrs = attrs
 
@@ -1394,10 +1423,10 @@ class XRImage(object):
             raise ValueError(
                     "Expected self.mode='RGBA', got {md!s}".format(
                         md=self.mode))
-        elif not isinstance(src, XRImage):
+        if not isinstance(src, XRImage):
             raise TypeError("Expected XRImage, got {tp!s}".format(
                 tp=type(src)))
-        elif src.mode != "RGBA":
+        if src.mode != "RGBA":
             raise ValueError("Expected src.mode='RGBA', got {sm!s}".format(
                 sm=src.mode))
 
