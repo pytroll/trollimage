@@ -782,12 +782,13 @@ class TestXRImage(unittest.TestCase):
     @unittest.skipIf(sys.platform.startswith('win'),
                      "'NamedTemporaryFile' not supported on Windows")
     def test_save(self):
-        """Test saving."""
+        """Test saving to simple image formats."""
         import xarray as xr
         import dask.array as da
         from dask.delayed import Delayed
         from trollimage import xrimage
         from trollimage.colormap import brbg, Colormap
+        import rasterio as rio
 
         # RGBA colormap
         bw = Colormap(
@@ -800,14 +801,54 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            exp = (np.arange(75.).reshape(5, 5, 3) / 74. * 255).round()
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)  # completely opaque
 
         # Single band image
-        data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74., dims=[
+        data = np.arange(75).reshape(15, 5, 1) / 74.
+        data[-1, -1, 0] = np.nan
+        data = xr.DataArray(data, dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
         # Single band image to JPEG
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.jpg') as tmp:
             img.save(tmp.name, fill_value=0)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (1, 15, 5))
+            # can't check data accuracy because jpeg compression will
+            # change the values
+
+        # Single band image to PNG - min fill (check fill value scaling)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name, fill_value=0)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (1, 15, 5))
+            # can't check data accuracy because jpeg compression will
+            # change the values
+            exp = (np.arange(75.).reshape(1, 15, 5) / 74. * 254 + 1).round()
+            exp[0, -1, -1] = 0
+            np.testing.assert_allclose(file_data, exp)
+
+        # Single band image to PNG - max fill (check fill value scaling)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name, fill_value=255)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            self.assertEqual(file_data.shape, (1, 15, 5))
+            # can't check data accuracy because jpeg compression will
+            # change the values
+            exp = (np.arange(75.).reshape(1, 15, 5) / 74. * 254).round()
+            exp[0, -1, -1] = 255
+            np.testing.assert_allclose(file_data, exp)
+
         # Jpeg fails without fill value (no alpha handling)
         with NamedTemporaryFile(suffix='.jpg') as tmp:
             # make sure fill_value is mentioned in the error message
