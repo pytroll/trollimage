@@ -32,6 +32,7 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import numpy as np
+import pytest
 from trollimage import image
 
 EPSILON = 0.0001
@@ -714,7 +715,7 @@ def random_string(length,
                     for dummy in range(length)])
 
 
-class TestXRImage(unittest.TestCase):
+class TestXRImage:
     """Test XRImage objects."""
 
     def test_init(self):
@@ -723,32 +724,32 @@ class TestXRImage(unittest.TestCase):
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
-        self.assertEqual(img.mode, 'L')
+        assert img.mode == 'L'
 
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]])
         img = xrimage.XRImage(data)
-        self.assertEqual(img.mode, 'L')
-        self.assertTupleEqual(img.data.dims, ('bands', 'y', 'x'))
+        assert img.mode == 'L'
+        assert img.data.dims == ('bands', 'y', 'x')
 
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['x', 'y_2'])
         img = xrimage.XRImage(data)
-        self.assertEqual(img.mode, 'L')
-        self.assertTupleEqual(img.data.dims, ('bands', 'x', 'y'))
+        assert img.mode == 'L'
+        assert img.data.dims == ('bands', 'x', 'y')
 
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['x_2', 'y'])
         img = xrimage.XRImage(data)
-        self.assertEqual(img.mode, 'L')
-        self.assertTupleEqual(img.data.dims, ('bands', 'x', 'y'))
+        assert img.mode == 'L'
+        assert img.data.dims == ('bands', 'x', 'y')
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertEqual(img.mode, 'RGB')
+        assert img.mode == 'RGB'
 
         data = xr.DataArray(np.arange(100).reshape(5, 5, 4), dims=[
             'y', 'x', 'bands'], coords={'bands': ['Y', 'Cb', 'Cr', 'A']})
         img = xrimage.XRImage(data)
-        self.assertEqual(img.mode, 'YCbCrA')
+        assert img.mode == 'YCbCrA'
 
     def test_init_writability(self):
         """Test data is writable after init.
@@ -761,7 +762,7 @@ class TestXRImage(unittest.TestCase):
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
-        self.assertEqual(img.mode, 'L')
+        assert img.mode == 'L'
         n_arr = np.asarray(img.data)
         # if this succeeds then its writable
         n_arr[n_arr == 0.5] = 1
@@ -777,12 +778,12 @@ class TestXRImage(unittest.TestCase):
             img = xrimage.XRImage(data)
 
             img.save(filename='bla.png', fformat='png', format='png')
-            self.assertNotIn('format', pil_save.call_args_list[0][1])
+            assert 'format' not in pil_save.call_args_list[0][1]
 
-    @unittest.skipIf(sys.platform.startswith('win'),
-                     "'NamedTemporaryFile' not supported on Windows")
-    def test_save(self):
-        """Test saving to simple image formats."""
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_rgb_save(self):
+        """Test saving RGB/A data to simple image formats."""
         import xarray as xr
         import dask.array as da
         from dask.delayed import Delayed
@@ -803,12 +804,31 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = (np.arange(75.).reshape(5, 5, 3) / 74. * 255).round()
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], 255)  # completely opaque
+
+        data = data.where(data > (10 / 74.0))
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            img.save(tmp.name)
+
+        # dask delayed save
+        with NamedTemporaryFile(suffix='.png') as tmp:
+            delay = img.save(tmp.name, compute=False)
+            assert isinstance(delay, Delayed)
+            delay.compute()
+
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_single_band_jpeg(self):
+        """Test saving single band to jpeg formats."""
+        import xarray as xr
+        from trollimage import xrimage
+        import rasterio as rio
 
         # Single band image
         data = np.arange(75).reshape(15, 5, 1) / 74.
@@ -821,18 +841,38 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, fill_value=0)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (1, 15, 5))
+            assert file_data.shape == (1, 15, 5)
             # can't check data accuracy because jpeg compression will
             # change the values
+
+        # Jpeg fails without fill value (no alpha handling)
+        with NamedTemporaryFile(suffix='.jpg') as tmp:
+            # make sure fill_value is mentioned in the error message
+            with pytest.raises(OSError, match=r".*fill_value.*"):
+                img.save(tmp.name)
+
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_single_band_png(self):
+        """Test saving single band images to simple image formats."""
+        import xarray as xr
+        from trollimage import xrimage
+        import rasterio as rio
+
+        # Single band image
+        data = np.arange(75).reshape(15, 5, 1) / 74.
+        data[-1, -1, 0] = np.nan
+        data = xr.DataArray(data, dims=[
+            'y', 'x', 'bands'], coords={'bands': ['L']})
+        # Single band image to JPEG
+        img = xrimage.XRImage(data)
 
         # Single band image to PNG - min fill (check fill value scaling)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name, fill_value=0)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (1, 15, 5))
-            # can't check data accuracy because jpeg compression will
-            # change the values
+            assert file_data.shape == (1, 15, 5)
             exp = (np.arange(75.).reshape(1, 15, 5) / 74. * 254 + 1).round()
             exp[0, -1, -1] = 0
             np.testing.assert_allclose(file_data, exp)
@@ -842,56 +882,51 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, fill_value=255)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (1, 15, 5))
-            # can't check data accuracy because jpeg compression will
-            # change the values
+            assert file_data.shape == (1, 15, 5)
             exp = (np.arange(75.).reshape(1, 15, 5) / 74. * 254).round()
             exp[0, -1, -1] = 255
             np.testing.assert_allclose(file_data, exp)
 
-        # Jpeg fails without fill value (no alpha handling)
-        with NamedTemporaryFile(suffix='.jpg') as tmp:
-            # make sure fill_value is mentioned in the error message
-            self.assertRaisesRegex(OSError, "fill_value", img.save, tmp.name)
         # As PNG that support alpha channel
-        img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            assert file_data.shape == (2, 15, 5)
+            # bad value should be transparent in alpha channel
+            assert file_data[1, -1, -1] == 0
+            # all other pixels should be opaque
+            assert file_data[1, 0, 0] == 255
+
+
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_palettes(self):
+        """Test saving paletted images to simple image formats."""
+        import xarray as xr
+        from trollimage import xrimage
 
         # Single band image palettized
+        from trollimage.colormap import brbg, Colormap
         data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
-        # Single band image to JPEG
         img = xrimage.XRImage(data)
         img.palettize(brbg)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
-        # RGBA colormap
         img = xrimage.XRImage(data)
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
+
         img.palettize(bw)
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
-        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3) / 74.,
-                                          chunks=5),
-                            dims=['y', 'x', 'bands'],
-                            coords={'bands': ['R', 'G', 'B']})
-        img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.png') as tmp:
-            img.save(tmp.name)
-
-        data = data.where(data > (10 / 74.0))
-        img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.png') as tmp:
-            img.save(tmp.name)
-
-        # dask delayed save
-        with NamedTemporaryFile(suffix='.png') as tmp:
-            delay = img.save(tmp.name, compute=False)
-            self.assertIsInstance(delay, Delayed)
-            delay.compute()
-
-    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_float(self):
         """Test saving geotiffs when input data is float."""
         import xarray as xr
@@ -908,7 +943,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
@@ -924,7 +959,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
@@ -938,7 +973,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
             exp = (exp * 255).round()
@@ -954,7 +989,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, fill_value=128)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            assert file_data.shape == (3, 5, 5)  # no alpha band
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             exp2 = (exp * 255).round()
             exp2[exp <= 10. / 75.] = 128
@@ -967,7 +1002,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, dtype=np.float32)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            assert file_data.shape == (3, 5, 5)  # no alpha band
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             # fill value is forced to 0
             exp[exp <= 10. / 75.] = 0
@@ -980,7 +1015,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, dtype=np.float32, fill_value=np.nan)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            assert file_data.shape == (3, 5, 5)  # no alpha band
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             exp[exp <= 10. / 75.] = np.nan
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
@@ -992,7 +1027,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, dtype=np.float32, fill_value=128)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            assert file_data.shape == (3, 5, 5)  # no alpha band
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             exp[exp <= 10. / 75.] = 128
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
@@ -1004,7 +1039,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name, dtype=np.int16, fill_value=-128)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            assert file_data.shape == (3, 5, 5)  # no alpha band
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             exp2 = (exp * (2 ** 16 - 1) - (2 ** 15)).round()
             exp2[exp <= 10. / 75.] = -128.
@@ -1015,9 +1050,9 @@ class TestXRImage(unittest.TestCase):
         # dask delayed save
         with NamedTemporaryFile(suffix='.tif') as tmp:
             delay = img.save(tmp.name, compute=False)
-            self.assertIsInstance(delay, tuple)
-            self.assertIsInstance(delay[0], da.Array)
-            self.assertIsInstance(delay[1], xrimage.RIODataset)
+            assert isinstance(delay, tuple)
+            assert isinstance(delay[0], da.Array)
+            assert isinstance(delay[1], xrimage.RIODataset)
             da.store(*delay)
             delay[1].close()
 
@@ -1032,7 +1067,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band already existed
+            assert file_data.shape == (4, 5, 5)  # alpha band already existed
             exp = np.arange(75.).reshape(5, 5, 3) / 75.
             exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
             exp = (exp * 255.).round()
@@ -1043,7 +1078,8 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[3][not_null], 255)  # completely opaque
             np.testing.assert_allclose(file_data[3][~not_null], 0)  # completely transparent
 
-    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_datetime(self):
         """Test saving geotiffs when start_time is in the attributes."""
         import xarray as xr
@@ -1062,7 +1098,8 @@ class TestXRImage(unittest.TestCase):
         tags = _get_tags_after_writing_to_geotiff(data)
         assert "TIFFTAG_DATETIME" in tags
 
-    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
         """Test saving geotiffs when input data is int."""
         import xarray as xr
@@ -1075,12 +1112,12 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = np.arange(75).reshape(5, 5, 3)
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
@@ -1091,7 +1128,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = np.arange(75).reshape(5, 5, 3)
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
@@ -1102,13 +1139,13 @@ class TestXRImage(unittest.TestCase):
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         # Regular default save
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = np.arange(75).reshape(5, 5, 3)
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
@@ -1118,9 +1155,9 @@ class TestXRImage(unittest.TestCase):
         # dask delayed save
         with NamedTemporaryFile(suffix='.tif') as tmp:
             delay = img.save(tmp.name, compute=False)
-            self.assertIsInstance(delay, tuple)
-            self.assertIsInstance(delay[0], da.Array)
-            self.assertIsInstance(delay[1], xrimage.RIODataset)
+            assert isinstance(delay, tuple)
+            assert isinstance(delay[0], da.Array)
+            assert isinstance(delay[1], xrimage.RIODataset)
             da.store(*delay)
             delay[1].close()
 
@@ -1154,12 +1191,12 @@ class TestXRImage(unittest.TestCase):
             with rio.open(tmp.name) as f:
                 fgcps, fcrs = f.gcps
             for ref, val in zip(gcps, fgcps):
-                self.assertEqual(ref.col, val.col)
-                self.assertEqual(ref.row, val.row)
-                self.assertEqual(ref.x, val.x)
-                self.assertEqual(ref.y, val.y)
-                self.assertEqual(ref.z, val.z)
-            self.assertEqual(crs, fcrs)
+                assert ref.col == val.col
+                assert ref.row == val.row
+                assert ref.x == val.x
+                assert ref.y == val.y
+                assert ref.z == val.z
+            assert crs == fcrs
 
         # with rasterio colormap provided
         exp_cmap = {i: (i, 255 - i, i, 255) for i in range(256)}
@@ -1172,10 +1209,10 @@ class TestXRImage(unittest.TestCase):
             with rio.open(tmp.name) as f:
                 file_data = f.read()
                 cmap = f.colormap(1)
-            self.assertEqual(file_data.shape, (1, 9, 9))  # no alpha band
+            assert file_data.shape == (1, 9, 9)  # no alpha band
             exp = np.arange(81).reshape(9, 9, 1)
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            self.assertEqual(cmap, exp_cmap)
+            assert cmap == exp_cmap
 
         # with trollimage colormap provided
         from trollimage.colormap import Colormap
@@ -1191,10 +1228,10 @@ class TestXRImage(unittest.TestCase):
             with rio.open(tmp.name) as f:
                 file_data = f.read()
                 cmap = f.colormap(1)
-            self.assertEqual(file_data.shape, (1, 9, 9))  # no alpha band
+            assert file_data.shape == (1, 9, 9)  # no alpha band
             exp = np.arange(81).reshape(9, 9, 1)
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            self.assertEqual(cmap, exp_cmap)
+            assert cmap == exp_cmap
 
         # with bad colormap provided
         bad_cmap = [[i, [i, i, i]] for i in range(256)]
@@ -1203,10 +1240,11 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['P']})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
-            self.assertRaises(ValueError, img.save, tmp.name,
-                              keep_palette=True, cmap=bad_cmap)
-            self.assertRaises(ValueError, img.save, tmp.name,
-                              keep_palette=True, cmap=t_cmap, dtype='uint16')
+            with pytest.raises(ValueError):
+                img.save(tmp.name, keep_palette=True, cmap=bad_cmap)
+            with pytest.raises(ValueError):
+                img.save(tmp.name, keep_palette=True, cmap=t_cmap,
+                         dtype='uint16')
 
         # with input fill value
         data = np.arange(75).reshape(5, 5, 3)
@@ -1218,12 +1256,12 @@ class TestXRImage(unittest.TestCase):
                             attrs={'_FillValue': 5},
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name, fill_value=128)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (3, 5, 5))  # no alpha band
+            assert file_data.shape == (3, 5, 5)  # no alpha band
             exp = np.arange(75).reshape(5, 5, 3)
             exp[0, 1, :] = 128
             exp[0, 1, 1] = 128
@@ -1236,7 +1274,7 @@ class TestXRImage(unittest.TestCase):
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # no alpha band
+            assert file_data.shape == (4, 5, 5)  # no alpha band
             exp = np.arange(75).reshape(5, 5, 3)
             exp[0, 1, :] = 5
             exp[0, 1, 1] = 5
@@ -1247,7 +1285,7 @@ class TestXRImage(unittest.TestCase):
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
 
-    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_jp2_int(self):
         """Test saving jp2000 when input data is int."""
         import xarray as xr
@@ -1258,19 +1296,19 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.jp2') as tmp:
             img.save(tmp.name, quality=100, reversible=True)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
-            self.assertEqual(file_data.shape, (4, 5, 5))  # alpha band added
+            assert file_data.shape == (4, 5, 5)  # alpha band added
             exp = np.arange(75).reshape(5, 5, 3)
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], 255)
 
-    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_overviews(self):
         """Test saving geotiffs with overviews."""
         import xarray as xr
@@ -1281,37 +1319,37 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name, overviews=[2, 4])
             with rio.open(tmp.name) as f:
-                self.assertEqual(len(f.overviews(1)), 2)
+                assert len(f.overviews(1)) == 2
 
         # auto-levels
         data = np.zeros(25*25*3, dtype=np.uint8).reshape(25, 25, 3)
         data = xr.DataArray(data, dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name, overviews=[], overviews_minsize=2)
             with rio.open(tmp.name) as f:
-                self.assertEqual(len(f.overviews(1)), 4)
+                assert len(f.overviews(1)) == 4
 
         # auto-levels and resampling
         data = np.zeros(25*25*3, dtype=np.uint8).reshape(25, 25, 3)
         data = xr.DataArray(data, dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name, overviews=[], overviews_minsize=2,
                      overviews_resampling='average')
             with rio.open(tmp.name) as f:
                 # no way to check resampling method from the file
-                self.assertEqual(len(f.overviews(1)), 4)
+                assert len(f.overviews(1)) == 4
 
-    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_tags(self):
         """Test saving geotiffs with tags."""
         import xarray as xr
@@ -1323,14 +1361,14 @@ class TestXRImage(unittest.TestCase):
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         tags = {'avg': img.data.mean(), 'current_song': 'disco inferno'}
-        self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name, tags=tags)
             tags['avg'] = '37.0'
             with rio.open(tmp.name) as f:
-                self.assertEqual(f.tags(), tags)
+                assert f.tags() == tags
 
-    @unittest.skipIf(sys.platform.startswith('win'), "'NamedTemporaryFile' not supported on Windows")
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_scale_offset(self):
         """Test saving geotiffs with tags."""
         import xarray as xr
@@ -1347,7 +1385,7 @@ class TestXRImage(unittest.TestCase):
             with rio.open(tmp.name) as f:
                 ftags = f.tags()
                 for key, val in tags.items():
-                    self.assertAlmostEqual(float(ftags[key]), val)
+                    np.testing.assert_almost_equal(float(ftags[key]), val)
 
     def test_gamma(self):
         """Test gamma correction."""
@@ -1359,12 +1397,12 @@ class TestXRImage(unittest.TestCase):
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.gamma(.5)
-        self.assertTrue(np.allclose(img.data.values, arr ** 2))
-        self.assertDictEqual(img.data.attrs['enhancement_history'][0], {'gamma': 0.5})
+        assert np.allclose(img.data.values, arr ** 2)
+        assert img.data.attrs['enhancement_history'][0] == {'gamma': 0.5}
 
         img.gamma([2., 2., 2.])
-        self.assertEqual(len(img.data.attrs['enhancement_history']), 2)
-        self.assertTrue(np.allclose(img.data.values, arr))
+        assert len(img.data.attrs['enhancement_history']) == 2
+        assert np.allclose(img.data.values, arr)
 
     def test_crude_stretch(self):
         """Check crude stretching."""
@@ -1407,8 +1445,8 @@ class TestXRImage(unittest.TestCase):
 
         img.invert(True)
         enhs = img.data.attrs['enhancement_history'][0]
-        self.assertDictEqual(enhs, {'scale': -1, 'offset': 1})
-        self.assertTrue(np.allclose(img.data.values, 1 - arr))
+        assert enhs == {'scale': -1, 'offset': 1}
+        assert np.allclose(img.data.values, 1 - arr)
 
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1419,7 +1457,7 @@ class TestXRImage(unittest.TestCase):
                               coords={'bands': ['R', 'G', 'B']})
         scale = xr.DataArray(np.array([-1, 1, -1]), dims=['bands'],
                              coords={'bands': ['R', 'G', 'B']})
-        self.assertTrue(np.allclose(img.data.values, (data * scale + offset).values))
+        np.testing.assert_allclose(img.data.values, (data * scale + offset).values)
 
     def test_linear_stretch(self):
         """Test linear stretching with cutoffs."""
@@ -1460,7 +1498,7 @@ class TestXRImage(unittest.TestCase):
                          [0.962963, 0.962963, 0.962963],
                          [1.005051, 1.005051, 1.005051]]])
 
-        self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
+        np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
     def test_histogram_stretch(self):
         """Test histogram stretching."""
@@ -1473,7 +1511,7 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         img.stretch('histogram')
         enhs = img.data.attrs['enhancement_history'][0]
-        self.assertDictEqual(enhs, {'hist_equalize': True})
+        assert enhs == {'hist_equalize': True}
         res = np.array([[[0., 0., 0.],
                          [0.04166667, 0.04166667, 0.04166667],
                          [0.08333333, 0.08333333, 0.08333333],
@@ -1504,7 +1542,7 @@ class TestXRImage(unittest.TestCase):
                          [0.95833333, 0.95833333, 0.95833333],
                          [0.99951172, 0.99951172, 0.99951172]]])
 
-        self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
+        np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
     def test_logarithmic_stretch(self):
         """Test logarithmic strecthing."""
@@ -1517,7 +1555,7 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         img.stretch(stretch='logarithmic')
         enhs = img.data.attrs['enhancement_history'][0]
-        self.assertDictEqual(enhs, {'log_factor': 100.0})
+        assert enhs == {'log_factor': 100.0}
         res = np.array([[[0., 0., 0.],
                          [0.35484693, 0.35484693, 0.35484693],
                          [0.48307087, 0.48307087, 0.48307087],
@@ -1548,7 +1586,7 @@ class TestXRImage(unittest.TestCase):
                          [0.99085269, 0.99085269, 0.99085269],
                          [1., 1., 1.]]])
 
-        self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
+        np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
     def test_weber_fechner_stretch(self):
         """Test applying S=2.3klog10I+C to the data."""
@@ -1561,7 +1599,7 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         img.stretch_weber_fechner(2.5, 0.2)
         enhs = img.data.attrs['enhancement_history'][0]
-        self.assertDictEqual(enhs, {'weber_fechner': (2.5, 0.2)})
+        assert enhs == {'weber_fechner': (2.5, 0.2)}
         res = np.array([[[-np.inf, -6.73656795, -5.0037],
                          [-3.99003723, -3.27083205, -2.71297317],
                          [-2.25716928, -1.87179258, -1.5379641],
@@ -1592,7 +1630,7 @@ class TestXRImage(unittest.TestCase):
                          [3.84869831, 3.88467015, 3.92013174],
                          [3.95509735, 3.98958065, 4.02359478]]])
 
-        self.assertTrue(np.allclose(img.data.values, res, atol=1.e-6))
+        np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
     def test_jpeg_save(self):
         """Test saving to jpeg."""
@@ -1647,19 +1685,19 @@ class TestXRImage(unittest.TestCase):
 
         img = xrimage.XRImage(dataset1)
         new_img = img.convert(img.mode)
-        self.assertIsNotNone(new_img)
+        assert new_img is not None
         # make sure it is a copy
-        self.assertIsNot(new_img, img)
-        self.assertIsNot(new_img.data, img.data)
+        assert new_img is not img
+        assert new_img.data is not img.data
 
         # L -> LA (int)
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage((dataset1 * 150).astype(np.uint8))
             img.data.attrs['_FillValue'] = 0  # set fill value
             img = img.convert('LA')
-            self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
-            self.assertTrue(img.mode == 'LA')
-            self.assertTrue(len(img.data.coords['bands']) == 2)
+            assert np.issubdtype(img.data.dtype, np.integer)
+            assert img.mode == 'LA'
+            assert len(img.data.coords['bands'] == 2)
             # make sure the alpha band is all opaque except the first pixel
             alpha = img.data.sel(bands='A').values.ravel()
             np.testing.assert_allclose(alpha[0], 0)
@@ -1669,22 +1707,22 @@ class TestXRImage(unittest.TestCase):
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage(dataset1)
             img = img.convert('LA')
-            self.assertTrue(img.mode == 'LA')
-            self.assertTrue(len(img.data.coords['bands']) == 2)
+            assert img.mode == 'LA'
+            assert len(img.data.coords['bands']) == 2
             # make sure the alpha band is all opaque
             np.testing.assert_allclose(img.data.sel(bands='A'), 1.)
 
         # LA -> L (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = img.convert('L')
-            self.assertTrue(img.mode == 'L')
-            self.assertTrue(len(img.data.coords['bands']) == 1)
+            assert img.mode == 'L'
+            assert len(img.data.coords['bands']) == 1
 
         # L -> RGB (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = img.convert('RGB')
-            self.assertTrue(img.mode == 'RGB')
-            self.assertTrue(len(img.data.coords['bands']) == 3)
+            assert img.mode == 'RGB'
+            assert len(img.data.coords['bands']) == 3
             data = img.data.compute()
             np.testing.assert_allclose(data.sel(bands=['R']), arr1)
             np.testing.assert_allclose(data.sel(bands=['G']), arr1)
@@ -1693,9 +1731,9 @@ class TestXRImage(unittest.TestCase):
         # RGB -> RGBA (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = img.convert('RGBA')
-            self.assertTrue(img.mode == 'RGBA')
-            self.assertTrue(len(img.data.coords['bands']) == 4)
-            self.assertTrue(np.issubdtype(img.data.dtype, np.floating))
+            assert img.mode == 'RGBA'
+            assert len(img.data.coords['bands']) == 4
+            assert np.issubdtype(img.data.dtype, np.floating)
             data = img.data.compute()
             np.testing.assert_allclose(data.sel(bands=['R']), arr1)
             np.testing.assert_allclose(data.sel(bands=['G']), arr1)
@@ -1707,11 +1745,11 @@ class TestXRImage(unittest.TestCase):
         with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
             img = xrimage.XRImage((dataset1 * 150).astype(np.uint8))
             img = img.convert('RGB')  # L -> RGB
-            self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+            assert np.issubdtype(img.data.dtype, np.integer)
             img = img.convert('RGBA')
-            self.assertTrue(img.mode == 'RGBA')
-            self.assertTrue(len(img.data.coords['bands']) == 4)
-            self.assertTrue(np.issubdtype(img.data.dtype, np.integer))
+            assert img.mode == 'RGBA'
+            assert len(img.data.coords['bands']) == 4
+            assert np.issubdtype(img.data.dtype, np.integer)
             data = img.data.compute()
             np.testing.assert_allclose(data.sel(bands=['R']), (arr1 * 150).astype(np.uint8))
             np.testing.assert_allclose(data.sel(bands=['G']), (arr1 * 150).astype(np.uint8))
@@ -1723,8 +1761,8 @@ class TestXRImage(unittest.TestCase):
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = xrimage.XRImage(dataset2)
             img = img.convert('RGBA')
-            self.assertTrue(img.mode == 'RGBA')
-            self.assertTrue(len(img.data.coords['bands']) == 4)
+            assert img.mode == 'RGBA'
+            assert len(img.data.coords['bands']) == 4
 
         # L -> palettize -> RGBA (float)
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
@@ -1733,20 +1771,21 @@ class TestXRImage(unittest.TestCase):
             pal = img.palette
 
             img2 = img.convert('RGBA')
-            self.assertTrue(np.issubdtype(img2.data.dtype, np.floating))
-            self.assertTrue(img2.mode == 'RGBA')
-            self.assertTrue(len(img2.data.coords['bands']) == 4)
+            assert np.issubdtype(img2.data.dtype, np.floating)
+            assert img2.mode == 'RGBA'
+            assert len(img2.data.coords['bands']) == 4
 
         # PA -> RGB (float)
         img = xrimage.XRImage(dataset3)
         img.palette = pal
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
             img = img.convert('RGB')
-            self.assertTrue(np.issubdtype(img.data.dtype, np.floating))
-            self.assertTrue(img.mode == 'RGB')
-            self.assertTrue(len(img.data.coords['bands']) == 3)
+            assert np.issubdtype(img.data.dtype, np.floating)
+            assert img.mode == 'RGB'
+            assert len(img.data.coords['bands']) == 3
 
-        self.assertRaises(ValueError, img.convert, 'A')
+        with pytest.raises(ValueError):
+            img.convert('A')
 
         # L -> palettize -> RGBA (float) with RGBA colormap
         with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
@@ -1754,14 +1793,14 @@ class TestXRImage(unittest.TestCase):
             img.palettize(bw)
 
             img2 = img.convert('RGBA')
-            self.assertTrue(np.issubdtype(img2.data.dtype, np.floating))
-            self.assertTrue(img2.mode == 'RGBA')
-            self.assertTrue(len(img2.data.coords['bands']) == 4)
+            assert np.issubdtype(img2.data.dtype, np.floating)
+            assert img2.mode == 'RGBA'
+            assert len(img2.data.coords['bands']) == 4
             # convert to RGB, use RGBA from colormap regardless
             img2 = img.convert('RGB')
-            self.assertTrue(np.issubdtype(img2.data.dtype, np.floating))
-            self.assertTrue(img2.mode == 'RGBA')
-            self.assertTrue(len(img2.data.coords['bands']) == 4)
+            assert np.issubdtype(img2.data.dtype, np.floating)
+            assert img2.mode == 'RGBA'
+            assert len(img2.data.coords['bands']) == 4
 
     def test_final_mode(self):
         """Test final_mode."""
@@ -1772,8 +1811,8 @@ class TestXRImage(unittest.TestCase):
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        self.assertEqual(img.final_mode(None), 'RGBA')
-        self.assertEqual(img.final_mode(0), 'RGB')
+        assert img.final_mode(None) == 'RGBA'
+        assert img.final_mode(0) == 'RGB'
 
     def test_colorize(self):
         """Test colorize with an RGB colormap."""
@@ -1899,7 +1938,7 @@ class TestXRImage(unittest.TestCase):
         img = xrimage.XRImage(data)
         img.colorize(bw)
         values = img.data.compute()
-        self.assertTupleEqual((4, 5, 15), values.shape)
+        assert (4, 5, 15) == values.shape
         np.testing.assert_allclose(values[:, 0, 0], [1.0, 1.0, 1.0, 1.0], rtol=1e-03)
         np.testing.assert_allclose(values[:, -1, -1], [0.0, 0.0, 0.0, 0.5])
 
@@ -1941,8 +1980,8 @@ class TestXRImage(unittest.TestCase):
         img.palettize(bw)
 
         values = img.data.values
-        self.assertTupleEqual((1, 5, 15), values.shape)
-        self.assertTupleEqual((2, 4), bw.colors.shape)
+        assert (1, 5, 15) == values.shape
+        assert (2, 4) == bw.colors.shape
 
     def test_stack(self):
         """Test stack."""
@@ -2010,12 +2049,12 @@ class TestXRImage(unittest.TestCase):
                  [0.5020408,    0.52,       0.5476586,  0.5846154,  0.63027024],
                  [0.683871,     0.7445614,  0.81142855, 0.8835443,  0.96]]))
 
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             img1.blend("Salekhard")
 
         wrongimg = xrimage.XRImage(
                 xr.DataArray(np.zeros((0, 0)), dims=("y", "x")))
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             img1.blend(wrongimg)
 
     def test_replace_luminance(self):
@@ -2072,9 +2111,9 @@ class TestXRImage(unittest.TestCase):
             res = img.apply_pil(dummy_fun, 'RGB',
                                 fun_args=('Hey', 'Jude'),
                                 fun_kwargs={'chorus': "La lala lalalala"})
-            self.assertEqual(dummy_args, [({}, ), {}])
+            assert dummy_args == [({}, ), {}]
             res.data.data.compute()
-            self.assertEqual(dummy_args, [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}])
+            assert dummy_args == [(OrderedDict(), 'Hey', 'Jude'), {'chorus': "La lala lalalala"}]
 
         # Test HACK for _burn_overlay
         dummy_args = [(OrderedDict(), ), {}]
