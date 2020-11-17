@@ -981,7 +981,7 @@ class XRImage(object):
                 otherwise. Some output formats do not support alpha channels
                 so a ``fill_value`` must be provided. This is determined by
                 the underlying library doing the writing (pillow or rasterio).
-                If specified, it must be the minimum or maximum of the
+                If specified, it should be the minimum or maximum of the
                 ``dtype`` (ex. 0 or 255 for uint8). Floating point image data
                 is then scaled to fit the remainder of the data type space.
                 Integer image data will **not** be scaled. For example, a
