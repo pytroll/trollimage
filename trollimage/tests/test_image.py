@@ -898,7 +898,6 @@ class TestXRImage:
             # all other pixels should be opaque
             assert file_data[1, 0, 0] == 255
 
-
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_palettes(self):
