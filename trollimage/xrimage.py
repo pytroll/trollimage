@@ -773,6 +773,26 @@ class XRImage(object):
         data.attrs = attrs
         return data
 
+    def _get_dtype_scale_offset(self, dtype, fill_value):
+        dinfo = np.iinfo(dtype)
+        scale = dinfo.max - dinfo.min
+        offset = dinfo.min
+        if fill_value is not None:
+            if fill_value == dinfo.min:
+                # leave the lowest value for fill value only
+                offset = offset + 1
+                scale = scale - 1
+            elif fill_value == dinfo.max:
+                # leave the top value for fill value only
+                scale = scale - 1
+            else:
+                warnings.warn(
+                    "Specified fill value will overlap with valid "
+                    "data. To avoid this warning specify a fill_value "
+                    "that is the minimum or maximum for the data type "
+                    "being saved to.")
+        return scale, offset
+
     def _scale_to_dtype(self, data, dtype, fill_value=None):
         """Scale provided data to dtype range assuming a 0-1 range.
 
@@ -790,23 +810,7 @@ class XRImage(object):
             else:
                 # scale float data (assumed to be 0 to 1) to full integer space
                 # leave room for fill value if needed
-                dinfo = np.iinfo(dtype)
-                scale = dinfo.max - dinfo.min
-                offset = dinfo.min
-                if fill_value is not None:
-                    if fill_value == dinfo.min:
-                        # leave the lowest value for fill value only
-                        offset = offset + 1
-                        scale = scale - 1
-                    elif fill_value == dinfo.max:
-                        # leave the top value for fill value only
-                        scale = scale - 1
-                    else:
-                        warnings.warn(
-                            "Specified fill value will overlap with valid "
-                            "data. To avoid this warning specify a fill_value "
-                            "that is the minimum or maximum for the data type "
-                            "being saved to.")
+                scale, offset = self._get_dtype_scale_offset(dtype, fill_value)
                 data = data.clip(0, 1) * scale + offset
                 attrs.setdefault('enhancement_history', list()).append({'scale': scale, 'offset': offset})
             data = data.round()
