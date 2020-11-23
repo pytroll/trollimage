@@ -47,17 +47,17 @@ install:
   - pip install -e . --no-deps
 script:
   - pytest --cov=trollimage trollimage/tests
-after_success:
-  - if [[ $PYTHON_VERSION == 3.8 ]]; then coveralls; fi
-deploy:
-  - provider: pypi
-    user: dhoese
-    password:
-      secure: "Cpo7kPgjbyWKNRjnzWDggxo5dqG8KdtcrBxYWwBpkkhgly/ngN9EkjIdscrwmp8sCqfjTd0RGyR811k6dzU7kKJVbc6V309+4mG8O0w4IvfHCn+NaHymAMrHleRIqyxbo5kvrBZoX+eB7YWOUppF6ofeohbrNWWgMQv+/d+Mufs="
-    distributions: sdist bdist_wheel
-    skip_existing: true
-    on:
-      repo: pytroll/trollimage
-      tags: true
-notifications:
-  slack: pytroll:96mNSYSI1dBjGyzVXkBT6qFt
+#after_success:
+#  - if [[ $PYTHON_VERSION == 3.8 ]]; then coveralls; fi
+#deploy:
+#  - provider: pypi
+#    user: dhoese
+#    password:
+#      secure: "Cpo7kPgjbyWKNRjnzWDggxo5dqG8KdtcrBxYWwBpkkhgly/ngN9EkjIdscrwmp8sCqfjTd0RGyR811k6dzU7kKJVbc6V309+4mG8O0w4IvfHCn+NaHymAMrHleRIqyxbo5kvrBZoX+eB7YWOUppF6ofeohbrNWWgMQv+/d+Mufs="
+#    distributions: sdist bdist_wheel
+#    skip_existing: true
+#    on:
+#      repo: pytroll/trollimage
+#      tags: true
+#notifications:
+#  slack: pytroll:96mNSYSI1dBjGyzVXkBT6qFt
