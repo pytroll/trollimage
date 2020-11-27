@@ -785,17 +785,9 @@ class TestXRImage:
     def test_rgb_save(self):
         """Test saving RGB/A data to simple image formats."""
         import xarray as xr
-        import dask.array as da
         from dask.delayed import Delayed
         from trollimage import xrimage
-        from trollimage.colormap import brbg, Colormap
         import rasterio as rio
-
-        # RGBA colormap
-        bw = Colormap(
-            (0.0, (1.0, 1.0, 1.0, 1.0)),
-            (1.0, (0.0, 0.0, 0.0, 0.5)),
-        )
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -1696,7 +1688,7 @@ class TestXRImage:
             img = img.convert('LA')
             assert np.issubdtype(img.data.dtype, np.integer)
             assert img.mode == 'LA'
-            assert len(img.data.coords['bands'] == 2)
+            assert len(img.data.coords['bands']) == 2
             # make sure the alpha band is all opaque except the first pixel
             alpha = img.data.sel(bands='A').values.ravel()
             np.testing.assert_allclose(alpha[0], 0)
