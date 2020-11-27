@@ -758,7 +758,6 @@ class TestXRImage:
 
         """
         import xarray as xr
-        import numpy as np
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
