@@ -1,0 +1,20 @@
+name: test-environment
+channels:
+  - conda-forge
+dependencies:
+  - xarray
+  - dask
+  - distributed
+  - toolz
+  - Cython
+  - sphinx
+  - pillow
+  - coveralls
+  - coverage
+  - codecov
+  - rasterio
+  - libtiff
+  - pytest
+  - pytest-cov
+  - fsspec
+  - pip

@@ -5,13 +5,13 @@ Trollimage
     :target: https://pypi.python.org/pypi/trollimage/
     :alt: Version
 
-.. image:: https://travis-ci.org/pytroll/trollimage.svg?branch=master
-    :target: https://travis-ci.org/pytroll/trollimage
-    :alt: Travis CI
+.. image:: https://anaconda.org/conda-forge/trollimage/badges/version.svg
+   :target: https://anaconda.org/conda-forge/trollimage/
+   :alt: Conda-forge
 
-.. image:: https://ci.appveyor.com/api/projects/status/9ux7hgi8rry971fn/branch/master?svg=true
-    :target: https://ci.appveyor.com/project/pytroll/trollimage
-    :alt: Appveyor
+.. image:: https://github.com/pytroll/trollimage/workflows/CI/badge.svg?branch=master
+    :target: https://github.com/pytroll/trollimage/actions?query=workflow%3A%22CI%22
+    :alt: GitHub Actions
 
 .. image:: https://coveralls.io/repos/pytroll/trollimage/badge.png?branch=master
     :target: https://coveralls.io/r/pytroll/trollimage?branch=master
