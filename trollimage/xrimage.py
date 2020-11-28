@@ -745,7 +745,9 @@ class XRImage(object):
         null_mask = null_mask.any(dim='bands')
         null_mask = null_mask.expand_dims('bands')
         null_mask['bands'] = ['A']
-        # match data dtype
+        # changes to null_mask attrs should not effect the original attrs
+        # XRImage never uses them either
+        null_mask.attrs = {}
         return null_mask
 
     def _add_alpha(self, data, alpha=None):
