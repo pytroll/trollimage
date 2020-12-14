@@ -35,6 +35,7 @@ chunks can be saved in parallel.
 import logging
 import os
 import threading
+import warnings
 from contextlib import suppress
 
 import dask
@@ -774,7 +775,27 @@ class XRImage(object):
         data.attrs = attrs
         return data
 
-    def _scale_to_dtype(self, data, dtype):
+    def _get_dtype_scale_offset(self, dtype, fill_value):
+        dinfo = np.iinfo(dtype)
+        scale = dinfo.max - dinfo.min
+        offset = dinfo.min
+        if fill_value is not None:
+            if fill_value == dinfo.min:
+                # leave the lowest value for fill value only
+                offset = offset + 1
+                scale = scale - 1
+            elif fill_value == dinfo.max:
+                # leave the top value for fill value only
+                scale = scale - 1
+            else:
+                warnings.warn(
+                    "Specified fill value will overlap with valid "
+                    "data. To avoid this warning specify a fill_value "
+                    "that is the minimum or maximum for the data type "
+                    "being saved to.")
+        return scale, offset
+
+    def _scale_to_dtype(self, data, dtype, fill_value=None):
         """Scale provided data to dtype range assuming a 0-1 range.
 
         Float input data is assumed to be normalized to a 0 to 1 range.
@@ -790,9 +811,8 @@ class XRImage(object):
                 data = data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
             else:
                 # scale float data (assumed to be 0 to 1) to full integer space
-                dinfo = np.iinfo(dtype)
-                scale = dinfo.max - dinfo.min
-                offset = dinfo.min
+                # leave room for fill value if needed
+                scale, offset = self._get_dtype_scale_offset(dtype, fill_value)
                 data = data.clip(0, 1) * scale + offset
                 attrs.setdefault('enhancement_history', list()).append({'scale': scale, 'offset': offset})
             data = data.round()
@@ -935,7 +955,7 @@ class XRImage(object):
     def _scale_and_replace_fill_value(self, data, input_fill_value, fill_value, dtype):
         # scale float data to the proper dtype
         # this method doesn't cast yet so that we can keep track of NULL values
-        data = self._scale_to_dtype(data, dtype)
+        data = self._scale_to_dtype(data, dtype, fill_value)
         data = self._replace_fill_value(data, input_fill_value, fill_value, dtype)
         return data
 
@@ -967,6 +987,12 @@ class XRImage(object):
                 otherwise. Some output formats do not support alpha channels
                 so a ``fill_value`` must be provided. This is determined by
                 the underlying library doing the writing (pillow or rasterio).
+                If specified, it should be the minimum or maximum of the
+                ``dtype`` (ex. 0 or 255 for uint8). Floating point image data
+                is then scaled to fit the remainder of the data type space.
+                Integer image data will **not** be scaled. For example, a
+                ``dtype`` of ``numpy.uint8`` and a ``fill_value`` of 0 will
+                result in floating-point data being scaled linearly from 1 to 255.
             dtype (numpy.dtype): Output data type to convert the current image
                 data to. Default is unsigned 8-bit integer
                 (:class:`numpy.uint8`).
