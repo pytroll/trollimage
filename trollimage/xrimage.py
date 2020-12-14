@@ -990,7 +990,7 @@ class XRImage(object):
                 is then scaled to fit the remainder of the data type space.
                 Integer image data will **not** be scaled. For example, a
                 ``dtype`` of ``numpy.uint8`` and a ``fill_value`` of 0 will
-                result in data being scaled linearly from 1 to 255.
+                result in floating-point data being scaled linearly from 1 to 255.
             dtype (numpy.dtype): Output data type to convert the current image
                 data to. Default is unsigned 8-bit integer
                 (:class:`numpy.uint8`).
