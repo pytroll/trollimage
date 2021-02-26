@@ -457,7 +457,7 @@ class XRImage(object):
             overviews_minsize (int): Minimum number of pixels for the smallest
                 overview size generated when `overviews` is auto-generated.
                 Defaults to 256.
-             (str): Resampling method
+            overviews_resampling (str): Resampling method
                 to use when generating overviews. This must be the name of an
                 enum value from :class:`rasterio.enums.Resampling` and
                 only takes effect if the `overviews` keyword argument is
@@ -542,10 +542,6 @@ class XRImage(object):
             tags['scale'], tags['offset'] = invert_scale_offset(scale, offset)
 
         # FIXME add metadata
-        # import rioxarray
-        # import threading
-        # return data.rio.to_raster(filename, tiled=True, lock=threading.Lock())
-
         r_file = RIOFile(filename, 'w', driver=driver,
                          width=data.sizes['x'], height=data.sizes['y'],
                          count=data.sizes['bands'],
