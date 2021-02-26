@@ -317,7 +317,7 @@ class TestImageCreation(unittest.TestCase):
 
 
 class TestRegularImage(unittest.TestCase):
-    """Class for testing the mpop.imageo.image module."""
+    """Class for testing the image module."""
 
     def setUp(self):
         """Set up the test case."""
@@ -1358,25 +1358,6 @@ class TestXRImage:
             with rio.open(tmp.name) as f:
                 assert f.tags() == tags
 
-    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
-    def test_save_scale_offset(self):
-        """Test saving geotiffs with tags."""
-        import xarray as xr
-        from trollimage import xrimage
-        import rasterio as rio
-
-        data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
-            'y', 'x', 'bands'], coords={'bands': ['L']})
-        img = xrimage.XRImage(data)
-        img.stretch()
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, include_scale_offset_tags=True)
-            tags = {'scale': 24.0 / 255, 'offset': 0}
-            with rio.open(tmp.name) as f:
-                ftags = f.tags()
-                for key, val in tags.items():
-                    np.testing.assert_almost_equal(float(ftags[key]), val)
-
     def test_gamma(self):
         """Test gamma correction."""
         import xarray as xr
@@ -2123,6 +2104,44 @@ class TestXRImage:
             # make it happen
             res.data.data.compute()
             pil_img.convert.assert_called_with('RGB')
+
+
+class TestXRImageSaveScaleOffset(unittest.TestCase):
+    """Test case for saving an image with scale and offset tags."""
+
+    def setUp(self) -> None:
+        """Set up the test case."""
+        import xarray as xr
+        from trollimage import xrimage
+        data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['L']})
+        self.img = xrimage.XRImage(data)
+
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_scale_offset(self):
+        """Test saving geotiffs with tags."""
+        expected_tags = {'scale': 24.0 / 255, 'offset': 0}
+
+        self.img.stretch()
+        self._save_and_check_tags(expected_tags)
+
+    def _save_and_check_tags(self, expected_tags):
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            self.img.save(tmp.name, include_scale_offset_tags=True)
+
+            import rasterio as rio
+            with rio.open(tmp.name) as f:
+                ftags = f.tags()
+                for key, val in expected_tags.items():
+                    np.testing.assert_almost_equal(float(ftags[key]), val)
+
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_scale_offset_from_lists(self):
+        """Test saving geotiffs with tags that come from lists."""
+        expected_tags = {'scale': 23.0 / 255, 'offset': 1}
+
+        self.img.crude_stretch([1], [24])
+        self._save_and_check_tags(expected_tags)
 
 
 def _get_tags_after_writing_to_geotiff(data):

@@ -11,10 +11,10 @@ A simple example of applying a colormap on data::
     from trollimage.image import Image
 
     img = Image(data, mode="L")
-    
+
     rdbu.set_range(-90 + 273.15, 30 + 273.15)
     img.colorize(rdbu)
-    
+
     img.show()
 
 .. image:: _static/hayan_simple.png
@@ -29,7 +29,7 @@ A more complex example, with a colormap build from greyscale on one end, and spe
     from trollimage.image import Image
 
     img = Image(data, mode="L")
-    
+
     greys.set_range(-40 + 273.15, 30 + 273.15)
     spectral.set_range(-90 + 273.15, -40.00001 + 273.15)
     my_cm = spectral + greys
@@ -46,10 +46,10 @@ Now applying a palette to the data, with sharp edges::
     from trollimage.image import Image
 
     img = Image(data, mode="L")
-    
+
     set3.set_range(-90 + 273.15, 30 + 273.15)
     img.palettize(set3)
-    
+
     img.show()
 
 .. image:: _static/phayan.png
@@ -274,9 +274,10 @@ pastel2
 Rainbow Colormap
 ~~~~~~~~~~~~~~~~
 
-Don't use this one ! See here_ why
+Don't use this one ! See here_ and there_ why
 
-.. _here: http://data3.mprog.nl/course/15%20Readings/40%20Reading%204/Borland_Rainbow_Color_Map.pdf
+.. _here: https://www.nature.com/articles/s41467-020-19160-7
+.. _there: https://doi.org/10.1109/MCG.2007.323435
 
 rainbow
 

@@ -415,6 +415,7 @@ class XRImage(object):
         kwformat = format_kwargs.pop('format', None)
         fformat = fformat or kwformat or os.path.splitext(filename)[1][1:]
         if fformat in ('tif', 'tiff', 'jp2') and rasterio:
+
             return self.rio_save(filename, fformat=fformat,
                                  fill_value=fill_value, compute=compute,
                                  keep_palette=keep_palette, cmap=cmap,
@@ -564,14 +565,7 @@ class XRImage(object):
             except AttributeError:
                 raise ValueError("Colormap is not formatted correctly")
 
-        da_tags = []
-        for key, val in list(tags.items()):
-            try:
-                if isinstance(val.data, da.Array):
-                    da_tags.append((val.data, RIOTag(r_file, key)))
-                    tags.pop(key)
-            except AttributeError:
-                continue
+        tags, da_tags = self._split_regular_vs_lazy_tags(tags, r_file)
 
         r_file.rfile.update_tags(**tags)
         r_dataset = RIODataset(r_file, overviews,
@@ -595,6 +589,21 @@ class XRImage(object):
         # store them when they would like. Caller is responsible for
         # closing the file
         return to_store
+
+    @staticmethod
+    def _split_regular_vs_lazy_tags(tags, r_file):
+        """Split tags into regular vs lazy (dask) tags."""
+        da_tags = []
+        for key, val in list(tags.items()):
+            try:
+                if isinstance(val.data, da.Array):
+                    da_tags.append((val.data, RIOTag(r_file, key)))
+                    tags.pop(key)
+                else:
+                    tags[key] = val.item()
+            except AttributeError:
+                continue
+        return tags, da_tags
 
     def pil_save(self, filename, fformat=None, fill_value=None,
                  compute=True, **format_kwargs):
