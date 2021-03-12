@@ -1,3 +1,27 @@
+## Version 1.15.0 (2021/03/12)
+
+### Issues Closed
+
+* [Issue 74](https://github.com/pytroll/trollimage/issues/74) - MNT: Stop using ci-helpers in appveyor.yml
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 78](https://github.com/pytroll/trollimage/pull/78) - Fix list stretch tags
+* [PR 77](https://github.com/pytroll/trollimage/pull/77) - Remove defaults channel from ci conda environment and strict priority
+
+#### Features added
+
+* [PR 76](https://github.com/pytroll/trollimage/pull/76) - Add GitHub Actions for CI tests and sdist deployment
+* [PR 75](https://github.com/pytroll/trollimage/pull/75) - Change XRImage.save to keep fill_value separate from valid data
+* [PR 73](https://github.com/pytroll/trollimage/pull/73) - Refactor finalize method in XRImage class
+
+In this release 5 pull requests were closed.
+
+
 ## Version 1.14.0 (2020/09/18)
 
 
