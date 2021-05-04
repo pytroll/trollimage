@@ -9,12 +9,12 @@ Trollimage
    :target: https://anaconda.org/conda-forge/trollimage/
    :alt: Conda-forge
 
-.. image:: https://github.com/pytroll/trollimage/workflows/CI/badge.svg?branch=master
+.. image:: https://github.com/pytroll/trollimage/workflows/CI/badge.svg?branch=main
     :target: https://github.com/pytroll/trollimage/actions?query=workflow%3A%22CI%22
     :alt: GitHub Actions
 
-.. image:: https://coveralls.io/repos/pytroll/trollimage/badge.png?branch=master
-    :target: https://coveralls.io/r/pytroll/trollimage?branch=master
+.. image:: https://coveralls.io/repos/pytroll/trollimage/badge.png?branch=main
+    :target: https://coveralls.io/r/pytroll/trollimage?branch=main
     :alt: Coverage
 
 Imaging package for pytroll packages like
