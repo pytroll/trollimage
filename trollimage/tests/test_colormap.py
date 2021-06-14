@@ -236,6 +236,46 @@ class TestColormap:
     """Pytest tests for colormap objects."""
 
     @pytest.mark.parametrize(
+        'colors',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    def test_to_rgb(self, colors):
+        """Test 'to_rgb' method."""
+        cmap = colormap.Colormap(
+            values=np.linspace(0.2, 0.5, colors.shape[0]),
+            colors=colors.copy(),
+        )
+        rgb_cmap = cmap.to_rgb()
+        assert rgb_cmap.colors.shape[-1] == 3
+        if colors.shape[-1] == 3:
+            assert rgb_cmap is cmap
+        else:
+            assert rgb_cmap is not cmap
+
+    @pytest.mark.parametrize(
+        'colors',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    def test_to_rgba(self, colors):
+        """Test 'to_rgba' method."""
+        cmap = colormap.Colormap(
+            values=np.linspace(0.2, 0.5, colors.shape[0]),
+            colors=colors.copy(),
+        )
+        rgb_cmap = cmap.to_rgba()
+        assert rgb_cmap.colors.shape[-1] == 4
+        if colors.shape[-1] == 4:
+            assert rgb_cmap is cmap
+        else:
+            assert rgb_cmap is not cmap
+
+    @pytest.mark.parametrize(
         'colors1',
         [
             COLORS_RGB1,

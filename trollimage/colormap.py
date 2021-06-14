@@ -218,11 +218,15 @@ class Colormap(object):
         return palettize(data, self.colors, self.values)
 
     def to_rgb(self):
-        """Return new colormap with RGB colors.
+        """Return colormap with RGB colors.
 
+        If already RGB then the same instance is returned.
         If an Alpha channel exists in the colormap, it is dropped.
 
         """
+        if self.colors.shape[-1] == 3:
+            return self
+
         values = self.values.copy()
         colors = self.colors.copy()
         return Colormap(
@@ -231,11 +235,15 @@ class Colormap(object):
         )
 
     def to_rgba(self):
-        """Return new colormap with RGBA colors.
+        """Return colormap with RGBA colors.
 
+        If already RGBA then the same instance is returned.
         If not already RGBA, a completely opaque (1.0) color
 
         """
+        if self.colors.shape[-1] == 4:
+            return self
+
         values = self.values.copy()
         colors = np.empty((self.colors.shape[0], 4), dtype=self.colors.dtype)
         colors[:, :3] = self.colors
