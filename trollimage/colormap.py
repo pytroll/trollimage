@@ -271,10 +271,8 @@ class Colormap(object):
         num_bands2 = colors2.shape[-1]
         if num_bands1 == num_bands2:
             return cmap1, cmap2
-        if num_bands1 == 4 and num_bands2 == 3:
-            return cmap1, cmap2.to_rgba()
-        elif num_bands1 == 3 and num_bands2 == 4:
-            return cmap1.to_rgba(), cmap2
+        if 4 in (num_bands1, num_bands2):
+            return cmap1.to_rgba(), cmap1.to_rgba()
         raise ValueError("Can't normalize colors of colormaps. Unexpected "
                          f"number of bands: {num_bands1} and {num_bands2}.")
 
