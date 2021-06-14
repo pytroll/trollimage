@@ -161,7 +161,7 @@ class Colormap(object):
             aren't provided.
         values: One dimensional array-like of control points where
             each corresponding color is applied. Must be the same number of
-            elements as colors.
+            elements as colors and must be monotonically increasing.
         colors: Two dimensional array-like of RGB or RGBA colors where each
             color is applied to a specific control point. Must be the same
             number of colors as control points (values). Colors should be
