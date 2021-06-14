@@ -235,13 +235,6 @@ COLORS_RGBA1 = np.array([
 class TestColormap:
     """Pytest tests for colormap objects."""
 
-    def test_empty_colormap(self):
-        """Test creating an empty Colormap object."""
-        cmap = colormap.Colormap()
-        assert isinstance(cmap.values, np.ndarray)
-        assert isinstance(cmap.colors, np.ndarray)
-        assert cmap.values.shape[0] == cmap.colors.shape[0]
-
     @pytest.mark.parametrize(
         'colors1',
         [

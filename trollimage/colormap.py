@@ -203,9 +203,6 @@ class Colormap(object):
 
     def _validate_colors(self, colors):
         colors = np.array(colors)
-        if not colors.size:
-            # empty colormap
-            return colors
         if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
             raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
         if not np.issubdtype(colors.dtype, np.floating):
