@@ -258,7 +258,8 @@ class Colormap(object):
             colors=colors,
         )
 
-    def _normalize_color_arrays(self, cmap1, cmap2):
+    @staticmethod
+    def _normalize_color_arrays(cmap1, cmap2):
         colors1 = cmap1.colors
         colors2 = cmap2.colors
         num_bands1 = colors1.shape[-1]
