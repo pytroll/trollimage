@@ -263,7 +263,7 @@ class TestColormap:
             colors=colors1,
         )
         cmap2 = colormap.Colormap(
-            values=np.linspace(0.5, 0.8, colors2.shape[0]),
+            values=np.linspace(0.51, 0.8, colors2.shape[0]),
             colors=colors2,
         )
         new_cmap = cmap1 + cmap2

@@ -188,12 +188,18 @@ class Colormap(object):
         else:
             values = [a for (a, b) in tuples]
             colors = [b for (a, b) in tuples]
-        self.values = np.array(values)
+        self.values = self._validate_values(values)
         self.colors = self._validate_colors(colors)
         if self.values.shape[0] != self.colors.shape[0]:
             raise ValueError("'values' and 'colors' should have the same "
                              "number of elements. Got "
                              f"{self.values.shape[0]} and {self.colors.shape[0]}.")
+
+    def _validate_values(self, values):
+        values = np.array(values)
+        if not (np.diff(values) > 0).all():
+            raise ValueError("Colormap 'values' must be monotonically increasing.")
+        return values
 
     def _validate_colors(self, colors):
         colors = np.array(colors)
@@ -244,11 +250,13 @@ class Colormap(object):
 
     def __add__(self, other):
         """Append colormap together."""
-        new = Colormap()
         old, other = self._normalize_color_arrays(self, other)
-        new.values = np.concatenate((old.values, other.values))
-        new.colors = np.concatenate((old.colors, other.colors))
-        return new
+        values = np.concatenate((old.values, other.values))
+        colors = np.concatenate((old.colors, other.colors))
+        return Colormap(
+            values=values,
+            colors=colors,
+        )
 
     def _normalize_color_arrays(self, cmap1, cmap2):
         colors1 = cmap1.colors
