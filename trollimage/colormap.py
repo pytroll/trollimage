@@ -273,17 +273,42 @@ class Colormap(object):
             return cmap1, cmap2
         return cmap1.to_rgba(), cmap2.to_rgba()
 
-    def reverse(self):
+    def reverse(self, inplace=True):
         """Reverse the current colormap in place."""
+        colors = np.flipud(self.colors)
+        if not inplace:
+            return Colormap(
+                values=self.values.copy(),
+                colors=colors
+            )
         self.colors = np.flipud(self.colors)
+        return self
 
-    def set_range(self, min_val, max_val):
-        """Set the range of the colormap to [*min_val*, *max_val*]."""
+    def set_range(self, min_val, max_val, inplace=True):
+        """Set the range of the colormap to [*min_val*, *max_val*].
+
+        If min is greater than max then the Colormap's colors are reversed
+        before values are updated to the new range. This is done because
+        Colormap ``values`` must always be monotonically increasing.
+
+        """
         if min_val > max_val:
+            cmap = self.reverse(inplace=inplace)
             max_val, min_val = min_val, max_val
-        self.values = (((self.values * 1.0 - self.values.min()) /
-                        (self.values.max() - self.values.min()))
-                       * (max_val - min_val) + min_val)
+        else:
+            cmap = self
+
+        values = (((cmap.values * 1.0 - cmap.values.min()) /
+                   (cmap.values.max() - cmap.values.min()))
+                  * (max_val - min_val) + min_val)
+        if not inplace:
+            return Colormap(
+                values=values,
+                colors=cmap.colors.copy()
+            )
+
+        cmap.values = values
+        return cmap
 
     def to_rio(self):
         """Convert the colormap to a rasterio colormap."""
