@@ -274,7 +274,13 @@ class Colormap(object):
         return cmap1.to_rgba(), cmap2.to_rgba()
 
     def reverse(self, inplace=True):
-        """Reverse the current colormap in place."""
+        """Reverse the current colormap in place.
+
+        Args:
+            inplace (bool): If True (default), modify the colors of this
+                Colormap inplace. If False, return a new instance.
+
+        """
         colors = np.flipud(self.colors)
         if not inplace:
             return Colormap(
@@ -290,6 +296,14 @@ class Colormap(object):
         If min is greater than max then the Colormap's colors are reversed
         before values are updated to the new range. This is done because
         Colormap ``values`` must always be monotonically increasing.
+
+        Args:
+            min_val (float): New minimum value for the control points in
+                this colormap.
+            max_val (float): New maximum value for the control points in
+                this colormap.
+            inplace (bool): If True (default), modify the values inplace.
+                If False, return a new Colormap instance.
 
         """
         if min_val > max_val:
