@@ -278,9 +278,9 @@ class Colormap(object):
 
     def to_rio(self):
         """Convert the colormap to a rasterio colormap."""
-        self.colors = (((self.colors * 1.0 - self.colors.min()) /
-                        (self.colors.max() - self.colors.min())) * 255)
-        return dict(zip(self.values, tuple(map(tuple, self.colors))))
+        colors = (((self.colors * 1.0 - self.colors.min()) /
+                   (self.colors.max() - self.colors.min())) * 255)
+        return dict(zip(self.values, tuple(map(tuple, colors))))
 
 
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",

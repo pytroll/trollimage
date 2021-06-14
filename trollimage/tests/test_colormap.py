@@ -206,12 +206,15 @@ class TestColormapClass(unittest.TestCase):
                                 (2, (0.0, 1.0, 1.0)),
                                 (3, (1.0, 1.0, 1.0)),
                                 (4, (0.0, 0.0, 0.0)))
+        orig_colors = cm_.colors.copy()
 
         d = cm_.to_rio()
         exp = {1: (255, 255, 0), 2: (0, 255, 255),
                3: (255, 255, 255), 4: (0, 0, 0)}
 
         self.assertEqual(d, exp)
+        # assert original colormap information hasn't changed
+        np.testing.assert_allclose(orig_colors, cm_.colors)
 
 
 COLORS_RGB1 = np.array([
@@ -254,6 +257,7 @@ class TestColormap:
         ]
     )
     def test_merge_rgb_rgba(self, colors1, colors2):
+        """Test that two colormaps with RGB or RGBA colors can be merged."""
         cmap1 = colormap.Colormap(
             values=np.linspace(0.2, 0.5, colors1.shape[0]),
             colors=colors1,
