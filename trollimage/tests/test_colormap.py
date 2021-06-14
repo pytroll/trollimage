@@ -25,6 +25,8 @@ import unittest
 from trollimage import colormap
 import numpy as np
 
+import pytest
+
 
 class TestColormapClass(unittest.TestCase):
     """Test case for the colormap object."""
@@ -165,8 +167,8 @@ class TestColormapClass(unittest.TestCase):
 
         cm1 = colormap.Colormap((1, (1.0, 1.0, 0.0)),
                                 (2, (0.0, 1.0, 1.0)))
-        cm2 = colormap.Colormap((3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm2 = colormap.Colormap((3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
 
         cm3 = cm1 + cm2
 
@@ -175,10 +177,10 @@ class TestColormapClass(unittest.TestCase):
 
     def test_colorbar(self):
         """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1, 1, 0)),
-                                (2, (0, 1, 1)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
 
         channels = colormap.colorbar(1, 4, cm_)
         for i in range(3):
@@ -188,10 +190,10 @@ class TestColormapClass(unittest.TestCase):
 
     def test_palettebar(self):
         """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1, 1, 0)),
-                                (2, (0, 1, 1)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
 
         channel, palette = colormap.palettebar(1, 4, cm_)
 
@@ -200,13 +202,65 @@ class TestColormapClass(unittest.TestCase):
 
     def test_to_rio(self):
         """Test conversion to rasterio colormap."""
-        cm_ = colormap.Colormap((1, (1, 1, 0)),
-                                (2, (0, 1, 1)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
 
         d = cm_.to_rio()
         exp = {1: (255, 255, 0), 2: (0, 255, 255),
                3: (255, 255, 255), 4: (0, 0, 0)}
 
         self.assertEqual(d, exp)
+
+
+COLORS_RGB1 = np.array([
+    [0.0, 0.0, 0.0],
+    [0.2, 0.2, 0.0],
+    [0.0, 0.2, 0.2],
+    [0.0, 0.2, 0.0],
+])
+
+COLORS_RGBA1 = np.array([
+    [0.0, 0.0, 0.0, 1.0],
+    [0.2, 0.2, 0.0, 0.5],
+    [0.0, 0.2, 0.2, 0.0],
+    [0.0, 0.2, 0.0, 1.0],
+])
+
+
+class TestColormap:
+    """Pytest tests for colormap objects."""
+
+    def test_empty_colormap(self):
+        """Test creating an empty Colormap object."""
+        cmap = colormap.Colormap()
+        assert isinstance(cmap.values, np.ndarray)
+        assert isinstance(cmap.colors, np.ndarray)
+        assert cmap.values.shape[0] == cmap.colors.shape[0]
+
+    @pytest.mark.parametrize(
+        'colors1',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    @pytest.mark.parametrize(
+        'colors2',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    def test_merge_rgb_rgba(self, colors1, colors2):
+        cmap1 = colormap.Colormap(
+            values=np.linspace(0.2, 0.5, colors1.shape[0]),
+            colors=colors1,
+        )
+        cmap2 = colormap.Colormap(
+            values=np.linspace(0.5, 0.8, colors2.shape[0]),
+            colors=colors2,
+        )
+        new_cmap = cmap1 + cmap2
+        assert new_cmap.values.shape[0] == colors1.shape[0] + colors2.shape[0]

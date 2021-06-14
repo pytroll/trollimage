@@ -155,13 +155,24 @@ def _digitize_array(arr, values):
 class Colormap(object):
     """The colormap object.
 
+    Args:
+        *args: Series of (value, color) tuples. These positional arguments
+            are only used if the ``values`` and ``colors`` keyword arguments
+            aren't provided.
+        values: One dimensional array-like of control points where
+            each corresponding color is applied. Must be the same number of
+            elements as colors.
+        colors: Two dimensional array-like of RGB or RGBA colors where each
+            color is applied to a specific control point. Must be the same
+            number of colors as control points (values). Colors should be
+            floating point numbers between 0 and 1.
+
     Initialize with tuples of (value, (colors)), like this::
 
       Colormap((-75.0, (1.0, 1.0, 0.0)),
                (-40.0001, (0.0, 1.0, 1.0)),
                (-40.0, (1, 1, 1)),
                (30.0, (0, 0, 0)))
-
 
     You can also concatenate colormaps together, try::
 
@@ -178,7 +189,22 @@ class Colormap(object):
             values = [a for (a, b) in tuples]
             colors = [b for (a, b) in tuples]
         self.values = np.array(values)
-        self.colors = np.array(colors)
+        self.colors = self._validate_colors(colors)
+        if self.values.shape[0] != self.colors.shape[0]:
+            raise ValueError("'values' and 'colors' should have the same "
+                             "number of elements. Got "
+                             f"{self.values.shape[0]} and {self.colors.shape[0]}.")
+
+    def _validate_colors(self, colors):
+        colors = np.array(colors)
+        if not colors.size:
+            # empty colormap
+            return colors
+        if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
+            raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
+        if not np.issubdtype(colors.dtype, np.floating):
+            raise ValueError("Colormap 'colors' should be floating point numbers between 0 and 1.")
+        return colors
 
     def colorize(self, data):
         """Colorize a monochromatic array *data*, based on the current colormap."""
@@ -188,12 +214,55 @@ class Colormap(object):
         """Palettize a monochromatic array *data* based on the current colormap."""
         return palettize(data, self.colors, self.values)
 
+    def to_rgb(self):
+        """Return new colormap with RGB colors.
+
+        If an Alpha channel exists in the colormap, it is dropped.
+
+        """
+        values = self.values.copy()
+        colors = self.colors.copy()
+        return Colormap(
+            values=values,
+            colors=colors[:, :3]
+        )
+
+    def to_rgba(self):
+        """Return new colormap with RGBA colors.
+
+        If not already RGBA, a completely opaque (1.0) color
+
+        """
+        values = self.values.copy()
+        colors = np.empty((self.colors.shape[0], 4), dtype=self.colors.dtype)
+        colors[:, :3] = self.colors
+        colors[:, 3] = 1.0
+        return Colormap(
+            values=values,
+            colors=colors
+        )
+
     def __add__(self, other):
         """Append colormap together."""
         new = Colormap()
-        new.values = np.concatenate((self.values, other.values))
-        new.colors = np.concatenate((self.colors, other.colors))
+        old, other = self._normalize_color_arrays(self, other)
+        new.values = np.concatenate((old.values, other.values))
+        new.colors = np.concatenate((old.colors, other.colors))
         return new
+
+    def _normalize_color_arrays(self, cmap1, cmap2):
+        colors1 = cmap1.colors
+        colors2 = cmap2.colors
+        num_bands1 = colors1.shape[-1]
+        num_bands2 = colors2.shape[-1]
+        if num_bands1 == num_bands2:
+            return cmap1, cmap2
+        if num_bands1 == 4 and num_bands2 == 3:
+            return cmap1, cmap2.to_rgba()
+        elif num_bands1 == 3 and num_bands2 == 4:
+            return cmap1.to_rgba(), cmap2
+        raise ValueError("Can't normalize colors of colormaps. Unexpected "
+                         f"number of bands: {num_bands1} and {num_bands2}.")
 
     def reverse(self):
         """Reverse the current colormap in place."""
