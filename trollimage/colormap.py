@@ -272,7 +272,7 @@ class Colormap(object):
         if num_bands1 == num_bands2:
             return cmap1, cmap2
         if 4 in (num_bands1, num_bands2):
-            return cmap1.to_rgba(), cmap1.to_rgba()
+            return cmap1.to_rgba(), cmap2.to_rgba()
         raise ValueError("Can't normalize colors of colormaps. Unexpected "
                          f"number of bands: {num_bands1} and {num_bands2}.")
 
