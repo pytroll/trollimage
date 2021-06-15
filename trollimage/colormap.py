@@ -22,6 +22,8 @@
 
 """A simple colormap module."""
 
+import warnings
+
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
 
@@ -188,25 +190,20 @@ class Colormap(object):
         else:
             values = [a for (a, b) in tuples]
             colors = [b for (a, b) in tuples]
-        self.values = self._validate_values(values)
+        self.values = np.array(values)
         self.colors = self._validate_colors(colors)
         if self.values.shape[0] != self.colors.shape[0]:
             raise ValueError("'values' and 'colors' should have the same "
                              "number of elements. Got "
                              f"{self.values.shape[0]} and {self.colors.shape[0]}.")
 
-    def _validate_values(self, values):
-        values = np.array(values)
-        if not (np.diff(values) > 0).all():
-            raise ValueError("Colormap 'values' must be monotonically increasing.")
-        return values
-
     def _validate_colors(self, colors):
         colors = np.array(colors)
         if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
             raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
         if not np.issubdtype(colors.dtype, np.floating):
-            raise ValueError("Colormap 'colors' should be floating point numbers between 0 and 1.")
+            warnings.warn("Colormap 'colors' should be flotaing point numbers between 0 and 1.")
+            colors = colors.astype(np.float64)
         return colors
 
     def colorize(self, data):
@@ -257,6 +254,9 @@ class Colormap(object):
         """Append colormap together."""
         old, other = self._normalize_color_arrays(self, other)
         values = np.concatenate((old.values, other.values))
+        if not (np.diff(values) > 0).all():
+            raise ValueError("Merged colormap 'values' are not monotonically "
+                             "increasing.")
         colors = np.concatenate((old.colors, other.colors))
         return Colormap(
             values=values,
@@ -265,10 +265,8 @@ class Colormap(object):
 
     @staticmethod
     def _normalize_color_arrays(cmap1, cmap2):
-        colors1 = cmap1.colors
-        colors2 = cmap2.colors
-        num_bands1 = colors1.shape[-1]
-        num_bands2 = colors2.shape[-1]
+        num_bands1 = cmap1.colors.shape[-1]
+        num_bands2 = cmap2.colors.shape[-1]
         if num_bands1 == num_bands2:
             return cmap1, cmap2
         if 4 in (num_bands1, num_bands2):
