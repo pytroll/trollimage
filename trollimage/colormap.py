@@ -271,10 +271,7 @@ class Colormap(object):
         num_bands2 = cmap2.colors.shape[-1]
         if num_bands1 == num_bands2:
             return cmap1, cmap2
-        if 4 in (num_bands1, num_bands2):
-            return cmap1.to_rgba(), cmap2.to_rgba()
-        raise ValueError("Can't normalize colors of colormaps. Unexpected "
-                         f"number of bands: {num_bands1} and {num_bands2}.")
+        return cmap1.to_rgba(), cmap2.to_rgba()
 
     def reverse(self):
         """Reverse the current colormap in place."""
