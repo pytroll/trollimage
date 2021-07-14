@@ -235,6 +235,62 @@ COLORS_RGBA1 = np.array([
 class TestColormap:
     """Pytest tests for colormap objects."""
 
+    def test_bad_color_dims(self):
+        """Test passing colors that aren't RGB or RGBA."""
+        # Nonsense
+        with pytest.raises(ValueError, match=r".*colors.*shape.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 5, dtype=np.float64).reshape((5, 5)),
+                values=np.linspace(0, 1, 5 * 5),
+            )
+        # LA
+        with pytest.raises(ValueError, match=r".*colors.*shape.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 2, dtype=np.float64).reshape((5, 2)),
+                values=np.linspace(0, 1, 5 * 2),
+            )
+
+    def test_only_colors_only_values(self):
+        """Test passing only colors or only values keyword arguments."""
+        with pytest.raises(ValueError, match=r"Both 'colors' and 'values'.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 3, dtype=np.float64).reshape((5, 3)),
+            )
+        with pytest.raises(ValueError, match=r"Both 'colors' and 'values'.*"):
+            colormap.Colormap(
+                values=np.linspace(0, 1, 5 * 3),
+            )
+
+    def test_diff_colors_values(self):
+        """Test failure when colors and values have different number of elements."""
+        with pytest.raises(ValueError, match=r".*same number.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 3, dtype=np.float64).reshape((5, 3)),
+                values=np.linspace(0, 1, 6),
+            )
+
+    def test_nonfloat_colors(self):
+        """Pass integer colors to colormap."""
+        colormap.Colormap(
+            colors=np.arange(5 * 3, dtype=np.uint8).reshape((5, 3)),
+            values=np.linspace(0, 1, 5),
+        )
+
+    def test_merge_nonmonotonic(self):
+        """Test that merged colormaps must have monotonic values."""
+        cmap1 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(2, 3, 5),
+        )
+        cmap2 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(0, 1, 5),
+        )
+        with pytest.raises(ValueError, match=r".*monotonic.*"):
+            cmap1 + cmap2
+        # this should succeed
+        cmap2 + cmap1
+
     @pytest.mark.parametrize(
         'colors',
         [

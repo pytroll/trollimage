@@ -187,6 +187,8 @@ class Colormap(object):
         if 'colors' in kwargs and 'values' in kwargs:
             values = kwargs['values']
             colors = kwargs['colors']
+        elif 'colors' in kwargs or 'values' in kwargs:
+            raise ValueError("Both 'colors' and 'values' must be provided.")
         else:
             values = [a for (a, b) in tuples]
             colors = [b for (a, b) in tuples]
