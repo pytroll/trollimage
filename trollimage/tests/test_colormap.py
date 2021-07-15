@@ -25,6 +25,8 @@ import unittest
 from trollimage import colormap
 import numpy as np
 
+import pytest
+
 
 class TestColormapClass(unittest.TestCase):
     """Test case for the colormap object."""
@@ -165,8 +167,8 @@ class TestColormapClass(unittest.TestCase):
 
         cm1 = colormap.Colormap((1, (1.0, 1.0, 0.0)),
                                 (2, (0.0, 1.0, 1.0)))
-        cm2 = colormap.Colormap((3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm2 = colormap.Colormap((3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
 
         cm3 = cm1 + cm2
 
@@ -175,10 +177,10 @@ class TestColormapClass(unittest.TestCase):
 
     def test_colorbar(self):
         """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1, 1, 0)),
-                                (2, (0, 1, 1)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
 
         channels = colormap.colorbar(1, 4, cm_)
         for i in range(3):
@@ -188,10 +190,10 @@ class TestColormapClass(unittest.TestCase):
 
     def test_palettebar(self):
         """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1, 1, 0)),
-                                (2, (0, 1, 1)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
 
         channel, palette = colormap.palettebar(1, 4, cm_)
 
@@ -200,13 +202,158 @@ class TestColormapClass(unittest.TestCase):
 
     def test_to_rio(self):
         """Test conversion to rasterio colormap."""
-        cm_ = colormap.Colormap((1, (1, 1, 0)),
-                                (2, (0, 1, 1)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
+        orig_colors = cm_.colors.copy()
 
         d = cm_.to_rio()
         exp = {1: (255, 255, 0), 2: (0, 255, 255),
                3: (255, 255, 255), 4: (0, 0, 0)}
 
         self.assertEqual(d, exp)
+        # assert original colormap information hasn't changed
+        np.testing.assert_allclose(orig_colors, cm_.colors)
+
+
+COLORS_RGB1 = np.array([
+    [0.0, 0.0, 0.0],
+    [0.2, 0.2, 0.0],
+    [0.0, 0.2, 0.2],
+    [0.0, 0.2, 0.0],
+])
+
+COLORS_RGBA1 = np.array([
+    [0.0, 0.0, 0.0, 1.0],
+    [0.2, 0.2, 0.0, 0.5],
+    [0.0, 0.2, 0.2, 0.0],
+    [0.0, 0.2, 0.0, 1.0],
+])
+
+
+class TestColormap:
+    """Pytest tests for colormap objects."""
+
+    def test_bad_color_dims(self):
+        """Test passing colors that aren't RGB or RGBA."""
+        # Nonsense
+        with pytest.raises(ValueError, match=r".*colors.*shape.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 5, dtype=np.float64).reshape((5, 5)),
+                values=np.linspace(0, 1, 5 * 5),
+            )
+        # LA
+        with pytest.raises(ValueError, match=r".*colors.*shape.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 2, dtype=np.float64).reshape((5, 2)),
+                values=np.linspace(0, 1, 5 * 2),
+            )
+
+    def test_only_colors_only_values(self):
+        """Test passing only colors or only values keyword arguments."""
+        with pytest.raises(ValueError, match=r"Both 'colors' and 'values'.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 3, dtype=np.float64).reshape((5, 3)),
+            )
+        with pytest.raises(ValueError, match=r"Both 'colors' and 'values'.*"):
+            colormap.Colormap(
+                values=np.linspace(0, 1, 5 * 3),
+            )
+
+    def test_diff_colors_values(self):
+        """Test failure when colors and values have different number of elements."""
+        with pytest.raises(ValueError, match=r".*same number.*"):
+            colormap.Colormap(
+                colors=np.arange(5 * 3, dtype=np.float64).reshape((5, 3)),
+                values=np.linspace(0, 1, 6),
+            )
+
+    def test_nonfloat_colors(self):
+        """Pass integer colors to colormap."""
+        colormap.Colormap(
+            colors=np.arange(5 * 3, dtype=np.uint8).reshape((5, 3)),
+            values=np.linspace(0, 1, 5),
+        )
+
+    def test_merge_nonmonotonic(self):
+        """Test that merged colormaps must have monotonic values."""
+        cmap1 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(2, 3, 5),
+        )
+        cmap2 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(0, 1, 5),
+        )
+        with pytest.raises(ValueError, match=r".*monotonic.*"):
+            cmap1 + cmap2
+        # this should succeed
+        cmap2 + cmap1
+
+    @pytest.mark.parametrize(
+        'colors',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    def test_to_rgb(self, colors):
+        """Test 'to_rgb' method."""
+        cmap = colormap.Colormap(
+            values=np.linspace(0.2, 0.5, colors.shape[0]),
+            colors=colors.copy(),
+        )
+        rgb_cmap = cmap.to_rgb()
+        assert rgb_cmap.colors.shape[-1] == 3
+        if colors.shape[-1] == 3:
+            assert rgb_cmap is cmap
+        else:
+            assert rgb_cmap is not cmap
+
+    @pytest.mark.parametrize(
+        'colors',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    def test_to_rgba(self, colors):
+        """Test 'to_rgba' method."""
+        cmap = colormap.Colormap(
+            values=np.linspace(0.2, 0.5, colors.shape[0]),
+            colors=colors.copy(),
+        )
+        rgb_cmap = cmap.to_rgba()
+        assert rgb_cmap.colors.shape[-1] == 4
+        if colors.shape[-1] == 4:
+            assert rgb_cmap is cmap
+        else:
+            assert rgb_cmap is not cmap
+
+    @pytest.mark.parametrize(
+        'colors1',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    @pytest.mark.parametrize(
+        'colors2',
+        [
+            COLORS_RGB1,
+            COLORS_RGBA1
+        ]
+    )
+    def test_merge_rgb_rgba(self, colors1, colors2):
+        """Test that two colormaps with RGB or RGBA colors can be merged."""
+        cmap1 = colormap.Colormap(
+            values=np.linspace(0.2, 0.5, colors1.shape[0]),
+            colors=colors1,
+        )
+        cmap2 = colormap.Colormap(
+            values=np.linspace(0.51, 0.8, colors2.shape[0]),
+            colors=colors2,
+        )
+        new_cmap = cmap1 + cmap2
+        assert new_cmap.values.shape[0] == colors1.shape[0] + colors2.shape[0]

@@ -22,6 +22,8 @@
 
 """A simple colormap module."""
 
+import warnings
+
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
 
@@ -155,13 +157,24 @@ def _digitize_array(arr, values):
 class Colormap(object):
     """The colormap object.
 
+    Args:
+        *args: Series of (value, color) tuples. These positional arguments
+            are only used if the ``values`` and ``colors`` keyword arguments
+            aren't provided.
+        values: One dimensional array-like of control points where
+            each corresponding color is applied. Must be the same number of
+            elements as colors and must be monotonically increasing.
+        colors: Two dimensional array-like of RGB or RGBA colors where each
+            color is applied to a specific control point. Must be the same
+            number of colors as control points (values). Colors should be
+            floating point numbers between 0 and 1.
+
     Initialize with tuples of (value, (colors)), like this::
 
       Colormap((-75.0, (1.0, 1.0, 0.0)),
                (-40.0001, (0.0, 1.0, 1.0)),
                (-40.0, (1, 1, 1)),
                (30.0, (0, 0, 0)))
-
 
     You can also concatenate colormaps together, try::
 
@@ -174,11 +187,26 @@ class Colormap(object):
         if 'colors' in kwargs and 'values' in kwargs:
             values = kwargs['values']
             colors = kwargs['colors']
+        elif 'colors' in kwargs or 'values' in kwargs:
+            raise ValueError("Both 'colors' and 'values' must be provided.")
         else:
             values = [a for (a, b) in tuples]
             colors = [b for (a, b) in tuples]
         self.values = np.array(values)
-        self.colors = np.array(colors)
+        self.colors = self._validate_colors(colors)
+        if self.values.shape[0] != self.colors.shape[0]:
+            raise ValueError("'values' and 'colors' should have the same "
+                             "number of elements. Got "
+                             f"{self.values.shape[0]} and {self.colors.shape[0]}.")
+
+    def _validate_colors(self, colors):
+        colors = np.array(colors)
+        if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
+            raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
+        if not np.issubdtype(colors.dtype, np.floating):
+            warnings.warn("Colormap 'colors' should be flotaing point numbers between 0 and 1.")
+            colors = colors.astype(np.float64)
+        return colors
 
     def colorize(self, data):
         """Colorize a monochromatic array *data*, based on the current colormap."""
@@ -188,12 +216,62 @@ class Colormap(object):
         """Palettize a monochromatic array *data* based on the current colormap."""
         return palettize(data, self.colors, self.values)
 
+    def to_rgb(self):
+        """Return colormap with RGB colors.
+
+        If already RGB then the same instance is returned.
+        If an Alpha channel exists in the colormap, it is dropped.
+
+        """
+        if self.colors.shape[-1] == 3:
+            return self
+
+        values = self.values.copy()
+        colors = self.colors.copy()
+        return Colormap(
+            values=values,
+            colors=colors[:, :3]
+        )
+
+    def to_rgba(self):
+        """Return colormap with RGBA colors.
+
+        If already RGBA then the same instance is returned.
+        If not already RGBA, a completely opaque (1.0) color
+
+        """
+        if self.colors.shape[-1] == 4:
+            return self
+
+        values = self.values.copy()
+        colors = np.empty((self.colors.shape[0], 4), dtype=self.colors.dtype)
+        colors[:, :3] = self.colors
+        colors[:, 3] = 1.0
+        return Colormap(
+            values=values,
+            colors=colors
+        )
+
     def __add__(self, other):
         """Append colormap together."""
-        new = Colormap()
-        new.values = np.concatenate((self.values, other.values))
-        new.colors = np.concatenate((self.colors, other.colors))
-        return new
+        old, other = self._normalize_color_arrays(self, other)
+        values = np.concatenate((old.values, other.values))
+        if not (np.diff(values) > 0).all():
+            raise ValueError("Merged colormap 'values' are not monotonically "
+                             "increasing.")
+        colors = np.concatenate((old.colors, other.colors))
+        return Colormap(
+            values=values,
+            colors=colors,
+        )
+
+    @staticmethod
+    def _normalize_color_arrays(cmap1, cmap2):
+        num_bands1 = cmap1.colors.shape[-1]
+        num_bands2 = cmap2.colors.shape[-1]
+        if num_bands1 == num_bands2:
+            return cmap1, cmap2
+        return cmap1.to_rgba(), cmap2.to_rgba()
 
     def reverse(self):
         """Reverse the current colormap in place."""
@@ -209,9 +287,9 @@ class Colormap(object):
 
     def to_rio(self):
         """Convert the colormap to a rasterio colormap."""
-        self.colors = (((self.colors * 1.0 - self.colors.min()) /
-                        (self.colors.max() - self.colors.min())) * 255)
-        return dict(zip(self.values, tuple(map(tuple, self.colors))))
+        colors = (((self.colors * 1.0 - self.colors.min()) /
+                   (self.colors.max() - self.colors.min())) * 255)
+        return dict(zip(self.values, tuple(map(tuple, colors))))
 
 
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",

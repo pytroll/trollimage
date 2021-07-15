@@ -1206,7 +1206,7 @@ class TestXRImage:
 
         # with trollimage colormap provided
         from trollimage.colormap import Colormap
-        t_cmap = Colormap(*tuple((i, (i, i, i)) for i in range(20)))
+        t_cmap = Colormap(*tuple((i, (i / 20, i / 20, i / 20)) for i in range(20)))
         exp_cmap = {i: (int(i * 255 / 19), int(i * 255 / 19), int(i * 255 / 19), 255) for i in range(20)}
         exp_cmap.update({i: (0, 0, 0, 255) for i in range(20, 256)})
         data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
