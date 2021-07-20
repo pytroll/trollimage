@@ -1,3 +1,14 @@
+## Version 1.15.1 (2021/07/20)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 81](https://github.com/pytroll/trollimage/pull/81) - Fix Colormap not being able to merge RGB and RGBA colormaps ([1658](https://github.com/pytroll/satpy/issues/1658))
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.15.0 (2021/03/12)
 
 ### Issues Closed
