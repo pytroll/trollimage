@@ -134,7 +134,7 @@ def palettize(arr, colors, values):
 
 def _palettize_dask(darr, colors, values):
     """Apply a palette to a dask array."""
-    return darr.map_blocks(_palettize, values, dtype=colors.dtype)
+    return darr.map_blocks(_palettize, values, dtype=int)
 
 
 def _palettize(arr, values):

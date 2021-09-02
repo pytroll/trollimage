@@ -125,6 +125,7 @@ class TestColormapClass(unittest.TestCase):
         self.assertTrue(np.allclose(channels.compute(), [[0, 1, 2, 3],
                                                          [0, 1, 2, 3],
                                                          [0, 1, 2, 3]]))
+        assert channels.dtype == int
 
     def test_set_range(self):
         """Test set_range."""
