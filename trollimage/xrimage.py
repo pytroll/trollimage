@@ -428,6 +428,8 @@ class XRImage(object):
                  keep_palette=False, cmap=None, overviews=None,
                  overviews_minsize=256, overviews_resampling=None,
                  include_scale_offset_tags=False,
+                 scale_label="scale",
+                 offset_label="offset",
                  **format_kwargs):
         """Save the image using rasterio.
 
@@ -467,6 +469,10 @@ class XRImage(object):
             include_scale_offset_tags (bool): Whether or not (default) to
                 include a ``scale`` and an ``offset`` tag in the data that would
                 help retrieving original data values from pixel values.
+            scale_label (str): Label to use for storing the scale if
+                using ``include_scale_offset_tags``.  Defaults to "scale".
+            offset_label (str): Label to use for storing the offset if
+                using ``include_scale_offset_tags``.  Defaults to "offset".
 
         Returns:
             The delayed or computed result of the saving.
@@ -539,7 +545,7 @@ class XRImage(object):
 
         if include_scale_offset_tags:
             scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
-            tags['scale'], tags['offset'] = invert_scale_offset(scale, offset)
+            tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
         # FIXME add metadata
         r_file = RIOFile(filename, 'w', driver=driver,

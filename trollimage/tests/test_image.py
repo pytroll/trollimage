@@ -2125,9 +2125,9 @@ class TestXRImageSaveScaleOffset(unittest.TestCase):
         self.img.stretch()
         self._save_and_check_tags(expected_tags)
 
-    def _save_and_check_tags(self, expected_tags):
+    def _save_and_check_tags(self, expected_tags, **kwargs):
         with NamedTemporaryFile(suffix='.tif') as tmp:
-            self.img.save(tmp.name, include_scale_offset_tags=True)
+            self.img.save(tmp.name, include_scale_offset_tags=True, **kwargs)
 
             import rasterio as rio
             with rio.open(tmp.name) as f:
@@ -2142,6 +2142,16 @@ class TestXRImageSaveScaleOffset(unittest.TestCase):
 
         self.img.crude_stretch([1], [24])
         self._save_and_check_tags(expected_tags)
+
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_scale_offset_custom_labels(self):
+        """Test saving GeoTIFF with different scale/offset tag labels."""
+        expected_tags = {"gradient": 24.0 / 255, "axis_intercept": 0}
+        self.img.stretch()
+        self._save_and_check_tags(
+                expected_tags,
+                scale_label="gradient",
+                offset_label="axis_intercept")
 
 
 def _get_tags_after_writing_to_geotiff(data):
