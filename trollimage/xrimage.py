@@ -428,8 +428,7 @@ class XRImage(object):
                  keep_palette=False, cmap=None, overviews=None,
                  overviews_minsize=256, overviews_resampling=None,
                  include_scale_offset_tags=False,
-                 scale_label="scale",
-                 offset_label="offset",
+                 scale_offset_tags=None,
                  **format_kwargs):
         """Save the image using rasterio.
 
@@ -466,13 +465,10 @@ class XRImage(object):
                 provided. Common values include `nearest` (default),
                 `bilinear`, `average`, and many others. See the rasterio
                 documentation for more information.
-            include_scale_offset_tags (bool): Whether or not (default) to
-                include a ``scale`` and an ``offset`` tag in the data that would
-                help retrieving original data values from pixel values.
-            scale_label (str): Label to use for storing the scale if
-                using ``include_scale_offset_tags``.  Defaults to "scale".
-            offset_label (str): Label to use for storing the offset if
-                using ``include_scale_offset_tags``.  Defaults to "offset".
+            scale_offset_tags (Tuple[str, str] or None)
+                If set to a ``(str, str)`` tuple, scale and offset will be
+                stored in GDALMetaData tags.  Those can then be used to
+                retrieve the original data values from pixel values.
 
         Returns:
             The delayed or computed result of the saving.
@@ -485,6 +481,12 @@ class XRImage(object):
                    'tiff': 'GTiff',
                    'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
+        if include_scale_offset_tags:
+            warnings.warn(
+                "include_scale_offset_tags is deprecated, please use "
+                "scale_offset_tags to indicate tag labels",
+                DeprecationWarning)
+            scale_offset_tags = scale_offset_tags or ("scale", "offset")
 
         if tags is None:
             tags = {}
@@ -543,7 +545,8 @@ class XRImage(object):
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
-        if include_scale_offset_tags:
+        if scale_offset_tags:
+            scale_label, offset_label = scale_offset_tags
             scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
             tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
