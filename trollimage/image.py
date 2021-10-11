@@ -373,6 +373,9 @@ class Image(object):
         """Save the image to the given *filename* using PIL. For now, the
         compression level [0-9] is ignored, due to PIL's lack of support. See
         also :meth:`save`.
+
+        The supported image formats are listed in
+        https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#image-file-formats
         """
         # PIL does not support compression option.
         del compression
