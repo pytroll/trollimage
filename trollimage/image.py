@@ -42,6 +42,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+PILLOW_IMAGE_FORMAT_URL = "https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#image-file-formats"
+
 
 def ensure_dir(filename):
     """Checks if the dir of f exists, otherwise create it.
@@ -81,7 +83,9 @@ def check_image_format(fformat):
     try:
         fformat = cases[fformat]
     except KeyError:
-        raise UnknownImageFormat("Unknown image format '%s'." % fformat)
+        raise UnknownImageFormat(
+            "Unknown image format '%s'.  See %s for a list of supported formats for 'simple_image' writer." %
+            (fformat, PILLOW_IMAGE_FORMAT_URL))
     return fformat
 
 
@@ -178,7 +182,7 @@ class Image(object):
                         color_min = color_range[i][0]
                         color_max = color_range[i][1]
                         # Add data to image object as a channel
-                        #self._add_channel(chn, color_min, color_max)
+                        # self._add_channel(chn, color_min, color_max)
                     else:
                         color_min = 0.0
                         color_max = 1.0
