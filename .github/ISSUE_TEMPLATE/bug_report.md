@@ -7,6 +7,8 @@ labels: bug
 
 **Describe the bug**
 A clear and concise description of what the bug is.
+If you're not sure how, please consider this
+[article on minimal bug reports](https://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports).
 
 **To Reproduce**
 
