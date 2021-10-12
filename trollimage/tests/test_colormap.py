@@ -358,3 +358,17 @@ class TestColormap:
         )
         new_cmap = cmap1 + cmap2
         assert new_cmap.values.shape[0] == colors1.shape[0] + colors2.shape[0]
+
+    def test_merge_equal_values(self):
+        """Test that merged colormaps can have equal values at the merge point."""
+        cmap1 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(0, 1, 5),
+        )
+        cmap2 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(1, 2, 5),
+        )
+        assert cmap1.values[-1] == cmap2.values[0]
+        # this should succeed
+        cmap1 + cmap2
