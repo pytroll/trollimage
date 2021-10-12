@@ -42,24 +42,21 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-PIL_IMAGE_FORMATS = {"jpg": "jpeg",
-                     "jpeg": "jpeg",
-                     "tif": "tiff",
-                     "tiff": "tif",
-                     "pgm": "ppm",
-                     "pbm": "ppm",
-                     "ppm": "ppm",
-                     "bmp": "bmp",
-                     "dib": "bmp",
-                     "gif": "gif",
-                     "im": "im",
-                     "pcx": "pcx",
-                     "png": "png",
-                     "xbm": "xbm",
-                     "xpm": "xpm",
-                     'jp2': 'jp2',
-                     }
-PIL_IMAGE_FORMATS_STR = ", ".join(PIL_IMAGE_FORMATS.keys())
+PIL_IMAGE_FORMATS = Pil.registered_extensions()
+
+
+def _pprint_pil_formats():
+    res = ''
+    row = []
+    for i in PIL_IMAGE_FORMATS:
+        if len(row) > 12:
+            res = res + ", ".join(row) + ",\n"
+            row = []
+        row.append(i)
+    return res + ", ".join(row)
+
+
+PIL_IMAGE_FORMATS_STR = _pprint_pil_formats()
 
 
 def ensure_dir(filename):
@@ -80,15 +77,15 @@ def check_image_format(fformat):
     """Set a placeholder docstring."""
     fformat = fformat.lower()
     try:
-        fformat = PIL_IMAGE_FORMATS[fformat]
+        fformat = PIL_IMAGE_FORMATS["." + fformat]
     except KeyError:
         raise UnknownImageFormat(
-            "Unknown image format '%s'.  Supported formats for 'simple_image' writer are: %s" %
-            (fformat, ', '.join(PIL_IMAGE_FORMATS.keys())))
+            "Unknown image format '%s'.  Supported formats for 'simple_image' writer are:\n%s" %
+            (fformat, PIL_IMAGE_FORMATS_STR))
     return fformat
 
 
-check_image_format.__doc__ = "Check that *fformat* is valid.\n\nValid formats are: %s" % PIL_IMAGE_FORMATS_STR
+check_image_format.__doc__ = "Check that *fformat* is valid.\n\nValid formats are:\n\n%s" % PIL_IMAGE_FORMATS_STR
 
 
 class Image(object):
@@ -387,12 +384,12 @@ class Image(object):
 
         params = {}
 
-        if fformat == 'png':
+        if fformat == 'PNG':
             # Take care of GeoImage.tags (if any).
             params['pnginfo'] = self._pngmeta()
 
         # JPEG images does not support transparency
-        if fformat == 'jpeg' and not self.fill_value:
+        if fformat == 'JPEG' and not self.fill_value:
             self.fill_value = [0, 0, 0, 0]
             logger.debug("No fill_value provided, setting it to 0.")
 
@@ -1117,7 +1114,7 @@ class Image(object):
 Image.pil_save.__doc__ = ("Save the image to the given *filename* using PIL.\n\n"
                           "For now, the compression level [0-9] is ignored, due to PIL's lack of support. "
                           "See also :meth:`save`.\n\n"
-                          "Supported image formats are: %s." % PIL_IMAGE_FORMATS_STR)
+                          "Supported image formats are:\n\n%s." % PIL_IMAGE_FORMATS_STR)
 
 
 def _areinstances(the_list, types):
