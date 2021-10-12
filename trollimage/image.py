@@ -43,7 +43,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 PIL_IMAGE_FORMATS = Pil.registered_extensions()
-PIL_FORMAT_URL = "https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html"
 
 
 def _pprint_pil_formats():
@@ -75,7 +74,10 @@ class UnknownImageFormat(Exception):
 
 
 def check_image_format(fformat):
-    """Set a placeholder docstring."""
+    """Check that *fformat* is valid.
+
+    Valid formats are listed in https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
+    """
     fformat = fformat.lower()
     try:
         fformat = PIL_IMAGE_FORMATS["." + fformat]
@@ -84,9 +86,6 @@ def check_image_format(fformat):
             "Unknown image format '%s'.  Supported formats for 'simple_image' writer are:\n%s" %
             (fformat, PIL_IMAGE_FORMATS_STR))
     return fformat
-
-
-check_image_format.__doc__ = "Check that *fformat* is valid.\n\nValid formats are listed in %s" % PIL_FORMAT_URL
 
 
 class Image(object):
@@ -370,7 +369,13 @@ class Image(object):
 
     def pil_save(self, filename, compression=6, fformat=None,
                  thumbnail_name=None, thumbnail_size=None):
-        """Save the image to the given *filename* using PIL."""
+        """Save the image to the given *filename* using PIL.
+
+        For now, the compression level [0-9] is ignored, due to PIL's lack of support.
+        See also :meth:`save`.
+
+        Supported image formats are listed in https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
+        """
         # PIL does not support compression option.
         del compression
 
@@ -1110,12 +1115,6 @@ class Image(object):
         b = io.BytesIO()
         self.save(b, fformat="png")
         return b.getvalue()
-
-
-Image.pil_save.__doc__ = ("Save the image to the given *filename* using PIL.\n\n"
-                          "For now, the compression level [0-9] is ignored, due to PIL's lack of support. "
-                          "See also :meth:`save`.\n\n"
-                          "Supported image formats are listed in %s." % PIL_FORMAT_URL)
 
 
 def _areinstances(the_list, types):
