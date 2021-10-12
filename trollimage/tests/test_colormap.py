@@ -371,4 +371,4 @@ class TestColormap:
         )
         assert cmap1.values[-1] == cmap2.values[0]
         # this should succeed
-        cmap1 + cmap2
+        _ = cmap1 + cmap2
