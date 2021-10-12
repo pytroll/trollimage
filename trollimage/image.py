@@ -42,7 +42,24 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-PILLOW_IMAGE_FORMAT_URL = "https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#image-file-formats"
+PIL_IMAGE_FORMATS = {"jpg": "jpeg",
+                     "jpeg": "jpeg",
+                     "tif": "tiff",
+                     "tiff": "tif",
+                     "pgm": "ppm",
+                     "pbm": "ppm",
+                     "ppm": "ppm",
+                     "bmp": "bmp",
+                     "dib": "bmp",
+                     "gif": "gif",
+                     "im": "im",
+                     "pcx": "pcx",
+                     "png": "png",
+                     "xbm": "xbm",
+                     "xpm": "xpm",
+                     'jp2': 'jp2',
+                     }
+PIL_IMAGE_FORMATS_STR = ", ".join(PIL_IMAGE_FORMATS.keys())
 
 
 def ensure_dir(filename):
@@ -60,33 +77,18 @@ class UnknownImageFormat(Exception):
 
 
 def check_image_format(fformat):
-    """Check that *fformat* is valid
-    """
-    cases = {"jpg": "jpeg",
-             "jpeg": "jpeg",
-             "tif": "tiff",
-             "tiff": "tif",
-             "pgm": "ppm",
-             "pbm": "ppm",
-             "ppm": "ppm",
-             "bmp": "bmp",
-             "dib": "bmp",
-             "gif": "gif",
-             "im": "im",
-             "pcx": "pcx",
-             "png": "png",
-             "xbm": "xbm",
-             "xpm": "xpm",
-             'jp2': 'jp2',
-             }
+    """Set a placeholder docstring."""
     fformat = fformat.lower()
     try:
-        fformat = cases[fformat]
+        fformat = PIL_IMAGE_FORMATS[fformat]
     except KeyError:
         raise UnknownImageFormat(
-            "Unknown image format '%s'.  See %s for a list of supported formats for 'simple_image' writer." %
-            (fformat, PILLOW_IMAGE_FORMAT_URL))
+            "Unknown image format '%s'.  Supported formats for 'simple_image' writer are: %s" %
+            (fformat, ', '.join(PIL_IMAGE_FORMATS.keys())))
     return fformat
+
+
+check_image_format.__doc__ = "Check that *fformat* is valid.\n\nValid formats are: %s" % PIL_IMAGE_FORMATS_STR
 
 
 class Image(object):
@@ -370,13 +372,7 @@ class Image(object):
 
     def pil_save(self, filename, compression=6, fformat=None,
                  thumbnail_name=None, thumbnail_size=None):
-        """Save the image to the given *filename* using PIL. For now, the
-        compression level [0-9] is ignored, due to PIL's lack of support. See
-        also :meth:`save`.
-
-        The supported image formats are listed in
-        https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#image-file-formats
-        """
+        """Save the image to the given *filename* using PIL."""
         # PIL does not support compression option.
         del compression
 
@@ -1116,6 +1112,12 @@ class Image(object):
         b = io.BytesIO()
         self.save(b, fformat="png")
         return b.getvalue()
+
+
+Image.pil_save.__doc__ = ("Save the image to the given *filename* using PIL.\n\n"
+                          "For now, the compression level [0-9] is ignored, due to PIL's lack of support. "
+                          "See also :meth:`save`.\n\n"
+                          "Supported image formats are: %s." % PIL_IMAGE_FORMATS_STR)
 
 
 def _areinstances(the_list, types):
