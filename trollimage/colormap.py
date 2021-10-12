@@ -256,9 +256,9 @@ class Colormap(object):
         """Append colormap together."""
         old, other = self._normalize_color_arrays(self, other)
         values = np.concatenate((old.values, other.values))
-        if not (np.diff(values) > 0).all():
+        if not (np.diff(values) >= 0).all():
             raise ValueError("Merged colormap 'values' are not monotonically "
-                             "increasing.")
+                             "increasing or equal.")
         colors = np.concatenate((old.colors, other.colors))
         return Colormap(
             values=values,
