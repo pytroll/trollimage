@@ -358,3 +358,79 @@ class TestColormap:
         )
         new_cmap = cmap1 + cmap2
         assert new_cmap.values.shape[0] == colors1.shape[0] + colors2.shape[0]
+
+    @pytest.mark.parametrize('inplace', [False, True])
+    def test_reverse(self, inplace):
+        """Test colormap reverse."""
+        values = np.linspace(0.2, 0.5, 10)
+        colors = np.repeat(np.linspace(0.2, 0.8, 10)[:, np.newaxis], 3, 1)
+        orig_values = values.copy()
+        orig_colors = colors.copy()
+
+        cmap = colormap.Colormap(values=values, colors=colors)
+        new_cmap = cmap.reverse(inplace)
+        self._assert_inplace_worked(cmap, new_cmap, inplace)
+        self._compare_reversed_colors(cmap, new_cmap, inplace, orig_colors)
+        self._assert_unchanged_values(cmap, new_cmap, inplace, orig_values)
+
+    @pytest.mark.parametrize(
+        'new_range',
+        [
+            (0.0, 1.0),
+            (1.0, 0.0),
+            (210.0, 300.0),
+            (300.0, 210.0),
+        ])
+    @pytest.mark.parametrize('inplace', [False, True])
+    def test_set_range(self, new_range, inplace):
+        """Test 'set_range' method."""
+        values = np.linspace(0.2, 0.5, 10)
+        colors = np.repeat(np.linspace(0.2, 0.8, 10)[:, np.newaxis], 3, 1)
+        orig_values = values.copy()
+        orig_colors = colors.copy()
+
+        cmap = colormap.Colormap(values=values, colors=colors)
+        new_cmap = cmap.set_range(*new_range, inplace)
+        self._assert_inplace_worked(cmap, new_cmap, inplace)
+        self._assert_monotonic_values(cmap)
+        self._assert_monotonic_values(new_cmap)
+        self._assert_values_changed(cmap, new_cmap, inplace, orig_values)
+        if new_range[0] > new_range[1]:
+            self._compare_reversed_colors(cmap, new_cmap, inplace, orig_colors)
+
+    @staticmethod
+    def _assert_monotonic_values(cmap):
+        np.testing.assert_allclose(np.diff(cmap.values) > 0, True)
+
+    @staticmethod
+    def _assert_unchanged_values(cmap, new_cmap, inplace, orig_values):
+        if inplace:
+            np.testing.assert_allclose(cmap.values, orig_values)
+        else:
+            np.testing.assert_allclose(cmap.values, orig_values)
+            np.testing.assert_allclose(new_cmap.values, orig_values)
+
+    @staticmethod
+    def _compare_reversed_colors(cmap, new_cmap, inplace, orig_colors):
+        if inplace:
+            assert cmap is new_cmap
+            np.testing.assert_allclose(cmap.colors, orig_colors[::-1])
+        else:
+            assert cmap is not new_cmap
+            np.testing.assert_allclose(cmap.colors, orig_colors)
+            np.testing.assert_allclose(new_cmap.colors, orig_colors[::-1])
+
+    @staticmethod
+    def _assert_values_changed(cmap, new_cmap, inplace, orig_values):
+        assert not np.allclose(new_cmap.values, orig_values)
+        if not inplace:
+            np.testing.assert_allclose(cmap.values, orig_values)
+        else:
+            assert not np.allclose(cmap.values, orig_values)
+
+    @staticmethod
+    def _assert_inplace_worked(cmap, new_cmap, inplace):
+        if not inplace:
+            assert new_cmap is not cmap
+        else:
+            assert new_cmap is cmap
