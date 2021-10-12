@@ -43,6 +43,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 PIL_IMAGE_FORMATS = Pil.registered_extensions()
+PIL_FORMAT_URL = "https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html"
 
 
 def _pprint_pil_formats():
@@ -85,7 +86,7 @@ def check_image_format(fformat):
     return fformat
 
 
-check_image_format.__doc__ = "Check that *fformat* is valid.\n\nValid formats are:\n\n%s" % PIL_IMAGE_FORMATS_STR
+check_image_format.__doc__ = "Check that *fformat* is valid.\n\nValid formats are listed in %s" % PIL_FORMAT_URL
 
 
 class Image(object):
@@ -1114,7 +1115,7 @@ class Image(object):
 Image.pil_save.__doc__ = ("Save the image to the given *filename* using PIL.\n\n"
                           "For now, the compression level [0-9] is ignored, due to PIL's lack of support. "
                           "See also :meth:`save`.\n\n"
-                          "Supported image formats are:\n\n%s." % PIL_IMAGE_FORMATS_STR)
+                          "Supported image formats are listed in %s." % PIL_FORMAT_URL)
 
 
 def _areinstances(the_list, types):
