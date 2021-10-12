@@ -287,7 +287,7 @@ class Colormap(object):
                 values=self.values.copy(),
                 colors=colors
             )
-        self.colors = np.flipud(self.colors)
+        self.colors = colors
         return self
 
     def set_range(self, min_val, max_val, inplace=True):
