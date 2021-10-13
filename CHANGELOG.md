@@ -1,3 +1,28 @@
+## Version 1.16.0 (2021/10/12)
+
+### Issues Closed
+
+* [Issue 87](https://github.com/pytroll/trollimage/issues/87) - ReportError "ValueError: Merged colormap 'values' are not monotonically increasing." ([PR 91](https://github.com/pytroll/trollimage/pull/91) by [@djhoese](https://github.com/djhoese))
+* [Issue 84](https://github.com/pytroll/trollimage/issues/84) - allow customization of GDALMetaData tags for scale and offset ([PR 85](https://github.com/pytroll/trollimage/pull/85) by [@gerritholl](https://github.com/gerritholl))
+
+In this release 2 issues were closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 91](https://github.com/pytroll/trollimage/pull/91) - Fix colormaps not allowing merge points of the same value ([87](https://github.com/pytroll/trollimage/issues/87))
+* [PR 83](https://github.com/pytroll/trollimage/pull/83) - Fix palettize dtype for dask arrays
+
+#### Features added
+
+* [PR 88](https://github.com/pytroll/trollimage/pull/88) - List supported "simple image" formats in docstrings and error message ([86](https://github.com/pytroll/trollimage/issues/86), [1345](https://github.com/pytroll/satpy/issues/1345))
+* [PR 85](https://github.com/pytroll/trollimage/pull/85) - Allow customising scale and offset labels ([84](https://github.com/pytroll/trollimage/issues/84))
+* [PR 82](https://github.com/pytroll/trollimage/pull/82) - Add 'inplace' keyword argument to Colormap.reverse and Colormap.set_range
+
+In this release 5 pull requests were closed.
+
+
 ## Version 1.15.1 (2021/07/20)
 
 ### Pull Requests Merged
