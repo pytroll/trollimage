@@ -395,7 +395,11 @@ class XRImage(object):
                             ``(source, target)`` to be passed to
                             `dask.array.store`.
             keep_palette (bool): Saves the palettized version of the image if
-                                 set to True. False by default.
+                                 set to True. False by default.  Warning: this
+                                 does not automatically write the colormap
+                                 (palette) to the file.  To write the colormap
+                                 to the file, one should additionally pass the
+                                 colormap with the ``cmap`` keyword argument.
             cmap (Colormap or dict): Colormap to be applied to the image when
                                      saving with rasterio, used with
                                      keep_palette=True. Should be uint8.
@@ -1375,7 +1379,17 @@ class XRImage(object):
                                                    img.channels[i].mask)
 
     def colorize(self, colormap):
-        """Colorize the current image using `colormap`.
+        """Colorize the current image using ``colormap``.
+
+        Convert a greyscale image (mode "L" or "LA") to a color image (mode
+        "RGB" or "RGBA") by applying a colormap.
+
+        To create a color image in mode "P" or "PA", use
+        :meth:`~XRImage.palettize`.
+
+        Args:
+            colormap (:class:`~trollimage.colormap.Colormap`):
+                Colormap to be applied to the image.
 
         .. note::
 
@@ -1410,7 +1424,21 @@ class XRImage(object):
         self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
 
     def palettize(self, colormap):
-        """Palettize the current image using `colormap`.
+        """Palettize the current image using ``colormap``.
+
+        Convert a mode "L" (or "LA") grayscale image to a mode "P" (or "PA")
+        palette image and store the palette in the ``palette`` attribute.
+        Note that to store the subsequent image in mode "P", one needs to call
+        :meth:`~XRImage.save` with ``keep_palette=True`` (or the image will be stored
+        as RGB/RGBA) and again pass the colormap with ``cmap=colormap`` (or the
+        mapping between pixel values and colors will be missing).
+
+        To (directly) get an image in mode "RGB" or "RGBA", use
+        :meth:`~XRImage.colorize`.
+
+        Args:
+            colormap (:class:`~trollimage.colormap.Colormap`):
+                Colormap to be applied to the image.
 
         .. note::
 
