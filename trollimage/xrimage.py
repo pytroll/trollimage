@@ -1428,10 +1428,10 @@ class XRImage(object):
 
         Convert a mode "L" (or "LA") grayscale image to a mode "P" (or "PA")
         palette image and store the palette in the ``palette`` attribute.
-        Note that to store the subsequent image in mode "P", one needs to call
-        :meth:`~XRImage.save` with ``keep_palette=True`` (or the image will be stored
-        as RGB/RGBA) and again pass the colormap with ``cmap=colormap`` (or the
-        mapping between pixel values and colors will be missing).
+        To store this image in mode "P", call :meth:`~XRImage.save` with
+        ``keep_palette=True``.  To include color information in the output
+        format (if supported), call :meth:`~XRImage.save` with
+        ``keep_palette=True`` *and* ``cmap=colormap``.
 
         To (directly) get an image in mode "RGB" or "RGBA", use
         :meth:`~XRImage.colorize`.
