@@ -2,4 +2,4 @@ pillow
 rasterio
 xarray
 dask[array]
-docutils = "<0.18"
+docutils<0.18
