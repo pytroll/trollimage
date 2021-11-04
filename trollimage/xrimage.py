@@ -485,6 +485,8 @@ class XRImage(object):
                    'tiff': 'GTiff',
                    'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
+        if driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1':
+            driver = 'COG'
         if include_scale_offset_tags:
             warnings.warn(
                 "include_scale_offset_tags is deprecated, please use "
@@ -502,7 +504,7 @@ class XRImage(object):
         crs = None
         gcps = None
         transform = None
-        if driver in ['GTiff', 'JP2OpenJPEG']:
+        if driver in ['COG', 'GTiff', 'JP2OpenJPEG']:
             if not np.issubdtype(data.dtype, np.floating):
                 format_kwargs.setdefault('compress', 'DEFLATE')
             photometric_map = {
