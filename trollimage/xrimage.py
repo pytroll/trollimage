@@ -488,7 +488,7 @@ class XRImage(object):
         if (driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1' and
                 overviews == []):
             driver = 'COG'
-            overviews = None # the COG driver does this automatically
+            overviews = None  # the COG driver does this automatically
         if include_scale_offset_tags:
             warnings.warn(
                 "include_scale_offset_tags is deprecated, please use "
