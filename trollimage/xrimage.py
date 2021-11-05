@@ -485,8 +485,10 @@ class XRImage(object):
                    'tiff': 'GTiff',
                    'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
-        if driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1':
+        if (driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1' and
+                overviews == []):
             driver = 'COG'
+            overviews = None # the COG driver does this automatically
         if include_scale_offset_tags:
             warnings.warn(
                 "include_scale_offset_tags is deprecated, please use "
@@ -555,6 +557,16 @@ class XRImage(object):
             scale_label, offset_label = scale_offset_tags
             scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
             tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
+
+        # The COG driver automatically sets the format options
+        if driver == 'COG':
+            format_kwargs.pop('photometric', None)
+            if 'zlevel' in format_kwargs:
+                format_kwargs['level'] = format_kwargs['zlevel']
+                format_kwargs.pop('zlevel')
+            format_kwargs.pop('tiled', None)
+            format_kwargs.pop('blockxsize', None)
+            format_kwargs.pop('blockysize', None)
 
         # FIXME add metadata
         r_file = RIOFile(filename, 'w', driver=driver,
