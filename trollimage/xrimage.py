@@ -457,7 +457,9 @@ class XRImage(object):
 
                 If provided as an empty list, then levels will be
                 computed as powers of two until the last level has less
-                pixels than `overviews_minsize`.
+                pixels than `overviews_minsize`.  If tiled=True then this
+                will be performed by the COG driver to produce a valid
+                Cloud Optimized GeoTIFF.
                 Default is to not add overviews.
             overviews_minsize (int): Minimum number of pixels for the smallest
                 overview size generated when `overviews` is auto-generated.
