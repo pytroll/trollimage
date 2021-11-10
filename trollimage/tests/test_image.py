@@ -1305,6 +1305,17 @@ class TestXRImage:
         from trollimage import xrimage
         import rasterio as rio
 
+        # trigger COG driver to create 2 overview levels
+        data = xr.DataArray(np.arange(1200*1200*3).reshape(1200, 1200, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        assert np.issubdtype(img.data.dtype, np.integer)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, tiled=True, overviews=[])
+            with rio.open(tmp.name) as f:
+                assert(f.tags(ns='IMAGE_STRUCTURE')['LAYOUT'] == 'COG')
+                assert len(f.overviews(1)) == 2
+
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})

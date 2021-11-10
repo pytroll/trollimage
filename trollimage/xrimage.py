@@ -486,9 +486,10 @@ class XRImage(object):
                    'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
         if (driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1' and
-                overviews == []):
+                overviews == [] and
+                format_kwargs.get('tiled', None)):
             driver = 'COG'
-            overviews = None  # the COG driver does this automatically
+            overviews = None  # the COG driver adds them automatically
         if include_scale_offset_tags:
             warnings.warn(
                 "include_scale_offset_tags is deprecated, please use "
@@ -559,13 +560,14 @@ class XRImage(object):
             tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
         # The COG driver automatically sets the format options
+        # but zlevel is called level and blockxsize is called blocksize
         if driver == 'COG':
             format_kwargs.pop('photometric', None)
             if 'zlevel' in format_kwargs:
-                format_kwargs['level'] = format_kwargs['zlevel']
-                format_kwargs.pop('zlevel')
+                format_kwargs['level'] = format_kwargs.pop('zlevel')
             format_kwargs.pop('tiled', None)
-            format_kwargs.pop('blockxsize', None)
+            if 'blockxsize' in format_kwargs:
+                format_kwargs['blocksize'] = format_kwargs.pop('blockxsize')
             format_kwargs.pop('blockysize', None)
 
         # FIXME add metadata
