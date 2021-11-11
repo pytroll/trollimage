@@ -457,9 +457,9 @@ class XRImage(object):
 
                 If provided as an empty list, then levels will be
                 computed as powers of two until the last level has less
-                pixels than `overviews_minsize`.  If tiled=True then this
-                will be performed by the COG driver to produce a valid
-                Cloud Optimized GeoTIFF.
+                pixels than `overviews_minsize`.  If overviews=[] and tiled=True
+                and the tiles are square then this will be performed by the COG
+                driver to produce a valid Cloud Optimized GeoTIFF.
                 Default is to not add overviews.
             overviews_minsize (int): Minimum number of pixels for the smallest
                 overview size generated when `overviews` is auto-generated.
@@ -488,7 +488,7 @@ class XRImage(object):
                    'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
         if (driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1' and
-                (format_kwargs.get('blockxsize',0) == format_kwargs.get('blockysize',0)) and
+                (format_kwargs.get('blockxsize', 0) == format_kwargs.get('blockysize', 0)) and
                 overviews == [] and
                 format_kwargs.get('tiled', None)):
             driver = 'COG'
