@@ -486,14 +486,20 @@ class XRImage(object):
                    'tif': 'GTiff',
                    'tiff': 'GTiff',
                    'jp2': 'JP2OpenJPEG'}
+        # If fformat is specified then convert it into a driver
         driver = drivers.get(fformat, fformat)
+        # If driver is specified then it takes precedence
+        driver = format_kwargs.pop('driver', driver)
+        # If it looks like COG would be a better choice then change driver
         if (driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1' and
                 (format_kwargs.get('blockxsize', 0) == format_kwargs.get('blockysize', 0)) and
                 overviews == [] and
                 format_kwargs.get('tiled', None)):
             driver = 'COG'
+        # The COG driver adds overviews so we don't need to create them ourself.
+        # One thing we can't do is prevent any overviews, if we use None then
+        # the COG driver will create automatically, we can't pass OVERVIEWS=NONE.
         if driver == 'COG' and overviews == []:
-            # The COG driver adds overviews so we don't need to create them ourself
             overviews = None
         if include_scale_offset_tags:
             warnings.warn(
