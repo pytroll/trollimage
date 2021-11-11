@@ -1299,13 +1299,14 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[3], 255)
 
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
-    def test_save_overviews(self):
-        """Test saving geotiffs with overviews."""
+    def test_save_cloud_optimized_geotiff(self):
+        """Test saving cloud optimized geotiffs."""
         import xarray as xr
         from trollimage import xrimage
         import rasterio as rio
 
         # trigger COG driver to create 2 overview levels
+        # COG driver is only available in GDAL 3.1 or later
         if rio.__gdal_version__ >= '3.1':
             data = xr.DataArray(np.arange(1200*1200*3).reshape(1200, 1200, 3), dims=[
                 'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -1314,8 +1315,16 @@ class TestXRImage:
             with NamedTemporaryFile(suffix='.tif') as tmp:
                 img.save(tmp.name, tiled=True, overviews=[])
                 with rio.open(tmp.name) as f:
+                    # The COG driver should add a tag indicating layout
                     assert(f.tags(ns='IMAGE_STRUCTURE')['LAYOUT'] == 'COG')
                     assert len(f.overviews(1)) == 2
+
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_overviews(self):
+        """Test saving geotiffs with overviews."""
+        import xarray as xr
+        from trollimage import xrimage
+        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
