@@ -492,7 +492,9 @@ class XRImage(object):
                 overviews == [] and
                 format_kwargs.get('tiled', None)):
             driver = 'COG'
-            overviews = None  # the COG driver adds them automatically
+        if driver == 'COG' and overviews == []:
+            # The COG driver adds overviews so we don't need to create them ourself
+            overviews = None
         if include_scale_offset_tags:
             warnings.warn(
                 "include_scale_offset_tags is deprecated, please use "
