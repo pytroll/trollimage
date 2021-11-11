@@ -488,6 +488,7 @@ class XRImage(object):
                    'jp2': 'JP2OpenJPEG'}
         driver = drivers.get(fformat, fformat)
         if (driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1' and
+                (format_kwargs.get('blockxsize',0) == format_kwargs.get('blockysize',0)) and
                 overviews == [] and
                 format_kwargs.get('tiled', None)):
             driver = 'COG'
