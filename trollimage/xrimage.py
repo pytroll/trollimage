@@ -373,7 +373,7 @@ class XRImage(object):
         return ''.join(self.data['bands'].values)
 
     def save(self, filename, fformat=None, fill_value=None, compute=True,
-             keep_palette=False, cmap=None, **format_kwargs):
+             keep_palette=False, cmap=None, driver=None, **format_kwargs):
         """Save the image to the given *filename*.
 
         Args:
@@ -386,6 +386,12 @@ class XRImage(object):
                            If the format allows, geographical information will
                            be saved to the ouput file, in the form of grid
                            mapping or ground control points.
+            driver (str): can override the choice of rasterio/gdal driver
+                        which is normally selected from the filename or fformat.
+                        This is an implementation detail normally avoided but
+                        can be necessary if you wish to distinguish between
+                        GeoTIFF drivers (GTiff is the default, but you can
+                        specify COG to write a Cloud-Optimized GeoTIFF).
             fill_value (float): Replace invalid data values with this value
                                 and do not produce an Alpha band. Default
                                 behavior is to create an alpha band.
@@ -420,7 +426,7 @@ class XRImage(object):
         fformat = fformat or kwformat or os.path.splitext(filename)[1][1:]
         if fformat in ('tif', 'tiff', 'jp2') and rasterio:
 
-            return self.rio_save(filename, fformat=fformat,
+            return self.rio_save(filename, fformat=fformat, driver=driver,
                                  fill_value=fill_value, compute=compute,
                                  keep_palette=keep_palette, cmap=cmap,
                                  **format_kwargs)
@@ -433,6 +439,7 @@ class XRImage(object):
                  overviews_minsize=256, overviews_resampling=None,
                  include_scale_offset_tags=False,
                  scale_offset_tags=None,
+                 driver=None,
                  **format_kwargs):
         """Save the image using rasterio.
 
@@ -440,6 +447,10 @@ class XRImage(object):
             filename (string): The filename to save to.
             fformat (string): The format to save to. If not specified (default),
                 it will be infered from the file extension.
+            driver (string): The gdal driver to use. If not specified (default),
+                it will be inferred from the fformat, but you can override the
+                default GeoTIFF driver (GTiff) with 'COG' if you want to create
+                a Cloud_Optimized GeoTIFF (and set tiled=True,overviews=[]).
             fill_value (number): The value to fill the missing data with.
                 Default is ``None``, translating to trying to keep the data
                 transparent.
@@ -457,9 +468,9 @@ class XRImage(object):
 
                 If provided as an empty list, then levels will be
                 computed as powers of two until the last level has less
-                pixels than `overviews_minsize`.  If overviews=[] and tiled=True
-                and the tiles are square then this will be performed by the COG
-                driver to produce a valid Cloud Optimized GeoTIFF.
+                pixels than `overviews_minsize`.  If driver='COG' then use
+                overviews=[] to get a Cloud-Optimized GeoTIFF with a correct
+                set of overviews created automatically.
                 Default is to not add overviews.
             overviews_minsize (int): Minimum number of pixels for the smallest
                 overview size generated when `overviews` is auto-generated.
@@ -486,16 +497,8 @@ class XRImage(object):
                    'tif': 'GTiff',
                    'tiff': 'GTiff',
                    'jp2': 'JP2OpenJPEG'}
-        # If fformat is specified then convert it into a driver
-        driver = drivers.get(fformat, fformat)
-        # If driver is specified then it takes precedence
-        driver = format_kwargs.pop('driver', driver)
-        # If it looks like COG would be a better choice then change driver
-        if (driver == 'GTiff' and rasterio.__gdal_version__ >= '3.1' and
-                (format_kwargs.get('blockxsize', 0) == format_kwargs.get('blockysize', 0)) and
-                overviews == [] and
-                format_kwargs.get('tiled', None)):
-            driver = 'COG'
+        # If fformat is specified but not driver then convert it into a driver
+        driver = driver or drivers.get(fformat, fformat)
         # The COG driver adds overviews so we don't need to create them ourself.
         # One thing we can't do is prevent any overviews, if we use None then
         # the COG driver will create automatically, we can't pass OVERVIEWS=NONE.

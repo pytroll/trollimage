@@ -1313,7 +1313,7 @@ class TestXRImage:
             img = xrimage.XRImage(data)
             assert np.issubdtype(img.data.dtype, np.integer)
             with NamedTemporaryFile(suffix='.tif') as tmp:
-                img.save(tmp.name, tiled=True, overviews=[])
+                img.save(tmp.name, tiled=True, overviews=[], driver='COG')
                 with rio.open(tmp.name) as f:
                     # The COG driver should add a tag indicating layout
                     assert(f.tags(ns='IMAGE_STRUCTURE')['LAYOUT'] == 'COG')
