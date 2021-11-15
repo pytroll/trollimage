@@ -49,14 +49,10 @@ def _get_pillow_image_formats():
 
 
 def _pprint_pil_formats():
-    res = ''
-    row = []
-    for i in _get_pillow_image_formats():
-        if len(row) > 12:
-            res = res + ", ".join(row) + ",\n"
-            row = []
-        row.append(i)
-    return res + ", ".join(row)
+    """Group format extensions into rows of 12."""
+    format_exts = list(_get_pillow_image_formats().keys())
+    format_rows = [", ".join(format_exts[idx:idx + 12]) for idx in range(0, len(format_exts), 12)]
+    return ",\n".join(format_rows)
 
 
 def ensure_dir(filename):
@@ -80,7 +76,7 @@ def check_image_format(fformat):
         fformat = _get_pillow_image_formats()["." + fformat]
     except KeyError:
         raise UnknownImageFormat(
-            "Unknown image format '%s'.  Supported formats for 'simple_image' writer are:\n%s" %
+            "Unknown image format '%s'. Supported formats for 'simple_image' writer are:\n%s" %
             (fformat, _pprint_pil_formats()))
     return fformat
 
