@@ -42,21 +42,26 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-PIL_IMAGE_FORMATS = Pil.registered_extensions()
+PIL_IMAGE_FORMATS = None
+
+
+def _get_pillow_image_formats():
+    global PIL_IMAGE_FORMATS
+    if PIL_IMAGE_FORMATS is None:
+        Pil.init()
+        PIL_IMAGE_FORMATS = Pil.registered_extensions()
+    return PIL_IMAGE_FORMATS
 
 
 def _pprint_pil_formats():
     res = ''
     row = []
-    for i in PIL_IMAGE_FORMATS:
+    for i in _get_pillow_image_formats():
         if len(row) > 12:
             res = res + ", ".join(row) + ",\n"
             row = []
         row.append(i)
     return res + ", ".join(row)
-
-
-PIL_IMAGE_FORMATS_STR = _pprint_pil_formats()
 
 
 def ensure_dir(filename):
@@ -80,11 +85,11 @@ def check_image_format(fformat):
     """
     fformat = fformat.lower()
     try:
-        fformat = PIL_IMAGE_FORMATS["." + fformat]
+        fformat = _get_pillow_image_formats()["." + fformat]
     except KeyError:
         raise UnknownImageFormat(
             "Unknown image format '%s'.  Supported formats for 'simple_image' writer are:\n%s" %
-            (fformat, PIL_IMAGE_FORMATS_STR))
+            (fformat, _pprint_pil_formats()))
     return fformat
 
 
