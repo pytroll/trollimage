@@ -1,28 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-# Copyright (c) 2009-2017
-
-# Author(s):
-
-#   Martin Raspaud <martin.raspaud@smhi.se>
-#   Adam Dybbroe <adam.dybbroe@smhi.se>
-#   Esben S. Nielsen <esn@dmi.dk>
-
+#
+# Copyright (c) 2009-2021 Trollimage Developers
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""The main trollimage Image class.
 
-"""This module defines the image class. It overlaps largely the PIL library,
+It overlaps largely the PIL library,
 but has the advantage of using masked arrays as pixel arrays, so that data
 arrays containing invalid values may be properly handled.
 """
@@ -65,17 +60,14 @@ def _pprint_pil_formats():
 
 
 def ensure_dir(filename):
-    """Checks if the dir of f exists, otherwise create it.
-    """
+    """Check if the dir of f exists, otherwise create it."""
     directory = os.path.dirname(filename)
     if len(directory) and not os.path.isdir(directory):
         os.makedirs(directory)
 
 
 class UnknownImageFormat(Exception):
-
-    """Exception to be raised when image format is unknown to pytroll-image"""
-    pass
+    """Exception to be raised when image format is unknown to pytroll-image."""
 
 
 def check_image_format(fformat):
@@ -94,8 +86,9 @@ def check_image_format(fformat):
 
 
 class Image(object):
+    """Generic masked-array based image.
 
-    """This class defines images. As such, it contains data of the different
+    This class defines images. As such, it contains data of the different
     *channels* of the image (red, green, and blue for example). The *mode*
     tells if the channels define a black and white image ("L"), an rgb image
     ("RGB"), an YCbCr image ("YCbCr"), or an indexed image ("P"), in which case
@@ -118,7 +111,7 @@ class Image(object):
 
     def __init__(self, channels=None, mode="L", color_range=None,
                  fill_value=None, palette=None, copy=True):
-
+        """Initialize basic image metadata and data storage."""
         self.channels = None
         self.mode = None
         self.width = 0
@@ -226,8 +219,7 @@ class Image(object):
             self.height = 0
 
     def _add_channel(self, chn, color_min, color_max):
-        """Adds a channel to the image object
-        """
+        """Add a channel to the image object."""
         if isinstance(chn, np.ma.core.MaskedArray):
             chn_data = chn.data
             chn_mask = chn.mask
@@ -239,9 +231,10 @@ class Image(object):
         self.channels.append(np.ma.array(scaled, mask=chn_mask))
 
     def _finalize(self, dtype=np.uint8):
-        """Finalize the image, that is put it in RGB mode, and set the channels
-        in unsigned 8bit format ([0,255] range) (if the *dtype* doesn't say
-        otherwise).
+        """Finalize the image.
+
+        That is, put it in RGB mode, and set the channels in unsigned 8bit
+        format ([0,255] range) (if the *dtype* doesn't say otherwise).
         """
         channels = []
         if self.mode == "P":
@@ -268,21 +261,18 @@ class Image(object):
         return channels, fill_value
 
     def is_empty(self):
-        """Checks for an empty image.
-        """
+        """Check for an empty image."""
         if(((self.channels == []) and (not self.shape == (0, 0))) or
            ((not self.channels == []) and (self.shape == (0, 0)))):
             raise RuntimeError("Channels-shape mismatch.")
         return self.channels == [] and self.shape == (0, 0)
 
     def show(self):
-        """Display the image on screen.
-        """
+        """Display the image on screen."""
         self.pil_image().show()
 
     def pil_image(self):
-        """Return a PIL image from the current image.
-        """
+        """Return a PIL image from the current image."""
         channels, fill_value = self._finalize()
 
         if self.is_empty():
@@ -365,7 +355,9 @@ class Image(object):
 
     def save(self, filename, compression=6, fformat=None,
              thumbnail_name=None, thumbnail_size=None):
-        """Save the image to the given *filename*. For some formats like jpg
+        """Save the image to the given *filename*.
+
+        For some formats like jpg
         and png, the work is delegated to :meth:`pil_save`, which doesn't
         support the *compression* option.
         """
@@ -412,7 +404,7 @@ class Image(object):
             img.save(thumbnail_name, fformat, **params)
 
     def _pngmeta(self):
-        """It will return GeoImage.tags as a PNG metadata object.
+        """Return GeoImage.tags as a PNG metadata object.
 
         Inspired by:
         public domain, Nick Galbreath
@@ -437,9 +429,7 @@ class Image(object):
         return meta
 
     def putalpha(self, alpha):
-        """Adds an *alpha* channel to the current image, or replaces it with
-        *alpha* if it already exists.
-        """
+        """Add an *alpha* channel to the current image, or replaces it with *alpha* if it already exists."""
         alpha = np.ma.array(alpha)
         if(not (alpha.shape[0] == 0 and
                 self.shape[0] == 0) and
@@ -453,7 +443,6 @@ class Image(object):
 
     def _rgb2ycbcr(self, mode):
         """Convert the image from RGB mode to YCbCr."""
-
         self._check_modes(("RGB", "RGBA"))
 
         (self.channels[0], self.channels[1], self.channels[2]) = \
@@ -469,9 +458,7 @@ class Image(object):
         self.mode = mode
 
     def _ycbcr2rgb(self, mode):
-        """Convert the image from YCbCr mode to RGB.
-        """
-
+        """Convert the image from YCbCr mode to RGB."""
         self._check_modes(("YCbCr", "YCbCrA"))
 
         (self.channels[0], self.channels[1], self.channels[2]) = \
@@ -487,9 +474,7 @@ class Image(object):
         self.mode = mode
 
     def _to_p(self, mode):
-        """Convert the image to P or PA mode.
-        """
-
+        """Convert the image to P or PA mode."""
         if self.mode.endswith("A"):
             chans = self.channels[:-1]
             alpha = self.channels[-1]
@@ -547,9 +532,7 @@ class Image(object):
         self.mode = mode
 
     def _from_p(self, mode):
-        """Convert the image from P or PA mode.
-        """
-
+        """Convert the image from P or PA mode."""
         self._check_modes(("P", "PA"))
 
         if self.mode.endswith("A"):
@@ -589,17 +572,14 @@ class Image(object):
         self.convert(mode)
 
     def _check_modes(self, modes):
-        """Check that the image is in on of the given *modes*, raise an
-        exception otherwise.
-        """
+        """Check that the image is in on of the given *modes*, raise an exception otherwise."""
         if not isinstance(modes, (tuple, list, set)):
             modes = [modes]
         if self.mode not in modes:
             raise ValueError("Image not in suitable mode: %s" % modes)
 
     def _l2rgb(self, mode):
-        """Convert from L (black and white) to RGB.
-        """
+        """Convert from L (black and white) to RGB."""
         self._check_modes(("L", "LA"))
         self.channels.append(self.channels[0].copy())
         self.channels.append(self.channels[0].copy())
@@ -611,8 +591,7 @@ class Image(object):
         self.mode = mode
 
     def _rgb2l(self, mode):
-        """Convert from RGB to monochrome L.
-        """
+        """Convert from RGB to monochrome L."""
         self._check_modes(("RGB", "RGBA"))
 
         kb_ = 0.114
@@ -635,8 +614,7 @@ class Image(object):
         self.mode = mode
 
     def _ycbcr2l(self, mode):
-        """Convert from YCbCr to L.
-        """
+        """Convert from YCbCr to L."""
         self._check_modes(("YCbCr", "YCbCrA"))
 
         self.channels = [self.channels[0]] + self.channels[3:]
@@ -645,8 +623,7 @@ class Image(object):
         self.mode = mode
 
     def _l2ycbcr(self, mode):
-        """Convert from L to YCbCr.
-        """
+        """Convert from L to YCbCr."""
         self._check_modes(("L", "LA"))
 
         luma = self.channels[0]
@@ -661,8 +638,9 @@ class Image(object):
         self.mode = mode
 
     def convert(self, mode):
-        """Convert the current image to the given *mode*. See :class:`Image`
-        for a list of available modes.
+        """Convert the current image to the given *mode*.
+
+        See :class:`Image` for a list of available modes.
         """
         if mode == self.mode:
             return
@@ -728,8 +706,10 @@ class Image(object):
                                  % (self.mode, mode))
 
     def clip(self, channels=True):
-        """Limit the values of the array to the default [0,1] range. *channels*
-        says which channels should be clipped."""
+        """Limit the values of the array to the default [0,1] range.
+
+        *channels* says which channels should be clipped.
+        """
         if not isinstance(channels, (tuple, list)):
             channels = [channels] * len(self.channels)
 
@@ -738,7 +718,9 @@ class Image(object):
                 self.channels[i] = np.ma.clip(self.channels[i], 0.0, 1.0)
 
     def resize(self, shape):
-        """Resize the image to the given *shape* tuple, in place. For zooming,
+        """Resize the image to the given *shape* tuple, in place.
+
+        For zooming,
         nearest neighbour method is used, while for shrinking, decimation is
         used. Therefore, *shape* must be a multiple or a divisor of the image
         shape.
@@ -791,9 +773,10 @@ class Image(object):
         self.shape = self.channels[0].shape
 
     def replace_luminance(self, luminance):
-        """Replace the Y channel of the image by the array *luminance*. If the
-        image is not in YCbCr mode, it is converted automatically to and
-        from that mode.
+        """Replace the Y channel of the image by the array *luminance*.
+
+        If the image is not in YCbCr mode, it is converted automatically to
+        and from that mode.
         """
         if self.is_empty():
             return
@@ -820,7 +803,9 @@ class Image(object):
 
     def enhance(self, inverse=False, gamma=1.0, stretch="no",
                 stretch_parameters=None, **kwargs):
-        """Image enhancement function. It applies **in this order** inversion,
+        """Image enhancement function.
+
+        It applies **in this order** inversion,
         gamma correction, and stretching to the current image, with parameters
         *inverse* (see :meth:`Image.invert`), *gamma* (see
         :meth:`Image.gamma`), and *stretch* (see :meth:`Image.stretch`).
@@ -834,14 +819,15 @@ class Image(object):
         self.gamma(gamma)
 
     def gamma(self, gamma=1.0):
-        """Apply gamma correction to the channels of the image. If *gamma* is a
+        """Apply gamma correction to the channels of the image.
+
+        If *gamma* is a
         tuple, then it should have as many elements as the channels of the
         image, and the gamma correction is applied elementwise. If *gamma* is a
         number, the same gamma correction is applied on every channel, if there
         are several channels in the image. The behaviour of :func:`gamma` is
         undefined outside the normal [0,1] range of the channels.
         """
-
         if(isinstance(gamma, (list, tuple, set)) and
            len(gamma) != len(self.channels)):
             raise ValueError("Number of channels and gamma components differ.")
@@ -877,7 +863,9 @@ class Image(object):
                                             self.channels[i])
 
     def stretch(self, stretch="crude", **kwargs):
-        """Apply stretching to the current image. The value of *stretch* sets
+        """Apply stretching to the current image.
+
+        The value of *stretch* sets
         the type of stretching applied. The values "histogram", "linear",
         "crude" (or "crude-stretch") perform respectively histogram
         equalization, contrast stretching (with 5% cutoff on both sides), and
@@ -887,7 +875,6 @@ class Image(object):
         with the values as cutoff. These values should be normalized in the
         range [0.0,1.0].
         """
-
         logger.debug("Applying stretch %s with parameters %s",
                      stretch, str(kwargs))
 
@@ -923,10 +910,12 @@ class Image(object):
             raise TypeError("Stretch parameter must be a string or a tuple.")
 
     def invert(self, invert=True):
-        """Inverts all the channels of a image according to *invert*. If invert is a tuple or a list, elementwise
-        invertion is performed, otherwise all channels are inverted if *invert* is true (default).
+        """Inverts all the channels of a image according to *invert*.
 
-        Note: 'Inverting' means that black becomes white, and vice-versa, not that the values are negated !
+        If invert is a tuple or a list, elementwise invertion is performed,
+        otherwise all channels are inverted if *invert* is true (default).
+
+        Note: 'Inverting' means that black becomes white, and vice-versa, not that the values are negated!
         """
         if(isinstance(invert, (tuple, list)) and
            len(self.channels) != len(invert)):
@@ -943,9 +932,7 @@ class Image(object):
                 self.channels[i] = 1 - chn
 
     def stretch_hist_equalize(self, ch_nb):
-        """Stretch the current image's colors by performing histogram
-        equalization on channel *ch_nb*.
-        """
+        """Stretch the current image's colors by performing histogram equalization on channel *ch_nb*."""
         logger.info("Perform a histogram equalized contrast stretch.")
 
         if(self.channels[ch_nb].size ==
@@ -971,9 +958,7 @@ class Image(object):
         self.channels[ch_nb] = res
 
     def stretch_logarithmic(self, ch_nb, factor=100.):
-        """Move data into range [1:factor] and do a normalized logarithmic
-        enhancement.
-        """
+        """Move data into range [1:factor] and do a normalized logarithmic enhancement."""
         logger.debug("Perform a logarithmic contrast stretch.")
         if ((self.channels[ch_nb].size ==
              np.ma.count_masked(self.channels[ch_nb])) or
@@ -992,8 +977,10 @@ class Image(object):
         self.channels[ch_nb] = arr
 
     def stretch_linear(self, ch_nb, cutoffs=(0.005, 0.005)):
-        """Stretch linearly the contrast of the current image on channel
-        *ch_nb*, using *cutoffs* for left and right trimming.
+        """Stretch linearly the contrast of the current image for a specific channel.
+
+        Channel *ch_nb* is the 0-based index.
+        Stretching is based on *cutoffs* fractions for left and right trimming.
         """
         logger.debug("Perform a linear contrast stretch.")
 
@@ -1024,9 +1011,10 @@ class Image(object):
             logger.warning("Unable to make a contrast stretch!")
 
     def crude_stretch(self, ch_nb, min_stretch=None, max_stretch=None):
-        """Perform simple linear stretching (without any cutoff) on the channel
-        *ch_nb* of the current image and normalize to the [0,1] range."""
+        """Perform simple linear stretching (without any cutoff) for a specific channel.
 
+        Channel *ch_nb* is the 0-based index. The image is normalized to the [0,1] range.
+        """
         if min_stretch is None:
             min_stretch = self.channels[ch_nb].min()
         if max_stretch is None:
@@ -1049,9 +1037,7 @@ class Image(object):
             logger.warning("Nothing to stretch !")
 
     def merge(self, img):
-        """Use the provided image as background for the current *img* image,
-        that is if the current image has missing data.
-        """
+        """Use provided image as a background where the current image has missing data."""
         if self.is_empty():
             raise ValueError("Cannot merge an empty image.")
 
@@ -1070,10 +1056,10 @@ class Image(object):
                                                    img.channels[i].mask)
 
     def colorize(self, colormap):
-        """Colorize the current image using
-        *colormap*. Works only on"L" or "LA" images.
-        """
+        """Colorize the current image using *colormap*.
 
+        Works only on"L" or "LA" images.
+        """
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
         if self.mode == "LA":
@@ -1088,10 +1074,10 @@ class Image(object):
             self.mode = "RGB"
 
     def palettize(self, colormap):
-        """Palettize the current image using
-        *colormap*. Works only on"L" or "LA" images.
-        """
+        """Palettize the current image using *colormap*.
 
+        Works only on"L" or "LA" images.
+        """
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
         self.channels[0], self.palette = colormap.palettize(self.channels[0])
@@ -1101,8 +1087,7 @@ class Image(object):
             self.mode = "PA"
 
     def blend(self, other):
-        """Alpha blend *other* on top of the current image.
-        """
+        """Alpha blend *other* on top of the current image."""
         if self.mode != "RGBA" or other.mode != "RGBA":
             raise ValueError("Images must be in RGBA")
         src = other
@@ -1123,14 +1108,12 @@ class Image(object):
 
 
 def _areinstances(the_list, types):
-    """Check if all the elements of the list are of given type.
-    """
+    """Check if all the elements of the list are of given type."""
     return all([isinstance(item, types) for item in the_list])
 
 
 def _is_pair(item):
-    """Check if an item is a pair (tuple of size 2).
-    """
+    """Check if an item is a pair (tuple of size 2)."""
     return (isinstance(item, (list, tuple, set)) and
             len(item) == 2 and
             not isinstance(item[0], (list, tuple, set)) and
@@ -1138,15 +1121,12 @@ def _is_pair(item):
 
 
 def _is_list_of_pairs(the_list):
-    """Check if a list contains only pairs.
-    """
+    """Check if a list contains only pairs."""
     return all([_is_pair(item) for item in the_list])
 
 
 def ycbcr2rgb(y__, cb_, cr_):
-    """Convert the three YCbCr channels to RGB channels.
-    """
-
+    """Convert the three YCbCr channels to RGB channels."""
     kb_ = 0.114
     kr_ = 0.299
 
@@ -1159,7 +1139,6 @@ def ycbcr2rgb(y__, cb_, cr_):
 
 def rgb2ycbcr(r__, g__, b__):
     """Convert the three RGB channels to YCbCr."""
-
     kb_ = 0.114
     kr_ = 0.299
 
