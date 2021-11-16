@@ -26,6 +26,7 @@ import logging
 import os
 import re
 from copy import deepcopy
+from functools import lru_cache
 
 import numpy as np
 from PIL import Image as Pil
@@ -37,20 +38,17 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-PIL_IMAGE_FORMATS = None
 
-
-def _get_pillow_image_formats():
-    global PIL_IMAGE_FORMATS
-    if PIL_IMAGE_FORMATS is None:
-        Pil.init()
-        PIL_IMAGE_FORMATS = Pil.registered_extensions()
-    return PIL_IMAGE_FORMATS
+@lru_cache(1)
+def get_pillow_image_formats():
+    """Get mapping from file extension to PIL format plugin."""
+    Pil.init()
+    return Pil.registered_extensions()
 
 
 def _pprint_pil_formats():
     """Group format extensions into rows of 12."""
-    format_exts = list(_get_pillow_image_formats().keys())
+    format_exts = list(get_pillow_image_formats().keys())
     format_rows = [", ".join(format_exts[idx:idx + 12]) for idx in range(0, len(format_exts), 12)]
     return ",\n".join(format_rows)
 
@@ -73,7 +71,7 @@ def check_image_format(fformat):
     """
     fformat = fformat.lower()
     try:
-        fformat = _get_pillow_image_formats()["." + fformat]
+        fformat = get_pillow_image_formats()["." + fformat]
     except KeyError:
         raise UnknownImageFormat(
             "Unknown image format '%s'. Supported formats for 'simple_image' writer are:\n%s" %
