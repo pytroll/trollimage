@@ -390,8 +390,8 @@ class XRImage(object):
                         which is normally selected from the filename or fformat.
                         This is an implementation detail normally avoided but
                         can be necessary if you wish to distinguish between
-                        GeoTIFF drivers (GTiff is the default, but you can
-                        specify COG to write a Cloud-Optimized GeoTIFF).
+                        GeoTIFF drivers ("GTiff" is the default, but you can
+                        specify "COG" to write a Cloud-Optimized GeoTIFF).
             fill_value (float): Replace invalid data values with this value
                                 and do not produce an Alpha band. Default
                                 behavior is to create an alpha band.
@@ -449,8 +449,8 @@ class XRImage(object):
                 it will be infered from the file extension.
             driver (string): The gdal driver to use. If not specified (default),
                 it will be inferred from the fformat, but you can override the
-                default GeoTIFF driver (GTiff) with 'COG' if you want to create
-                a Cloud_Optimized GeoTIFF (and set tiled=True,overviews=[]).
+                default GeoTIFF driver ("GTiff") with "COG" if you want to create
+                a Cloud_Optimized GeoTIFF (and set `tiled=True,overviews=[]`).
             fill_value (number): The value to fill the missing data with.
                 Default is ``None``, translating to trying to keep the data
                 transparent.
@@ -469,7 +469,7 @@ class XRImage(object):
                 If provided as an empty list, then levels will be
                 computed as powers of two until the last level has less
                 pixels than `overviews_minsize`.  If driver='COG' then use
-                overviews=[] to get a Cloud-Optimized GeoTIFF with a correct
+                `overviews=[]` to get a Cloud-Optimized GeoTIFF with a correct
                 set of overviews created automatically.
                 Default is to not add overviews.
             overviews_minsize (int): Minimum number of pixels for the smallest
