@@ -133,13 +133,13 @@ class RIOFile(object):
     def write(self, *args, **kwargs):
         """Write to the file."""
         with self.lock:
-            self.open('a')
+            self.open('r+')
             return self.rfile.write(*args, **kwargs)
 
     def build_overviews(self, *args, **kwargs):
         """Write overviews."""
         with self.lock:
-            self.open('a')
+            self.open('r+')
             return self.rfile.build_overviews(*args, **kwargs)
 
     def update_tags(self, *args, **kwargs):

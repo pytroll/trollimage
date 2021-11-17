@@ -1275,6 +1275,40 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_closed_file(self):
+        """Test saving geotiffs when the geotiff file has been closed.
+
+        This is to mimic a situation where garbage collection would cause the
+        file handler to close the underlying geotiff file that will be written
+        to.
+
+        """
+        import xarray as xr
+        import dask.array as da
+        from trollimage import xrimage
+        import rasterio as rio
+
+        # numpy array image
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        assert np.issubdtype(img.data.dtype, np.integer)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            results = img.save(tmp.name, compute=False)
+            results[1].close()  # mimic garbage collection
+            da.store(results[0], results[1])
+            results[1].close()  # required to flush writes to disk
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+            assert file_data.shape == (4, 5, 5)  # alpha band added
+            exp = np.arange(75).reshape(5, 5, 3)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)
+
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_jp2_int(self):
         """Test saving jp2000 when input data is int."""
