@@ -372,6 +372,23 @@ class XRImage(object):
         """Mode of the image."""
         return ''.join(self.data['bands'].values)
 
+    @staticmethod
+    def _gtiff_to_cog_kwargs(format_kwargs):
+        """ The COG driver automatically sets some format options
+        but zlevel is called level and blockxsize is called blocksize.
+        Convert kwargs to save() from GTiff driver to COG driver. """
+
+        format_kwargs.pop('photometric', None)
+        if 'zlevel' in format_kwargs:
+            format_kwargs['level'] = format_kwargs.pop('zlevel')
+        if 'jpeg_quality' in format_kwargs:
+            format_kwargs['quality'] = format_kwargs.pop('jpeg_quality')
+        format_kwargs.pop('tiled', None)
+        if 'blockxsize' in format_kwargs:
+            format_kwargs['blocksize'] = format_kwargs.pop('blockxsize')
+        format_kwargs.pop('blockysize', None)
+        return format_kwargs
+
     def save(self, filename, fformat=None, fill_value=None, compute=True,
              keep_palette=False, cmap=None, driver=None, **format_kwargs):
         """Save the image to the given *filename*.
@@ -573,16 +590,9 @@ class XRImage(object):
             scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
             tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
-        # The COG driver automatically sets the format options
-        # but zlevel is called level and blockxsize is called blocksize
+        # If we are changing the driver then use appropriate kwargs
         if driver == 'COG':
-            format_kwargs.pop('photometric', None)
-            if 'zlevel' in format_kwargs:
-                format_kwargs['level'] = format_kwargs.pop('zlevel')
-            format_kwargs.pop('tiled', None)
-            if 'blockxsize' in format_kwargs:
-                format_kwargs['blocksize'] = format_kwargs.pop('blockxsize')
-            format_kwargs.pop('blockysize', None)
+            format_kwargs = self._gtiff_to_cog_kwargs(format_kwargs)
 
         # FIXME add metadata
         r_file = RIOFile(filename, 'w', driver=driver,
