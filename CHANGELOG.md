@@ -1,3 +1,15 @@
+## Version 1.16.1 (2021/11/17)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 96](https://github.com/pytroll/trollimage/pull/96) - Fix XRImage reopening geotiff with the incorrect mode
+* [PR 95](https://github.com/pytroll/trollimage/pull/95) - Fix image format checking in special cases
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.16.0 (2021/10/12)
 
 ### Issues Closed
