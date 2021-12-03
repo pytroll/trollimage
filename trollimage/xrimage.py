@@ -1323,7 +1323,26 @@ class XRImage(object):
         self.data.attrs.setdefault('enhancement_history', []).append({'hist_equalize': True})
 
     def stretch_logarithmic(self, factor=100., base="ln", min_stretch=None, max_stretch=None):
-        """Move data into range [1:factor] through normalized logarithm."""
+        """Move data into range [1:factor] through normalized logarithm.
+
+        Args:
+            factor (float): Maximum of the range data will be scaled to
+                before applying the log function. Image data will be scaled
+                to a 1 to ``factor`` range.
+            base (str): Type of log to use. Defaults to natural log ("ln"),
+                but can also be "10" for base 10 log or "2" for base 2 log.
+            min_stretch (float or list): Minimum input value to scale from.
+                Data will be clipped to this value before being scaled to
+                the 1:factor range. By default (None), the limits are computed
+                on the fly but with a performance penalty. May also be a list
+                for multi-band images.
+            max_stretch (float or list): Maximum input value to scale from.
+                Data will be clipped to this value before being scaled to
+                the 1:factor range. By default (None), the limits are computed
+                on the fly but with a performance penalty. May also be a list
+                for multi-band images.
+
+        """
         logger.debug("Perform a logarithmic contrast stretch.")
         crange = (0., 1.0)
         log_func = np.log if base == "ln" else getattr(np, "log" + base)
