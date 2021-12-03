@@ -1333,10 +1333,6 @@ class XRImage(object):
         c__ = float(crange[0])
 
         def _band_log(arr, min_input, max_input):
-            # log10(Chl_a + 1) / 0.00519
-            # 255 * (log10(Chl_a + 1) / np.log(20 + 1))
-            # min_input = 0
-            # slope = 1
             slope = (factor - 1.) / float(max_input - min_input)
             arr = np.clip(arr, min_input, max_input)
             arr = 1. + (arr - min_input) * slope
@@ -1348,7 +1344,9 @@ class XRImage(object):
             if band == 'A':
                 continue
             band_data = self.data.sel(bands=band)
-            res = _band_log(band_data.data, min_stretch[band_idx], max_stretch[band_idx])
+            res = _band_log(band_data.data,
+                            float(min_stretch[band_idx]),
+                            float(max_stretch[band_idx]))
             band_results.append(res)
 
         if 'A' in self.data.coords['bands'].values:
@@ -1357,12 +1355,11 @@ class XRImage(object):
         self.data.attrs.setdefault('enhancement_history', []).append({'log_factor': factor})
 
     def _convert_log_minmax_stretch(self, min_stretch, max_stretch):
+        non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
         if min_stretch is None:
-            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
-            min_stretch = self.data.min(dim=non_band_dims)
+            min_stretch = [m.data for m in self.data.min(dim=non_band_dims)]
         if max_stretch is None:
-            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
-            max_stretch = self.data.max(dim=non_band_dims)
+            max_stretch = [m.data for m in self.data.max(dim=non_band_dims)]
         if not isinstance(min_stretch, (list, tuple)):
             min_stretch = [min_stretch] * self.data.sizes.get("bands", 1)
         if not isinstance(max_stretch, (list, tuple)):

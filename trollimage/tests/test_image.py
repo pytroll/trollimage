@@ -1570,7 +1570,14 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    def test_logarithmic_stretch(self):
+    @pytest.mark.parametrize(
+        ("min_stretch", "max_stretch"),
+        [
+            (None, None),
+            ([0.0, 1.0 / 74.0, 2.0 / 74.0], [72.0 / 74.0, 73.0 / 74.0, 1.0]),
+        ]
+    )
+    def test_logarithmic_stretch(self, min_stretch, max_stretch):
         """Test logarithmic strecthing."""
         import xarray as xr
         from trollimage import xrimage
@@ -1579,7 +1586,9 @@ class TestXRImage:
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        img.stretch(stretch='logarithmic')
+        img.stretch(stretch='logarithmic',
+                    min_stretch=min_stretch,
+                    max_stretch=max_stretch)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'log_factor': 100.0}
         res = np.array([[[0., 0., 0.],
