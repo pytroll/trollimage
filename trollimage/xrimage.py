@@ -1352,7 +1352,7 @@ class XRImage(object):
         c__ = float(crange[0])
 
         def _band_log(arr, min_input, max_input):
-            slope = (factor - 1.) / float(max_input - min_input)
+            slope = (factor - 1.) / (max_input - min_input)
             arr = np.clip(arr, min_input, max_input)
             arr = 1. + (arr - min_input) * slope
             arr = c__ + b__ * log_func(arr)
@@ -1364,8 +1364,8 @@ class XRImage(object):
                 continue
             band_data = self.data.sel(bands=band)
             res = _band_log(band_data.data,
-                            float(min_stretch[band_idx]),
-                            float(max_stretch[band_idx]))
+                            min_stretch[band_idx],
+                            max_stretch[band_idx])
             band_results.append(res)
 
         if 'A' in self.data.coords['bands'].values:

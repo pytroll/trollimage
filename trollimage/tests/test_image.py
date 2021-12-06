@@ -1,26 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2009-2015, 2017.
-
-# Author(s):
-
-#   Martin Raspaud <martin.raspaud@smhi.se>
-#   Adam Dybbroe <adam.dybbroe@smhi.se>
-
-# This file is part of mpop.
-
-# mpop is free software: you can redistribute it and/or modify it
+# Copyright (c) 2009-2021 trollimage developers
+#
+# This file is part of trollimage.
+#
+# trollimage is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
-# mpop is distributed in the hope that it will be useful, but
+#
+# trollimage is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # General Public License for more details.
-
+#
 # You should have received a copy of the GNU General Public License
-# along with mpop.  If not, see <http://www.gnu.org/licenses/>.
+# along with trollimage.  If not, see <http://www.gnu.org/licenses/>.
 """Module for testing the image and xrimage modules."""
 import os
 import random
@@ -1582,15 +1577,17 @@ class TestXRImage:
         """Test logarithmic strecthing."""
         import xarray as xr
         from trollimage import xrimage
+        from .utils import assert_maximum_dask_computes
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
-        img = xrimage.XRImage(data)
-        img.stretch(stretch='logarithmic',
-                    min_stretch=min_stretch,
-                    max_stretch=max_stretch,
-                    base=base)
+        with assert_maximum_dask_computes(0):
+            img = xrimage.XRImage(data)
+            img.stretch(stretch='logarithmic',
+                        min_stretch=min_stretch,
+                        max_stretch=max_stretch,
+                        base=base)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'log_factor': 100.0}
         res = np.array([[[0., 0., 0.],
