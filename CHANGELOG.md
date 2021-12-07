@@ -1,3 +1,21 @@
+## Version 1.17.0 (2021/12/07)
+
+### Issues Closed
+
+* [Issue 93](https://github.com/pytroll/trollimage/issues/93) - Add support for Cloud Optimized GeoTIFF ([PR 94](https://github.com/pytroll/trollimage/pull/94) by [@howff](https://github.com/howff))
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Features added
+
+* [PR 97](https://github.com/pytroll/trollimage/pull/97) - Improve 'log' stretching with static limits and choosing log base
+* [PR 94](https://github.com/pytroll/trollimage/pull/94) - Use COG driver to write cloud optimized GeoTIFF ([93](https://github.com/pytroll/trollimage/issues/93))
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.16.1 (2021/11/17)
 
 ### Pull Requests Merged
