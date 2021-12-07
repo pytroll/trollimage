@@ -374,10 +374,13 @@ class XRImage(object):
 
     @staticmethod
     def _gtiff_to_cog_kwargs(format_kwargs):
-        """ The COG driver automatically sets some format options
-        but zlevel is called level and blockxsize is called blocksize.
-        Convert kwargs to save() from GTiff driver to COG driver. """
+        """Convert GDAL Geotiff driver options to COG driver options.
 
+        The COG driver automatically sets some format options
+        but zlevel is called level and blockxsize is called blocksize.
+        Convert kwargs to save() from GTiff driver to COG driver.
+
+        """
         format_kwargs.pop('photometric', None)
         if 'zlevel' in format_kwargs:
             format_kwargs['level'] = format_kwargs.pop('zlevel')
@@ -1319,33 +1322,68 @@ class XRImage(object):
                                   axis=self.data.dims.index('bands'))
         self.data.attrs.setdefault('enhancement_history', []).append({'hist_equalize': True})
 
-    def stretch_logarithmic(self, factor=100.):
-        """Move data into range [1:factor] through normalized logarithm."""
+    def stretch_logarithmic(self, factor=100., base="e", min_stretch=None, max_stretch=None):
+        """Move data into range [1:factor] through normalized logarithm.
+
+        Args:
+            factor (float): Maximum of the range data will be scaled to
+                before applying the log function. Image data will be scaled
+                to a 1 to ``factor`` range.
+            base (str): Type of log to use. Defaults to natural log ("e"),
+                but can also be "10" for base 10 log or "2" for base 2 log.
+            min_stretch (float or list): Minimum input value to scale from.
+                Data will be clipped to this value before being scaled to
+                the 1:factor range. By default (None), the limits are computed
+                on the fly but with a performance penalty. May also be a list
+                for multi-band images.
+            max_stretch (float or list): Maximum input value to scale from.
+                Data will be clipped to this value before being scaled to
+                the 1:factor range. By default (None), the limits are computed
+                on the fly but with a performance penalty. May also be a list
+                for multi-band images.
+
+        """
         logger.debug("Perform a logarithmic contrast stretch.")
         crange = (0., 1.0)
+        log_func = np.log if base == "e" else getattr(np, "log" + base)
+        min_stretch, max_stretch = self._convert_log_minmax_stretch(min_stretch, max_stretch)
 
-        b__ = float(crange[1] - crange[0]) / np.log(factor)
+        b__ = float(crange[1] - crange[0]) / log_func(factor)
         c__ = float(crange[0])
 
-        def _band_log(arr):
-            slope = (factor - 1.) / float(arr.max() - arr.min())
-            arr = 1. + (arr - arr.min()) * slope
-            arr = c__ + b__ * da.log(arr)
+        def _band_log(arr, min_input, max_input):
+            slope = (factor - 1.) / (max_input - min_input)
+            arr = np.clip(arr, min_input, max_input)
+            arr = 1. + (arr - min_input) * slope
+            arr = c__ + b__ * log_func(arr)
             return arr
 
         band_results = []
-        for band in self.data['bands'].values:
+        for band_idx, band in enumerate(self.data['bands'].values):
             if band == 'A':
                 continue
             band_data = self.data.sel(bands=band)
-            res = _band_log(band_data.data)
+            res = _band_log(band_data.data,
+                            min_stretch[band_idx],
+                            max_stretch[band_idx])
             band_results.append(res)
 
         if 'A' in self.data.coords['bands'].values:
             band_results.append(self.data.sel(bands='A'))
-        self.data.data = da.stack(band_results,
-                                  axis=self.data.dims.index('bands'))
+        self.data.data = da.stack(band_results, axis=self.data.dims.index('bands'))
         self.data.attrs.setdefault('enhancement_history', []).append({'log_factor': factor})
+
+    def _convert_log_minmax_stretch(self, min_stretch, max_stretch):
+        non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
+        if min_stretch is None:
+            min_stretch = [m.data for m in self.data.min(dim=non_band_dims)]
+        if max_stretch is None:
+            max_stretch = [m.data for m in self.data.max(dim=non_band_dims)]
+        if not isinstance(min_stretch, (list, tuple)):
+            min_stretch = [min_stretch] * self.data.sizes.get("bands", 1)
+        if not isinstance(max_stretch, (list, tuple)):
+            max_stretch = [max_stretch] * self.data.sizes.get("bands", 1)
+        return min_stretch, max_stretch
 
     def stretch_weber_fechner(self, k, s0):
         """Stretch according to the Weber-Fechner law.
