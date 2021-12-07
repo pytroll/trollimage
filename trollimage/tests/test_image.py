@@ -1572,7 +1572,7 @@ class TestXRImage:
             ([0.0, 1.0 / 74.0, 2.0 / 74.0], [72.0 / 74.0, 73.0 / 74.0, 1.0]),
         ]
     )
-    @pytest.mark.parametrize("base", ["ln", "10", "2"])
+    @pytest.mark.parametrize("base", ["e", "10", "2"])
     def test_logarithmic_stretch(self, min_stretch, max_stretch, base):
         """Test logarithmic strecthing."""
         import xarray as xr
