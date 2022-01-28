@@ -1500,6 +1500,12 @@ class XRImage(object):
         attrs = self.data.attrs
         dims = self.data.dims
         self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
+        cmap_min = colormap.values[0]
+        cmap_max = colormap.values[-1]
+        scale_factor = 1.0 / (cmap_max - cmap_min)
+        offset = -cmap_min * scale_factor
+        self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
+                                                                      'offset': offset})
 
     def palettize(self, colormap):
         """Palettize the current image using ``colormap``.
@@ -1537,6 +1543,14 @@ class XRImage(object):
 
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
+        # the data values are now indexes into the palette array of colors
+        # so it can't be more than the maximum index (len - 1)
+        palette_num_values = len(self.palette) - 1
+        scale_factor = 1.0 / palette_num_values
+        offset = 0
+
+        self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
+                                                                      'offset': offset})
 
     def blend(self, src):
         r"""Alpha blend *src* on top of the current image.

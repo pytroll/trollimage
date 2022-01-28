@@ -1940,6 +1940,9 @@ class TestXRImage:
               2.33656886e-01, 2.10634733e-01, 1.88238767e-01]]])
 
         np.testing.assert_allclose(values, expected)
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
 
         # try it with an RGB
         arr = np.arange(75).reshape(5, 15) / 74.
@@ -1954,6 +1957,9 @@ class TestXRImage:
         expected = np.concatenate((expected,
                                    alpha.reshape((1,) + alpha.shape)))
         np.testing.assert_allclose(values, expected)
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
 
     def test_colorize_rgba(self):
         """Test colorize with an RGBA colormap."""
@@ -1975,6 +1981,9 @@ class TestXRImage:
         assert (4, 5, 15) == values.shape
         np.testing.assert_allclose(values[:, 0, 0], [1.0, 1.0, 1.0, 1.0], rtol=1e-03)
         np.testing.assert_allclose(values[:, -1, -1], [0.0, 0.0, 0.0, 0.5])
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
 
     def test_palettize(self):
         """Test palettize with an RGB colormap."""
@@ -1995,6 +2004,9 @@ class TestXRImage:
             [6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7],
             [8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 10]]])
         np.testing.assert_allclose(values, expected)
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 0.1
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
 
     def test_palettize_rgba(self):
         """Test palettize with an RGBA colormap."""
