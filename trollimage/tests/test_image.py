@@ -1852,7 +1852,7 @@ class TestXRImage:
         """Test colorize with an RGB colormap."""
         import xarray as xr
         from trollimage import xrimage
-        from trollimage.colormap import brbg
+        from trollimage.colormap import Colormap, brbg
 
         arr = np.arange(75).reshape(5, 15) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x'])
@@ -1943,6 +1943,7 @@ class TestXRImage:
         assert "enhancement_history" in img.data.attrs
         assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
         assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+        assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
 
         # try it with an RGB
         arr = np.arange(75).reshape(5, 15) / 74.
@@ -1960,6 +1961,7 @@ class TestXRImage:
         assert "enhancement_history" in img.data.attrs
         assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
         assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+        assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
 
     def test_colorize_rgba(self):
         """Test colorize with an RGBA colormap."""
@@ -1984,6 +1986,7 @@ class TestXRImage:
         assert "enhancement_history" in img.data.attrs
         assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
         assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+        assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
 
     def test_palettize(self):
         """Test palettize with an RGB colormap."""
