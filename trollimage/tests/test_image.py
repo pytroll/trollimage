@@ -2130,18 +2130,35 @@ class TestXRImageColorize:
           3.06445966e-01, 2.81566598e-01, 2.57302099e-01,
           2.33656886e-01, 2.10634733e-01, 1.88238767e-01]]])
 
-    def test_colorize_l_rgb(self):
+    @pytest.mark.parametrize(
+        ("new_range", "input_scale", "input_offset", "expected_scale", "expected_offset"),
+        [
+            ((0.0, 1.0), 1.0, 0.0, 1.0, 0.0),
+            ((0.0, 0.5), 1.0, 0.0, 2.0, 0.0),
+            ((2.0, 4.0), 2.0, 2.0, 0.5, -1.0),
+        ],
+    )
+    def test_colorize_l_rgb(self, new_range, input_scale, input_offset, expected_scale, expected_offset):
         """Test colorize with an RGB colormap."""
-        arr = np.arange(75).reshape(5, 15) / 74.
+        arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
         data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        new_brbg = brbg.set_range(*new_range, inplace=False)
         img = xrimage.XRImage(data)
-        img.colorize(brbg)
+        img.colorize(new_brbg)
         values = img.data.compute()
 
-        np.testing.assert_allclose(values, self._expected)
+        if new_range[1] == 0.5:
+            expected2 = self._expected.copy().reshape((3, 75))
+            flat_expected = self._expected.reshape((3, 75))
+            expected2[:, :38] = flat_expected[:, ::2]
+            expected2[:, 38:] = flat_expected[:, -1:]
+            expected = expected2.reshape((3, 5, 15))
+        else:
+            expected = self._expected
+        np.testing.assert_allclose(values, expected)
         assert "enhancement_history" in img.data.attrs
-        assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
-        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == expected_scale
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == expected_offset
         assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
 
     def test_colorize_la_rgb(self):
