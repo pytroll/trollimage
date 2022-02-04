@@ -1852,50 +1852,6 @@ class TestXRImage:
         assert img.final_mode(None) == 'RGBA'
         assert img.final_mode(0) == 'RGB'
 
-    def test_palettize(self):
-        """Test palettize with an RGB colormap."""
-        import xarray as xr
-        from trollimage import xrimage
-        from trollimage.colormap import brbg
-
-        arr = np.arange(75).reshape(5, 15) / 74.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
-        img = xrimage.XRImage(data)
-        img.palettize(brbg)
-
-        values = img.data.values
-        expected = np.array([[
-            [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
-            [2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3],
-            [4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5],
-            [6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7],
-            [8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 10]]])
-        np.testing.assert_allclose(values, expected)
-        assert "enhancement_history" in img.data.attrs
-        assert img.data.attrs["enhancement_history"][-1]["scale"] == 0.1
-        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
-
-    def test_palettize_rgba(self):
-        """Test palettize with an RGBA colormap."""
-        import xarray as xr
-        from trollimage import xrimage
-        from trollimage.colormap import Colormap
-
-        # RGBA colormap
-        bw = Colormap(
-            (0.0, (1.0, 1.0, 1.0, 1.0)),
-            (1.0, (0.0, 0.0, 0.0, 0.5)),
-        )
-
-        arr = np.arange(75).reshape(5, 15) / 74.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
-        img = xrimage.XRImage(data)
-        img.palettize(bw)
-
-        values = img.data.values
-        assert (1, 5, 15) == values.shape
-        assert (2, 4) == bw.colors.shape
-
     def test_stack(self):
         """Test stack."""
         import xarray as xr
@@ -2204,6 +2160,69 @@ class TestXRImageColorize:
         assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
         assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
         assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
+
+
+class TestXRImagePalettize:
+    """Test the XRImage palettize method."""
+
+    @pytest.mark.parametrize(
+        ("new_range", "input_scale", "input_offset"),
+        [
+            ((0.0, 1.0), 1.0, 0.0),
+            ((0.0, 0.5), 1.0, 0.0),
+            ((2.0, 4.0), 2.0, 2.0),
+        ],
+    )
+    def test_palettize(self, new_range, input_scale, input_offset):
+        """Test palettize with an RGB colormap."""
+        import xarray as xr
+        from trollimage import xrimage
+        from trollimage.colormap import brbg
+
+        arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        new_brbg = brbg.set_range(*new_range, inplace=False)
+        img.palettize(new_brbg)
+
+        values = img.data.values
+        expected = np.array([[
+            [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+            [2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3],
+            [4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5],
+            [6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7],
+            [8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 10]]])
+        if new_range[1] == 0.5:
+            flat_expected = expected.reshape((1, 75))
+            expected2 = flat_expected.copy()
+            expected2[:, :38] = flat_expected[:, ::2]
+            expected2[:, 38:] = flat_expected[:, -1:]
+            expected = expected2.reshape((1, 5, 15))
+        np.testing.assert_allclose(values, expected)
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 0.1
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+
+    def test_palettize_rgba(self):
+        """Test palettize with an RGBA colormap."""
+        import xarray as xr
+        from trollimage import xrimage
+        from trollimage.colormap import Colormap
+
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
+
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        img.palettize(bw)
+
+        values = img.data.values
+        assert (1, 5, 15) == values.shape
+        assert (2, 4) == bw.colors.shape
 
 
 class TestXRImageSaveScaleOffset(unittest.TestCase):
