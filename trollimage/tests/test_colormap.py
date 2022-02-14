@@ -87,20 +87,6 @@ class TestColormapClass(unittest.TestCase):
                                         expected_channel,
                                         atol=0.001))
 
-    def test_palettize_dask(self):
-        """Test palettize on a dask array."""
-        import dask.array as da
-        data = da.from_array(np.array([[1, 2, 3, 4],
-                                       [1, 2, 3, 4],
-                                       [1, 2, 3, 4]]), chunks=2)
-        channels, colors = self.colormap.palettize(data)
-        assert isinstance(channels, da.Array)
-        self.assertTrue(np.allclose(colors, self.colormap.colors))
-        self.assertTrue(np.allclose(channels.compute(), [[0, 1, 2, 3],
-                                                         [0, 1, 2, 3],
-                                                         [0, 1, 2, 3]]))
-        assert channels.dtype == int
-
     def test_set_range(self):
         """Test set_range."""
         cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
@@ -437,6 +423,24 @@ class TestColormap:
         channels, colors = cm_.palettize(data)
         np.testing.assert_allclose(colors, cm_.colors)
         assert all(channels == [0, 0, 1, 2, 3, 3])
+
+    def test_palettize_mono_inc_in_range_dask(self):
+        """Test palettize on a dask array."""
+        import dask.array as da
+        data = da.from_array(np.array([[1, 2, 3, 4],
+                                       [1, 2, 3, 4],
+                                       [1, 2, 3, 4]]), chunks=2)
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+        channels, colors = cm_.palettize(data)
+        assert isinstance(channels, da.Array)
+        np.testing.assert_allclose(colors, cm_.colors)
+        np.testing.assert_allclose(channels.compute(), [[0, 1, 2, 3],
+                                                        [0, 1, 2, 3],
+                                                        [0, 1, 2, 3]])
+        assert channels.dtype == int
 
 
 def _assert_monotonic_values(cmap, increasing=True):
