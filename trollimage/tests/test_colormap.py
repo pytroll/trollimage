@@ -404,32 +404,36 @@ class TestColormap:
         _assert_values_changed(cmap, new_cmap, inplace, orig_values)
         _assert_unchanged_colors(cmap, new_cmap, orig_colors)
 
-    def test_palettize(self):
-        """Test palettize."""
+    def test_palettize_mono_inc_in_range(self):
+        """Test palettize with monotonic increasing values inside the set range."""
         data = np.array([1, 2, 3, 4])
         cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
                                 (2, (0.0, 1.0, 1.0)),
                                 (3, (1, 1, 1)),
                                 (4, (0, 0, 0)))
-
         channels, colors = cm_.palettize(data)
         np.testing.assert_allclose(colors, cm_.colors)
         assert all(channels == [0, 1, 2, 3])
 
+    def test_palettize_mono_inc_out_range(self):
+        """Test palettize with a value outside the colormap values."""
         cm_ = colormap.Colormap((0, (0.0, 0.0, 0.0)),
                                 (1, (1.0, 1.0, 1.0)),
                                 (2, (2, 2, 2)),
                                 (3, (3, 3, 3)))
-
         data = np.arange(-1, 5)
-
         channels, colors = cm_.palettize(data)
         np.testing.assert_allclose(colors, cm_.colors)
         assert all(channels == [0, 0, 1, 2, 3, 3])
 
+    def test_palettize_mono_inc_nan(self):
+        """Test palettize with monotonic increasing values with a NaN."""
+        cm_ = colormap.Colormap((0, (0.0, 0.0, 0.0)),
+                                (1, (1.0, 1.0, 1.0)),
+                                (2, (2, 2, 2)),
+                                (3, (3, 3, 3)))
         data = np.arange(-1.0, 5.0)
         data[-1] = np.nan
-
         channels, colors = cm_.palettize(data)
         np.testing.assert_allclose(colors, cm_.colors)
         assert all(channels == [0, 0, 1, 2, 3, 3])
