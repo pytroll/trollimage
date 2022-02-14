@@ -107,11 +107,7 @@ def _interpolate_alpha(arr, colors, values):
 
 def _mask_channels(channels, arr):
     """Mask the channels if arr is a masked array."""
-    try:
-        channels = [_mask_array(channel, arr) for channel in channels]
-    except AttributeError:
-        pass
-    return channels
+    return [_mask_array(channel, arr) for channel in channels]
 
 
 def _mask_array(new_array, arr):
