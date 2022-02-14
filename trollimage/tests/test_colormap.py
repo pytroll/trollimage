@@ -147,14 +147,26 @@ COLORS_RGBA1 = np.array([
 ])
 
 
-@pytest.fixture
-def mono_inc_colormap():
+def _mono_inc_colormap():
     """Create fake monotonically increasing colormap."""
-    cmap = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                             (2, (0.0, 1.0, 1.0)),
-                             (3, (1, 1, 1)),
-                             (4, (0, 0, 0)))
+    values = [1, 2, 3, 4]
+    cmap = colormap.Colormap(values=values, colors=_four_rgb_colors())
     return cmap
+
+
+def _mono_dec_colormap():
+    values = [4, 3, 2, 1]
+    cmap = colormap.Colormap(values=values, colors=_four_rgb_colors())
+    return cmap
+
+
+def _four_rgb_colors():
+    return [
+        (1.0, 1.0, 0.0),
+        (0.0, 1.0, 1.0),
+        (1, 1, 1),
+        (0, 0, 0),
+    ]
 
 
 class TestColormap:
@@ -352,74 +364,66 @@ class TestColormap:
         _assert_unchanged_colors(cmap, new_cmap, orig_colors)
 
     @pytest.mark.parametrize(
-        ("input_values", "expected_result"),
+        ("input_cmap_func", "expected_result"),
         [
-            ((1, 2, 3, 4), (0, 1, 2, 3)),  # mono increasing
-            ((4, 3, 2, 1), (3, 2, 1, 0)),  # mono decreasing
+            (_mono_inc_colormap, (0, 1, 2, 3)),
+            (_mono_dec_colormap, (3, 2, 1, 0)),
         ]
     )
-    def test_palettize_in_range(self, input_values, expected_result):
+    def test_palettize_in_range(self, input_cmap_func, expected_result):
         """Test palettize with values inside the set range."""
         data = np.array([1, 2, 3, 4])
-        colors = [
-            (1.0, 1.0, 0.0),
-            (0.0, 1.0, 1.0),
-            (1.0, 1.0, 1.0),
-            (0.0, 0.0, 0.0),
-        ]
-        cm_ = colormap.Colormap(values=input_values, colors=colors)
-        channels, colors = cm_.palettize(data)
-        np.testing.assert_allclose(colors, cm_.colors)
+        cm = input_cmap_func()
+        channels, colors = cm.palettize(data)
+        np.testing.assert_allclose(colors, cm.colors)
         assert all(channels == expected_result)
 
     def test_palettize_mono_inc_out_range(self):
         """Test palettize with a value outside the colormap values."""
-        cm_ = colormap.Colormap((0, (0.0, 0.0, 0.0)),
-                                (1, (1.0, 1.0, 1.0)),
-                                (2, (2, 2, 2)),
-                                (3, (3, 3, 3)))
+        cm = colormap.Colormap(values=[0, 1, 2, 3],
+                               colors=_four_rgb_colors())
         data = np.arange(-1, 5)
-        channels, colors = cm_.palettize(data)
-        np.testing.assert_allclose(colors, cm_.colors)
+        channels, colors = cm.palettize(data)
+        np.testing.assert_allclose(colors, cm.colors)
         assert all(channels == [0, 0, 1, 2, 3, 3])
 
     def test_palettize_mono_inc_nan(self):
         """Test palettize with monotonic increasing values with a NaN."""
-        cm_ = colormap.Colormap((0, (0.0, 0.0, 0.0)),
-                                (1, (1.0, 1.0, 1.0)),
-                                (2, (2, 2, 2)),
-                                (3, (3, 3, 3)))
+        cm = colormap.Colormap(values=[0, 1, 2, 3],
+                               colors=_four_rgb_colors())
         data = np.arange(-1.0, 5.0)
         data[-1] = np.nan
-        channels, colors = cm_.palettize(data)
-        np.testing.assert_allclose(colors, cm_.colors)
+        channels, colors = cm.palettize(data)
+        np.testing.assert_allclose(colors, cm.colors)
         assert all(channels == [0, 0, 1, 2, 3, 3])
 
-    def test_palettize_mono_inc_in_range_dask(self, mono_inc_colormap):
+    def test_palettize_mono_inc_in_range_dask(self):
         """Test palettize on a dask array."""
         import dask.array as da
         data = da.from_array(np.array([[1, 2, 3, 4],
                                        [1, 2, 3, 4],
                                        [1, 2, 3, 4]]), chunks=2)
-        channels, colors = mono_inc_colormap.palettize(data)
+        cm = _mono_inc_colormap()
+        channels, colors = cm.palettize(data)
         assert isinstance(channels, da.Array)
-        np.testing.assert_allclose(colors, mono_inc_colormap.colors)
+        np.testing.assert_allclose(colors, cm.colors)
         np.testing.assert_allclose(channels.compute(), [[0, 1, 2, 3],
                                                         [0, 1, 2, 3],
                                                         [0, 1, 2, 3]])
         assert channels.dtype == int
 
-    def test_colorize_no_interpolation(self, mono_inc_colormap):
+    def test_colorize_no_interpolation(self):
         """Test colorize."""
         data = np.array([1, 2, 3, 4])
 
-        channels = mono_inc_colormap.colorize(data)
+        cm = _mono_inc_colormap()
+        channels = cm.colorize(data)
         for i in range(3):
             np.testing.assert_allclose(channels[i],
-                                       mono_inc_colormap.colors[:, i],
+                                       cm.colors[:, i],
                                        atol=0.001)
 
-    def test_colorize_with_interpolation(self, mono_inc_colormap):
+    def test_colorize_with_interpolation(self):
         """Test colorize."""
         data = np.array([1.5, 2.5, 3.5, 4])
 
@@ -427,13 +431,14 @@ class TestColormap:
                              np.array([1.08365532, 0.94644083, 0.50000605, 0.]),
                              np.array([0.49104964, 1.20509947, 0.49989589, 0.])]
 
-        channels = mono_inc_colormap.colorize(data)
+        cm = _mono_inc_colormap()
+        channels = cm.colorize(data)
         for i in range(3):
             np.testing.assert_allclose(channels[i],
                                        expected_channels[i],
                                        atol=0.001)
 
-    def test_colorize_dask_with_interpolation(self, mono_inc_colormap):
+    def test_colorize_dask_with_interpolation(self):
         """Test colorize dask arrays."""
         import dask.array as da
         data = da.from_array(np.array([[1.5, 2.5, 3.5, 4],
@@ -450,7 +455,8 @@ class TestColormap:
                                        [0.49104964, 1.20509947, 0.49989589, 0.],
                                        [0.49104964, 1.20509947, 0.49989589, 0.]])]
 
-        channels = mono_inc_colormap.colorize(data)
+        cm = _mono_inc_colormap()
+        channels = cm.colorize(data)
         for i, expected_channel in enumerate(expected_channels):
             current_channel = channels[i, :, :]
             assert isinstance(current_channel, da.Array)
