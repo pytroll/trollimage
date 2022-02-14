@@ -145,10 +145,17 @@ def _palettize(arr, values):
 
 
 def _digitize_array(arr, values):
-    new_arr = np.digitize(arr.ravel(),
-                          np.concatenate((values,
-                                          [max(np.nanmax(arr),
-                                               values.max()) + 1])))
+    if values[0] <= values[-1]:
+        # monotonic increasing values
+        outside_range_bin = max(np.nanmax(arr), values.max()) + 1
+        right = False
+    else:
+        # monotonic decreasing values
+        outside_range_bin = min(np.nanmin(arr), values.min()) - 1
+        right = True
+    bins = np.concatenate((values, [outside_range_bin]))
+
+    new_arr = np.digitize(arr.ravel(), bins, right=right)
     new_arr -= 1
     new_arr = new_arr.clip(min=0, max=len(values) - 1)
     return new_arr

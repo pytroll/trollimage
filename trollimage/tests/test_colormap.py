@@ -390,16 +390,26 @@ class TestColormap:
         _assert_values_changed(cmap, new_cmap, inplace, orig_values)
         _assert_unchanged_colors(cmap, new_cmap, orig_colors)
 
-    def test_palettize_mono_inc_in_range(self):
-        """Test palettize with monotonic increasing values inside the set range."""
+    @pytest.mark.parametrize(
+        ("input_values", "expected_result"),
+        [
+            ((1, 2, 3, 4), (0, 1, 2, 3)),  # mono increasing
+            ((4, 3, 2, 1), (3, 2, 1, 0)),  # mono decreasing
+        ]
+    )
+    def test_palettize_in_range(self, input_values, expected_result):
+        """Test palettize with values inside the set range."""
         data = np.array([1, 2, 3, 4])
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        colors = [
+            (1.0, 1.0, 0.0),
+            (0.0, 1.0, 1.0),
+            (1.0, 1.0, 1.0),
+            (0.0, 0.0, 0.0),
+        ]
+        cm_ = colormap.Colormap(values=input_values, colors=colors)
         channels, colors = cm_.palettize(data)
         np.testing.assert_allclose(colors, cm_.colors)
-        assert all(channels == [0, 1, 2, 3])
+        assert all(channels == expected_result)
 
     def test_palettize_mono_inc_out_range(self):
         """Test palettize with a value outside the colormap values."""
