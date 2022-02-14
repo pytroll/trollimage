@@ -71,10 +71,17 @@ def _colorize(arr, colors, values):
 
 
 def _interpolate_rgb_colors(arr, colors, values):
+    # monotonically increasing
+    interp_xp_coords = np.array(values)
     hcl_colors = _convert_rgb_list_to_hcl(colors)
+    interp_y_coords = np.array(hcl_colors)
+    if values[0] > values[-1]:
+        # monotonically decreasing
+        interp_xp_coords = interp_xp_coords[::-1]
+        interp_y_coords = interp_y_coords[::-1]
     channels = [np.interp(arr,
-                          np.array(values),
-                          np.array(hcl_colors)[:, i])
+                          interp_xp_coords,
+                          interp_y_coords[:, i])
                 for i in range(3)]
     channels = list(hcl2rgb(*channels))
     return channels

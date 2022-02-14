@@ -412,31 +412,47 @@ class TestColormap:
                                                         [0, 1, 2, 3]])
         assert channels.dtype == int
 
-    def test_colorize_no_interpolation(self):
+    @pytest.mark.parametrize(
+        ("input_cmap_func", "expected_result"),
+        [
+            (_mono_inc_colormap, _four_rgb_colors()),
+            (_mono_dec_colormap, _four_rgb_colors()[::-1]),
+        ]
+    )
+    def test_colorize_no_interpolation(self, input_cmap_func, expected_result):
         """Test colorize."""
         data = np.array([1, 2, 3, 4])
-
-        cm = _mono_inc_colormap()
+        cm = input_cmap_func()
         channels = cm.colorize(data)
-        for i in range(3):
-            np.testing.assert_allclose(channels[i],
-                                       cm.colors[:, i],
-                                       atol=0.001)
+        output_colors = [channels[:, i] for i in range(data.size)]
+        for output_color, expected_color in zip(output_colors, expected_result):
+            np.testing.assert_allclose(output_color, expected_color, atol=0.001)
 
-    def test_colorize_with_interpolation(self):
-        """Test colorize."""
+    @pytest.mark.parametrize(
+        ("input_cmap_func", "expected_result"),
+        [
+            (_mono_inc_colormap,
+             np.array([
+                 [0.22178232, 1.08365532, 0.49104964],
+                 [0.61069262, 0.94644083, 1.20509947],
+                 [0.50011605, 0.50000605, 0.49989589],
+                 [0.0, 0.0, 0.0]])),
+            (_mono_dec_colormap,
+             np.array([
+                 [0.50011605, 0.50000605, 0.49989589],
+                 [0.61069262, 0.94644083, 1.20509947],
+                 [0.22178232, 1.08365532, 0.49104964],
+                 [1.0, 1.0, 0.0]])),
+        ]
+    )
+    def test_colorize_with_interpolation(self, input_cmap_func, expected_result):
+        """Test colorize where data values require interpolation between colors."""
         data = np.array([1.5, 2.5, 3.5, 4])
-
-        expected_channels = [np.array([0.22178232, 0.61069262, 0.50011605, 0.]),
-                             np.array([1.08365532, 0.94644083, 0.50000605, 0.]),
-                             np.array([0.49104964, 1.20509947, 0.49989589, 0.])]
-
-        cm = _mono_inc_colormap()
+        cm = input_cmap_func()
         channels = cm.colorize(data)
-        for i in range(3):
-            np.testing.assert_allclose(channels[i],
-                                       expected_channels[i],
-                                       atol=0.001)
+        output_colors = [channels[:, i] for i in range(data.size)]
+        for output_color, expected_color in zip(output_colors, expected_result):
+            np.testing.assert_allclose(output_color, expected_color, atol=0.001)
 
     def test_colorize_dask_with_interpolation(self):
         """Test colorize dask arrays."""
