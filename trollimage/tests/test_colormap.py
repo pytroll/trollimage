@@ -87,32 +87,6 @@ class TestColormapClass(unittest.TestCase):
                                         expected_channel,
                                         atol=0.001))
 
-    def test_palettize(self):
-        """Test palettize."""
-        data = np.array([1, 2, 3, 4])
-
-        channels, colors = self.colormap.palettize(data)
-        self.assertTrue(np.allclose(colors, self.colormap.colors))
-        self.assertTrue(all(channels == [0, 1, 2, 3]))
-
-        cm_ = colormap.Colormap((0, (0.0, 0.0, 0.0)),
-                                (1, (1.0, 1.0, 1.0)),
-                                (2, (2, 2, 2)),
-                                (3, (3, 3, 3)))
-
-        data = np.arange(-1, 5)
-
-        channels, colors = cm_.palettize(data)
-        self.assertTrue(np.allclose(colors, cm_.colors))
-        self.assertTrue(all(channels == [0, 0, 1, 2, 3, 3]))
-
-        data = np.arange(-1.0, 5.0)
-        data[-1] = np.nan
-
-        channels, colors = cm_.palettize(data)
-        self.assertTrue(np.allclose(colors, cm_.colors))
-        self.assertTrue(all(channels == [0, 0, 1, 2, 3, 3]))
-
     def test_palettize_dask(self):
         """Test palettize on a dask array."""
         import dask.array as da
@@ -146,8 +120,11 @@ class TestColormapClass(unittest.TestCase):
                                 (4, (0, 0, 0)))
 
         cm_.set_range(8, 0)
-        self.assertTrue(cm_.values[0] == 0)
-        self.assertTrue(cm_.values[-1] == 8)
+        assert cm_.values[0] == 8
+        assert cm_.values[-1] == 0
+        _assert_monotonic_values(cm_, increasing=False)
+        np.testing.assert_allclose(cm_.colors[0], (1.0, 1.0, 0.0))
+        np.testing.assert_allclose(cm_.colors[-1], (0.0, 0.0, 0.0))
 
     def test_reverse(self):
         """Test reverse."""
@@ -373,6 +350,21 @@ class TestColormap:
         # this should succeed
         _ = cmap1 + cmap2
 
+    def test_merge_monotonic_decreasing(self):
+        """Test that merged colormaps can be monotonically decreasing."""
+        cmap1 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(2, 1, 5),
+        )
+        cmap2 = colormap.Colormap(
+            colors=np.arange(5 * 3).reshape((5, 3)),
+            values=np.linspace(1, 0, 5),
+        )
+        _assert_monotonic_values(cmap1, increasing=False)
+        _assert_monotonic_values(cmap2, increasing=False)
+        # this should succeed
+        _ = cmap1 + cmap2
+
     @pytest.mark.parametrize('inplace', [False, True])
     def test_reverse(self, inplace):
         """Test colormap reverse."""
@@ -383,9 +375,9 @@ class TestColormap:
 
         cmap = colormap.Colormap(values=values, colors=colors)
         new_cmap = cmap.reverse(inplace)
-        self._assert_inplace_worked(cmap, new_cmap, inplace)
-        self._compare_reversed_colors(cmap, new_cmap, inplace, orig_colors)
-        self._assert_unchanged_values(cmap, new_cmap, inplace, orig_values)
+        _assert_inplace_worked(cmap, new_cmap, inplace)
+        _assert_reversed_colors(cmap, new_cmap, inplace, orig_colors)
+        _assert_unchanged_values(cmap, new_cmap, inplace, orig_values)
 
     @pytest.mark.parametrize(
         'new_range',
@@ -405,46 +397,84 @@ class TestColormap:
 
         cmap = colormap.Colormap(values=values, colors=colors)
         new_cmap = cmap.set_range(*new_range, inplace)
-        self._assert_inplace_worked(cmap, new_cmap, inplace)
-        self._assert_monotonic_values(cmap)
-        self._assert_monotonic_values(new_cmap)
-        self._assert_values_changed(cmap, new_cmap, inplace, orig_values)
-        if new_range[0] > new_range[1]:
-            self._compare_reversed_colors(cmap, new_cmap, inplace, orig_colors)
+        flipped_range = new_range[0] > new_range[1]
+        _assert_inplace_worked(cmap, new_cmap, inplace)
+        _assert_monotonic_values(cmap, increasing=not inplace or not flipped_range)
+        _assert_monotonic_values(new_cmap, increasing=not flipped_range)
+        _assert_values_changed(cmap, new_cmap, inplace, orig_values)
+        _assert_unchanged_colors(cmap, new_cmap, orig_colors)
 
-    @staticmethod
-    def _assert_monotonic_values(cmap):
-        np.testing.assert_allclose(np.diff(cmap.values) > 0, True)
+    def test_palettize(self):
+        """Test palettize."""
+        data = np.array([1, 2, 3, 4])
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
 
-    @staticmethod
-    def _assert_unchanged_values(cmap, new_cmap, inplace, orig_values):
-        if inplace:
-            np.testing.assert_allclose(cmap.values, orig_values)
-        else:
-            np.testing.assert_allclose(cmap.values, orig_values)
-            np.testing.assert_allclose(new_cmap.values, orig_values)
+        channels, colors = cm_.palettize(data)
+        np.testing.assert_allclose(colors, cm_.colors)
+        assert all(channels == [0, 1, 2, 3])
 
-    @staticmethod
-    def _compare_reversed_colors(cmap, new_cmap, inplace, orig_colors):
-        if inplace:
-            assert cmap is new_cmap
-            np.testing.assert_allclose(cmap.colors, orig_colors[::-1])
-        else:
-            assert cmap is not new_cmap
-            np.testing.assert_allclose(cmap.colors, orig_colors)
-            np.testing.assert_allclose(new_cmap.colors, orig_colors[::-1])
+        cm_ = colormap.Colormap((0, (0.0, 0.0, 0.0)),
+                                (1, (1.0, 1.0, 1.0)),
+                                (2, (2, 2, 2)),
+                                (3, (3, 3, 3)))
 
-    @staticmethod
-    def _assert_values_changed(cmap, new_cmap, inplace, orig_values):
-        assert not np.allclose(new_cmap.values, orig_values)
-        if not inplace:
-            np.testing.assert_allclose(cmap.values, orig_values)
-        else:
-            assert not np.allclose(cmap.values, orig_values)
+        data = np.arange(-1, 5)
 
-    @staticmethod
-    def _assert_inplace_worked(cmap, new_cmap, inplace):
-        if not inplace:
-            assert new_cmap is not cmap
-        else:
-            assert new_cmap is cmap
+        channels, colors = cm_.palettize(data)
+        np.testing.assert_allclose(colors, cm_.colors)
+        assert all(channels == [0, 0, 1, 2, 3, 3])
+
+        data = np.arange(-1.0, 5.0)
+        data[-1] = np.nan
+
+        channels, colors = cm_.palettize(data)
+        np.testing.assert_allclose(colors, cm_.colors)
+        assert all(channels == [0, 0, 1, 2, 3, 3])
+
+
+def _assert_monotonic_values(cmap, increasing=True):
+    delta = np.diff(cmap.values)
+    np.testing.assert_allclose(delta > 0, increasing)
+
+
+def _assert_unchanged_values(cmap, new_cmap, inplace, orig_values):
+    if inplace:
+        assert cmap is new_cmap
+        np.testing.assert_allclose(cmap.values, orig_values)
+    else:
+        assert cmap is not new_cmap
+        np.testing.assert_allclose(cmap.values, orig_values)
+        np.testing.assert_allclose(new_cmap.values, orig_values)
+
+
+def _assert_unchanged_colors(cmap, new_cmap, orig_colors):
+    np.testing.assert_allclose(cmap.colors, orig_colors)
+    np.testing.assert_allclose(new_cmap.colors, orig_colors)
+
+
+def _assert_reversed_colors(cmap, new_cmap, inplace, orig_colors):
+    if inplace:
+        assert cmap is new_cmap
+        np.testing.assert_allclose(cmap.colors, orig_colors[::-1])
+    else:
+        assert cmap is not new_cmap
+        np.testing.assert_allclose(cmap.colors, orig_colors)
+        np.testing.assert_allclose(new_cmap.colors, orig_colors[::-1])
+
+
+def _assert_values_changed(cmap, new_cmap, inplace, orig_values):
+    assert not np.allclose(new_cmap.values, orig_values)
+    if not inplace:
+        np.testing.assert_allclose(cmap.values, orig_values)
+    else:
+        assert not np.allclose(cmap.values, orig_values)
+
+
+def _assert_inplace_worked(cmap, new_cmap, inplace):
+    if not inplace:
+        assert new_cmap is not cmap
+    else:
+        assert new_cmap is cmap
