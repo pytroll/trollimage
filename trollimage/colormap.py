@@ -71,7 +71,6 @@ def _colorize(arr, colors, values):
 
 
 def _interpolate_rgb_colors(arr, colors, values):
-    # monotonically increasing
     interp_xp_coords = np.array(values)
     hcl_colors = _convert_rgb_list_to_hcl(colors)
     interp_y_coords = np.array(hcl_colors)
