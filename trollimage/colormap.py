@@ -71,10 +71,16 @@ def _colorize(arr, colors, values):
 
 
 def _interpolate_rgb_colors(arr, colors, values):
+    interp_xp_coords = np.array(values)
     hcl_colors = _convert_rgb_list_to_hcl(colors)
+    interp_y_coords = np.array(hcl_colors)
+    if values[0] > values[-1]:
+        # monotonically decreasing
+        interp_xp_coords = interp_xp_coords[::-1]
+        interp_y_coords = interp_y_coords[::-1]
     channels = [np.interp(arr,
-                          np.array(values),
-                          np.array(hcl_colors)[:, i])
+                          interp_xp_coords,
+                          interp_y_coords[:, i])
                 for i in range(3)]
     channels = list(hcl2rgb(*channels))
     return channels
@@ -100,11 +106,7 @@ def _interpolate_alpha(arr, colors, values):
 
 def _mask_channels(channels, arr):
     """Mask the channels if arr is a masked array."""
-    try:
-        channels = [_mask_array(channel, arr) for channel in channels]
-    except AttributeError:
-        pass
-    return channels
+    return [_mask_array(channel, arr) for channel in channels]
 
 
 def _mask_array(new_array, arr):
@@ -145,10 +147,17 @@ def _palettize(arr, values):
 
 
 def _digitize_array(arr, values):
-    new_arr = np.digitize(arr.ravel(),
-                          np.concatenate((values,
-                                          [max(np.nanmax(arr),
-                                               values.max()) + 1])))
+    if values[0] <= values[-1]:
+        # monotonic increasing values
+        outside_range_bin = max(np.nanmax(arr), values.max()) + 1
+        right = False
+    else:
+        # monotonic decreasing values
+        outside_range_bin = min(np.nanmin(arr), values.min()) - 1
+        right = True
+    bins = np.concatenate((values, [outside_range_bin]))
+
+    new_arr = np.digitize(arr.ravel(), bins, right=right)
     new_arr -= 1
     new_arr = new_arr.clip(min=0, max=len(values) - 1)
     return new_arr
@@ -163,7 +172,7 @@ class Colormap(object):
             aren't provided.
         values: One dimensional array-like of control points where
             each corresponding color is applied. Must be the same number of
-            elements as colors and must be monotonically increasing.
+            elements as colors and must be monotonic.
         colors: Two dimensional array-like of RGB or RGBA colors where each
             color is applied to a specific control point. Must be the same
             number of colors as control points (values). Colors should be
@@ -256,14 +265,21 @@ class Colormap(object):
         """Append colormap together."""
         old, other = self._normalize_color_arrays(self, other)
         values = np.concatenate((old.values, other.values))
-        if not (np.diff(values) >= 0).all():
+        if not self._monotonic_one_direction(values):
             raise ValueError("Merged colormap 'values' are not monotonically "
-                             "increasing or equal.")
+                             "increasing, monotonically decreasing, or equal.")
         colors = np.concatenate((old.colors, other.colors))
         return Colormap(
             values=values,
             colors=colors,
         )
+
+    @staticmethod
+    def _monotonic_one_direction(values):
+        delta = np.diff(values)
+        all_increasing = (delta >= 0).all()
+        all_decreasing = (delta <= 0).all()
+        return all_increasing or all_decreasing
 
     @staticmethod
     def _normalize_color_arrays(cmap1, cmap2):
@@ -293,9 +309,9 @@ class Colormap(object):
     def set_range(self, min_val, max_val, inplace=True):
         """Set the range of the colormap to [*min_val*, *max_val*].
 
-        If min is greater than max then the Colormap's colors are reversed
-        before values are updated to the new range. This is done because
-        Colormap ``values`` must always be monotonically increasing.
+        The Colormap's values will match the range specified even if "min_val"
+        is greater than "max_val". To flip the order of the colors, use
+        :meth:`reversed`.
 
         Args:
             min_val (float): New minimum value for the control points in
@@ -306,14 +322,9 @@ class Colormap(object):
                 If False, return a new Colormap instance.
 
         """
-        if min_val > max_val:
-            cmap = self.reverse(inplace=inplace)
-            max_val, min_val = min_val, max_val
-        else:
-            cmap = self
-
-        values = (((cmap.values * 1.0 - cmap.values.min()) /
-                   (cmap.values.max() - cmap.values.min()))
+        cmap = self
+        values = (((cmap.values * 1.0 - cmap.values[0]) /
+                   (cmap.values[-1] - cmap.values[0]))
                   * (max_val - min_val) + min_val)
         if not inplace:
             return Colormap(
