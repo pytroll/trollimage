@@ -459,6 +459,7 @@ class XRImage(object):
                  overviews_minsize=256, overviews_resampling=None,
                  include_scale_offset_tags=False,
                  scale_offset_tags=None,
+                 colormap_tag=None,
                  driver=None,
                  **format_kwargs):
         """Save the image using rasterio.
@@ -502,10 +503,16 @@ class XRImage(object):
                 provided. Common values include `nearest` (default),
                 `bilinear`, `average`, and many others. See the rasterio
                 documentation for more information.
-            scale_offset_tags (Tuple[str, str] or None)
+            scale_offset_tags (Tuple[str, str] or None):
                 If set to a ``(str, str)`` tuple, scale and offset will be
                 stored in GDALMetaData tags.  Those can then be used to
                 retrieve the original data values from pixel values.
+            colormap_tag (str or None):
+                If set and the image was colorized or palettized, a tag will
+                be added with this name with the value of a comma-separated
+                version of the Colormap that was used. See
+                :meth:`trollimage.colormap.Colormap.to_csv` for more
+                information.
 
         Returns:
             The delayed or computed result of the saving.
@@ -588,6 +595,8 @@ class XRImage(object):
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
+        if colormap_tag and "colormap" in data.attrs.get('enhancement_history', [{}])[-2]:
+            tags[colormap_tag] = data.attrs['enhancement_history'][-2]['colormap'].to_csv()
         if scale_offset_tags:
             scale_label, offset_label = scale_offset_tags
             scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))

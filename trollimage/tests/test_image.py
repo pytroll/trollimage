@@ -28,6 +28,7 @@ from tempfile import NamedTemporaryFile
 
 import numpy as np
 import xarray as xr
+import rasterio as rio
 import pytest
 
 from trollimage import image, xrimage
@@ -719,7 +720,6 @@ class TestXRImage:
 
     def test_init(self):
         """Test object initialization."""
-        import xarray as xr
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
@@ -756,7 +756,6 @@ class TestXRImage:
         Xarray >0.15 makes data read-only after expand_dims.
 
         """
-        import xarray as xr
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
@@ -767,7 +766,6 @@ class TestXRImage:
 
     def test_regression_double_format_save(self):
         """Test that double format information isn't passed to save."""
-        import xarray as xr
         from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
@@ -782,10 +780,8 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_rgb_save(self):
         """Test saving RGB/A data to simple image formats."""
-        import xarray as xr
         from dask.delayed import Delayed
         from trollimage import xrimage
-        import rasterio as rio
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -816,9 +812,7 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_single_band_jpeg(self):
         """Test saving single band to jpeg formats."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # Single band image
         data = np.arange(75).reshape(15, 5, 1) / 74.
@@ -845,9 +839,7 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_single_band_png(self):
         """Test saving single band images to simple image formats."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # Single band image
         data = np.arange(75).reshape(15, 5, 1) / 74.
@@ -892,7 +884,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_palettes(self):
         """Test saving paletted images to simple image formats."""
-        import xarray as xr
         from trollimage import xrimage
 
         # Single band image palettized
@@ -918,10 +909,8 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_float(self):
         """Test saving geotiffs when input data is float."""
-        import xarray as xr
         import dask.array as da
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image - scale to 0 to 1 first
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75.,
@@ -1071,7 +1060,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_datetime(self):
         """Test saving geotiffs when start_time is in the attributes."""
-        import xarray as xr
         import datetime as dt
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1091,10 +1079,8 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
         """Test saving geotiffs when input data is int."""
-        import xarray as xr
         import dask.array as da
         from trollimage import xrimage
-        import rasterio as rio
         from rasterio.control import GroundControlPoint
 
         # numpy array image
@@ -1284,10 +1270,8 @@ class TestXRImage:
         to.
 
         """
-        import xarray as xr
         import dask.array as da
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1311,9 +1295,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_jp2_int(self):
         """Test saving jp2000 when input data is int."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1334,9 +1316,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_cloud_optimized_geotiff(self):
         """Test saving cloud optimized geotiffs."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # trigger COG driver to create 2 overview levels
         # COG driver is only available in GDAL 3.1 or later
@@ -1355,9 +1335,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_overviews(self):
         """Test saving geotiffs with overviews."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1396,9 +1374,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_tags(self):
         """Test saving geotiffs with tags."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1414,7 +1390,6 @@ class TestXRImage:
 
     def test_gamma(self):
         """Test gamma correction."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 75.
@@ -1431,7 +1406,6 @@ class TestXRImage:
 
     def test_crude_stretch(self):
         """Check crude stretching."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3)
@@ -1460,7 +1434,6 @@ class TestXRImage:
 
     def test_invert(self):
         """Check inversion of the image."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 75.
@@ -1486,7 +1459,6 @@ class TestXRImage:
 
     def test_linear_stretch(self):
         """Test linear stretching with cutoffs."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
@@ -1527,7 +1499,6 @@ class TestXRImage:
 
     def test_histogram_stretch(self):
         """Test histogram stretching."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
@@ -1579,7 +1550,6 @@ class TestXRImage:
     @pytest.mark.parametrize("base", ["e", "10", "2"])
     def test_logarithmic_stretch(self, min_stretch, max_stretch, base):
         """Test logarithmic strecthing."""
-        import xarray as xr
         from trollimage import xrimage
         from .utils import assert_maximum_dask_computes
 
@@ -1628,7 +1598,6 @@ class TestXRImage:
 
     def test_weber_fechner_stretch(self):
         """Test applying S=2.3klog10I+C to the data."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
@@ -1701,7 +1670,6 @@ class TestXRImage:
     def test_convert_modes(self):
         """Test modes convertions."""
         import dask
-        import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import brbg, Colormap
 
@@ -1842,7 +1810,6 @@ class TestXRImage:
 
     def test_final_mode(self):
         """Test final_mode."""
-        import xarray as xr
         from trollimage import xrimage
 
         # numpy array image
@@ -1854,7 +1821,6 @@ class TestXRImage:
 
     def test_stack(self):
         """Test stack."""
-        import xarray as xr
         from trollimage import xrimage
 
         # background image
@@ -1886,7 +1852,6 @@ class TestXRImage:
 
     def test_blend(self):
         """Test blend."""
-        import xarray as xr
         from trollimage import xrimage
 
         core1 = np.arange(75).reshape(5, 5, 3) / 75.0
@@ -1936,7 +1901,6 @@ class TestXRImage:
 
     def test_show(self):
         """Test that the show commands calls PIL.show."""
-        import xarray as xr
         from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
@@ -1948,7 +1912,6 @@ class TestXRImage:
 
     def test_apply_pil(self):
         """Test the apply_pil method."""
-        import xarray as xr
         from trollimage import xrimage
 
         np_data = np.arange(75).reshape(5, 5, 3) / 75.
@@ -2086,6 +2049,28 @@ class TestXRImageColorize:
           3.06445966e-01, 2.81566598e-01, 2.57302099e-01,
           2.33656886e-01, 2.10634733e-01, 1.88238767e-01]]])
 
+    @pytest.mark.parametrize("colormap_tag", [None, "colormap"])
+    def test_colorize_geotiff_tag(self, tmp_path, colormap_tag):
+        """Test that a colorized colormap can be saved to a geotiff tag."""
+        new_range = (0.0, 0.5)
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        new_brbg = brbg.set_range(*new_range, inplace=False)
+        img = xrimage.XRImage(data)
+        img.colorize(new_brbg)
+
+        dst = str(tmp_path / "test.tif")
+        img.save(dst, colormap_tag=colormap_tag)
+        with rio.open(dst, "r") as gtiff_file:
+            metadata = gtiff_file.tags()
+            if colormap_tag is None:
+                assert "colormap" not in metadata
+            else:
+                assert "colormap" in metadata
+                loaded_brbg = Colormap.from_csv(metadata["colormap"])
+                np.testing.assert_allclose(new_brbg.values, loaded_brbg.values)
+                np.testing.assert_allclose(new_brbg.colors, loaded_brbg.colors)
+
     @pytest.mark.parametrize(
         ("new_range", "input_scale", "input_offset", "expected_scale", "expected_offset"),
         [
@@ -2138,7 +2123,6 @@ class TestXRImageColorize:
 
     def test_colorize_rgba(self):
         """Test colorize with an RGBA colormap."""
-        import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import Colormap
 
@@ -2175,7 +2159,6 @@ class TestXRImagePalettize:
     )
     def test_palettize(self, new_range, input_scale, input_offset):
         """Test palettize with an RGB colormap."""
-        import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import brbg
 
@@ -2205,7 +2188,6 @@ class TestXRImagePalettize:
 
     def test_palettize_rgba(self):
         """Test palettize with an RGBA colormap."""
-        import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import Colormap
 
@@ -2230,7 +2212,6 @@ class TestXRImageSaveScaleOffset(unittest.TestCase):
 
     def setUp(self) -> None:
         """Set up the test case."""
-        import xarray as xr
         from trollimage import xrimage
         data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
