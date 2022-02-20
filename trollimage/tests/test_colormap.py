@@ -480,6 +480,25 @@ class TestColormap:
                                        expected_channel,
                                        atol=0.001)
 
+    @pytest.mark.parametrize("csv_filename", [None, "test.cmap"])
+    @pytest.mark.parametrize("new_range", [None, (25.0, 75.0)])
+    def test_csv_roundtrip(self, tmp_path, csv_filename, new_range):
+        """Test saving and loading a Colormap from a CSV file."""
+        orig_cmap = colormap.brbg
+        if new_range is not None:
+            orig_cmap = orig_cmap.set_range(*new_range, inplace=False)
+        if isinstance(csv_filename, str):
+            csv_filename = str(tmp_path / csv_filename)
+            res = orig_cmap.to_csv(csv_filename)
+            assert res is None
+            new_cmap = colormap.Colormap.from_csv(csv_filename)
+        else:
+            res = orig_cmap.to_csv(None)
+            assert isinstance(res, str)
+            new_cmap = colormap.Colormap.from_csv(res)
+        np.testing.assert_allclose(orig_cmap.values, new_cmap.values)
+        np.testing.assert_allclose(orig_cmap.colors, new_cmap.colors)
+
 
 def _assert_monotonic_values(cmap, increasing=True):
     delta = np.diff(cmap.values)

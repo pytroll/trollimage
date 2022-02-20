@@ -19,13 +19,25 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """A simple colormap module."""
 
+import contextlib
+import os
+from io import StringIO
+from typing import Optional
 import warnings
 
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
+
+
+@contextlib.contextmanager
+def _file_or_stringio(filename_or_none):
+    if filename_or_none is None:
+        yield StringIO()
+    else:
+        with open(filename_or_none, "w") as file_obj:
+            yield file_obj
 
 
 def colorize(arr, colors, values):
@@ -340,6 +352,45 @@ class Colormap(object):
         colors = (((self.colors * 1.0 - self.colors.min()) /
                    (self.colors.max() - self.colors.min())) * 255)
         return dict(zip(self.values, tuple(map(tuple, colors))))
+
+    def to_csv(self, filename: Optional[str] = None) -> Optional[str]:
+        """Save Colormap to a comma-separated text file or string.
+
+        The CSV data will have 4 to 5 columns for each row where each
+        each row will contain the value (V), red (R), green (B), blue (B),
+        and if configured alpha (A).
+
+        The values will remain in whatever range is currently set on the
+        colormap. The colors of the colormap (assumed to be between 0 and 1)
+        will be multiplied by 255 to produce a traditional unsigned 8-bit
+        integer value.
+
+        Args:
+            filename (str, optional): The filename of the CSV file to save to.
+                If not provided or None a string is returned with the contents.
+
+        """
+        with _file_or_stringio(filename) as csv_file:
+            for value, color in zip(self.values, self.colors):
+                csv_file.write(",".join(["{:0.6f}".format(value)] + [str(int(x * 255)) for x in color]) + "\n")
+        if isinstance(csv_file, StringIO):
+            return csv_file.getvalue()
+
+    @classmethod
+    def from_csv(cls, filename_or_string):
+        """Create Colormap from a comma-separated file.
+
+        The CSV data should be 4 or 5 columns where the first column is the
+        control point or "value" of the Colormap and the remaining columns
+        represent the RGB or RGBA color. The value should be in the range of
+        0 to 1, while the color elements should be in the range of 0 to 255.
+        """
+        if not os.path.isfile(filename_or_string):
+            filename_or_string = StringIO(filename_or_string)
+        csv_data = np.loadtxt(filename_or_string, dtype=np.float32, delimiter=",")
+        values = csv_data[:, 0]
+        colors = csv_data[:, 1:] / 255.0
+        return cls(values=values, colors=colors)
 
 
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
