@@ -354,7 +354,11 @@ class Colormap(object):
                    (self.colors.max() - self.colors.min())) * 255)
         return dict(zip(self.values, tuple(map(tuple, colors))))
 
-    def to_csv(self, filename: Optional[str] = None) -> Optional[str]:
+    def to_csv(
+            self,
+            filename: Optional[str] = None,
+            color_scale: Number = 255,
+    ) -> Optional[str]:
         """Save Colormap to a comma-separated text file or string.
 
         The CSV data will have 4 to 5 columns for each row where each
@@ -367,13 +371,16 @@ class Colormap(object):
         integer value.
 
         Args:
-            filename (str, optional): The filename of the CSV file to save to.
+            filename: The filename of the CSV file to save to.
                 If not provided or None a string is returned with the contents.
+            color_scale: Scale colors by this factor before converting to a
+                CSV. Colors are stored in the Colormap in a 0 to 1 range.
+                Defaults to 255.
 
         """
         with _file_or_stringio(filename) as csv_file:
             for value, color in zip(self.values, self.colors):
-                csv_file.write(",".join(["{:0.6f}".format(value)] + [str(int(x * 255)) for x in color]) + "\n")
+                csv_file.write(",".join(["{:0.6f}".format(value)] + [str(int(x * color_scale)) for x in color]) + "\n")
         if isinstance(csv_file, StringIO):
             return csv_file.getvalue()
 
@@ -382,7 +389,7 @@ class Colormap(object):
             cls,
             filename_or_string: str,
             colormap_mode: Optional[str] = None,
-            color_scale: Number = 255
+            color_scale: Number = 255,
     ):
         """Create Colormap from a comma-separated or binary file of colormap data.
 
