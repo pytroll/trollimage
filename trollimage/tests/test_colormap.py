@@ -535,20 +535,21 @@ class TestFromFileCreation:
 
     @pytest.mark.parametrize("csv_filename", [None, "test.cmap"])
     @pytest.mark.parametrize("new_range", [None, (25.0, 75.0)])
-    def test_csv_roundtrip(self, tmp_path, csv_filename, new_range):
+    @pytest.mark.parametrize("color_scale", [1.0, 255, 65535])
+    def test_csv_roundtrip(self, tmp_path, csv_filename, new_range, color_scale):
         """Test saving and loading a Colormap from a CSV file."""
         orig_cmap = colormap.brbg
         if new_range is not None:
             orig_cmap = orig_cmap.set_range(*new_range, inplace=False)
         if isinstance(csv_filename, str):
             csv_filename = str(tmp_path / csv_filename)
-            res = orig_cmap.to_csv(csv_filename)
+            res = orig_cmap.to_csv(csv_filename, color_scale=color_scale)
             assert res is None
-            new_cmap = colormap.Colormap.from_file(csv_filename)
+            new_cmap = colormap.Colormap.from_file(csv_filename, color_scale=color_scale)
         else:
-            res = orig_cmap.to_csv(None)
+            res = orig_cmap.to_csv(None, color_scale=color_scale)
             assert isinstance(res, str)
-            new_cmap = colormap.Colormap.from_file(res)
+            new_cmap = colormap.Colormap.from_file(res, color_scale=color_scale)
         np.testing.assert_allclose(orig_cmap.values, new_cmap.values)
         np.testing.assert_allclose(orig_cmap.colors, new_cmap.colors)
 

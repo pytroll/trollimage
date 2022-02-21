@@ -375,12 +375,16 @@ class Colormap(object):
                 If not provided or None a string is returned with the contents.
             color_scale: Scale colors by this factor before converting to a
                 CSV. Colors are stored in the Colormap in a 0 to 1 range.
-                Defaults to 255.
+                Defaults to 255. If not equal to 1 values are converted to
+                integers too.
 
         """
         with _file_or_stringio(filename) as csv_file:
             for value, color in zip(self.values, self.colors):
-                csv_file.write(",".join(["{:0.6f}".format(value)] + [str(int(x * color_scale)) for x in color]) + "\n")
+                scaled_color = [x * color_scale for x in color]
+                if color_scale != 1.0:
+                    scaled_color = [int(x) for x in scaled_color]
+                csv_file.write(",".join(["{:0.6f}".format(value)] + [str(x) for x in scaled_color]) + "\n")
         if isinstance(csv_file, StringIO):
             return csv_file.getvalue()
 
