@@ -26,6 +26,7 @@ import os
 from io import StringIO
 from typing import Optional
 import warnings
+from numbers import Number
 
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
@@ -377,20 +378,109 @@ class Colormap(object):
             return csv_file.getvalue()
 
     @classmethod
-    def from_csv(cls, filename_or_string):
-        """Create Colormap from a comma-separated file.
+    def from_file(
+            cls,
+            filename_or_string: str,
+            colormap_mode: Optional[str] = None,
+            color_scale: Number = 255
+    ):
+        """Create Colormap from a comma-separated or binary file of colormap data.
 
-        The CSV data should be 4 or 5 columns where the first column is the
-        control point or "value" of the Colormap and the remaining columns
-        represent the RGB or RGBA color. The value should be in the range of
-        0 to 1, while the color elements should be in the range of 0 to 255.
+        Args:
+            filename_or_string: Filename of a binary or CSV file or a
+                string version of the comma-separate data.
+            colormap_mode: Force the scheme of the colormap data (ex. RGBA).
+                See information below on other possible values and how they
+                are interpreted. By default this is determined based on the
+                number of columns in the data.
+            color_scale: The maximum possible color value in the colormap data
+                provided. For example, if the colors in the provided data were
+                8-bit unsigned integers this should be 255 (the default). This
+                value will be used to normalize the colors from 0 to 1.
+
+        Colormaps can be loaded from ``.npy``, ``.npz``, or comma-separated text
+        files. Numpy (npy/npz) files should be 2D arrays with rows for each color.
+        Comma-separated files should have a row for each color with each column
+        representing a single value/channel. A filename
+        ending with ``.npy`` or ``.npz`` is read as a numpy file with
+        :func:`numpy.load`. All other extensions are
+        read as a comma-separated file. For ``.npz`` files the data must be stored
+        as a positional list where the first element represents the colormap to
+        use. See :func:`numpy.savez` for more information. The filename should
+        be an absolute path for consistency.
+
+        The colormap is interpreted as 1 of 4 different "colormap modes":
+        ``RGB``, ``RGBA``, ``VRGB``, or ``VRGBA``. The
+        colormap mode can be forced with the ``colormap_mode`` keyword
+        argument. If it is not provided then a default will be chosen
+        based on the number of columns in the array (3: RGB, 4: VRGB, 5: VRGBA).
+
+        The "V" in the possible colormap modes represents the control value of
+        where that color should be applied. If "V" is not provided in the colormap
+        data it defaults to the row index in the colormap array (0, 1, 2, ...)
+        divided by the total number of colors to produce a number between 0 and 1.
+        See the "Set Range" section below for more information.
+        The remaining elements in the colormap array represent the Red (R),
+        Green (G), and Blue (B) color to be mapped to.
+
+        See the "Color Scale" section below for more information on the value
+        range of provided numbers.
+
+        **Color Scale**
+
+        By default colors are expected to be in a 0-255 range. This
+        can be overridden by specifying ``color_scale`` keyword argument.
+        A common alternative to 255 is ``1`` to specify floating
+        point numbers between 0 and 1. The resulting Colormap uses the normalized
+        color values (0-1).
+
         """
         if not os.path.isfile(filename_or_string):
             filename_or_string = StringIO(filename_or_string)
-        csv_data = np.loadtxt(filename_or_string, dtype=np.float32, delimiter=",")
-        values = csv_data[:, 0]
-        colors = csv_data[:, 1:] / 255.0
+        values, colors = _get_values_colors_from_file(filename_or_string, colormap_mode, color_scale)
         return cls(values=values, colors=colors)
+
+
+def _get_values_colors_from_file(filename, colormap_mode, color_scale):
+    data = _read_colormap_data_from_file(filename)
+    cols = data.shape[1]
+    default_modes = {
+        3: 'RGB',
+        4: 'VRGB',
+        5: 'VRGBA'
+    }
+    default_mode = default_modes.get(cols)
+    if colormap_mode is None:
+        colormap_mode = default_mode
+    if colormap_mode is None or len(colormap_mode) != cols:
+        raise ValueError(
+            "Unexpected colormap shape for mode '{}'".format(colormap_mode))
+    rows = data.shape[0]
+    if colormap_mode[0] == 'V':
+        colors = data[:, 1:]
+        if color_scale != 1:
+            colors = data[:, 1:] / float(color_scale)
+        values = data[:, 0]
+    else:
+        colors = data
+        if color_scale != 1:
+            colors = colors / float(color_scale)
+        values = np.arange(rows) / float(rows - 1)
+    return values, colors
+
+
+def _read_colormap_data_from_file(filename_or_file_obj):
+    if isinstance(filename_or_file_obj, str):
+        ext = os.path.splitext(filename_or_file_obj)[1]
+        if ext in (".npy", ".npz"):
+            file_content = np.load(filename_or_file_obj)
+            if ext == ".npz":
+                # .npz is a collection
+                # assume position list-like and get the first element
+                file_content = file_content["arr_0"]
+            return file_content
+    # CSV file or file-like object of CSV string data
+    return np.loadtxt(filename_or_file_obj, delimiter=",")
 
 
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
