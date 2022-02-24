@@ -1,3 +1,17 @@
+## Version 1.18.0 (2022/02/24)
+
+### Pull Requests Merged
+
+#### Features added
+
+* [PR 101](https://github.com/pytroll/trollimage/pull/101) - Add to_csv/from_csv to Colormap
+* [PR 100](https://github.com/pytroll/trollimage/pull/100) - Update Colormap.set_range to support flipped values
+* [PR 99](https://github.com/pytroll/trollimage/pull/99) - Add colorize and palettize to XRImage enhancement_history
+* [PR 98](https://github.com/pytroll/trollimage/pull/98) - Change tested Python versions to 3.8, 3.9 and 3.10
+
+In this release 4 pull requests were closed.
+
+
 ## Version 1.17.0 (2021/12/07)
 
 ### Issues Closed
