@@ -27,8 +27,13 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
 import numpy as np
+import xarray as xr
+import rasterio as rio
 import pytest
-from trollimage import image
+
+from trollimage import image, xrimage
+from trollimage.colormap import Colormap, brbg
+
 
 EPSILON = 0.0001
 
@@ -715,7 +720,6 @@ class TestXRImage:
 
     def test_init(self):
         """Test object initialization."""
-        import xarray as xr
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
@@ -752,7 +756,6 @@ class TestXRImage:
         Xarray >0.15 makes data read-only after expand_dims.
 
         """
-        import xarray as xr
         from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
@@ -763,7 +766,6 @@ class TestXRImage:
 
     def test_regression_double_format_save(self):
         """Test that double format information isn't passed to save."""
-        import xarray as xr
         from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
@@ -778,10 +780,8 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_rgb_save(self):
         """Test saving RGB/A data to simple image formats."""
-        import xarray as xr
         from dask.delayed import Delayed
         from trollimage import xrimage
-        import rasterio as rio
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -812,9 +812,7 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_single_band_jpeg(self):
         """Test saving single band to jpeg formats."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # Single band image
         data = np.arange(75).reshape(15, 5, 1) / 74.
@@ -841,9 +839,7 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_single_band_png(self):
         """Test saving single band images to simple image formats."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # Single band image
         data = np.arange(75).reshape(15, 5, 1) / 74.
@@ -888,7 +884,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_palettes(self):
         """Test saving paletted images to simple image formats."""
-        import xarray as xr
         from trollimage import xrimage
 
         # Single band image palettized
@@ -914,10 +909,8 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_float(self):
         """Test saving geotiffs when input data is float."""
-        import xarray as xr
         import dask.array as da
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image - scale to 0 to 1 first
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75.,
@@ -1067,7 +1060,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_datetime(self):
         """Test saving geotiffs when start_time is in the attributes."""
-        import xarray as xr
         import datetime as dt
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1087,10 +1079,8 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
         """Test saving geotiffs when input data is int."""
-        import xarray as xr
         import dask.array as da
         from trollimage import xrimage
-        import rasterio as rio
         from rasterio.control import GroundControlPoint
 
         # numpy array image
@@ -1280,10 +1270,8 @@ class TestXRImage:
         to.
 
         """
-        import xarray as xr
         import dask.array as da
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1307,9 +1295,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_jp2_int(self):
         """Test saving jp2000 when input data is int."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1330,9 +1316,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_cloud_optimized_geotiff(self):
         """Test saving cloud optimized geotiffs."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # trigger COG driver to create 2 overview levels
         # COG driver is only available in GDAL 3.1 or later
@@ -1351,9 +1335,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_overviews(self):
         """Test saving geotiffs with overviews."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1392,9 +1374,7 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_tags(self):
         """Test saving geotiffs with tags."""
-        import xarray as xr
         from trollimage import xrimage
-        import rasterio as rio
 
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1410,7 +1390,6 @@ class TestXRImage:
 
     def test_gamma(self):
         """Test gamma correction."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 75.
@@ -1427,7 +1406,6 @@ class TestXRImage:
 
     def test_crude_stretch(self):
         """Check crude stretching."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3)
@@ -1456,7 +1434,6 @@ class TestXRImage:
 
     def test_invert(self):
         """Check inversion of the image."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 75.
@@ -1482,7 +1459,6 @@ class TestXRImage:
 
     def test_linear_stretch(self):
         """Test linear stretching with cutoffs."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
@@ -1523,7 +1499,6 @@ class TestXRImage:
 
     def test_histogram_stretch(self):
         """Test histogram stretching."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
@@ -1575,7 +1550,6 @@ class TestXRImage:
     @pytest.mark.parametrize("base", ["e", "10", "2"])
     def test_logarithmic_stretch(self, min_stretch, max_stretch, base):
         """Test logarithmic strecthing."""
-        import xarray as xr
         from trollimage import xrimage
         from .utils import assert_maximum_dask_computes
 
@@ -1624,7 +1598,6 @@ class TestXRImage:
 
     def test_weber_fechner_stretch(self):
         """Test applying S=2.3klog10I+C to the data."""
-        import xarray as xr
         from trollimage import xrimage
 
         arr = np.arange(75).reshape(5, 5, 3) / 74.
@@ -1697,7 +1670,6 @@ class TestXRImage:
     def test_convert_modes(self):
         """Test modes convertions."""
         import dask
-        import xarray as xr
         from trollimage import xrimage
         from trollimage.colormap import brbg, Colormap
 
@@ -1838,7 +1810,6 @@ class TestXRImage:
 
     def test_final_mode(self):
         """Test final_mode."""
-        import xarray as xr
         from trollimage import xrimage
 
         # numpy array image
@@ -1848,178 +1819,8 @@ class TestXRImage:
         assert img.final_mode(None) == 'RGBA'
         assert img.final_mode(0) == 'RGB'
 
-    def test_colorize(self):
-        """Test colorize with an RGB colormap."""
-        import xarray as xr
-        from trollimage import xrimage
-        from trollimage.colormap import brbg
-
-        arr = np.arange(75).reshape(5, 15) / 74.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
-        img = xrimage.XRImage(data)
-        img.colorize(brbg)
-        values = img.data.compute()
-
-        expected = np.array([[
-            [3.29409498e-01, 3.59108764e-01, 3.88800969e-01,
-             4.18486092e-01, 4.48164112e-01, 4.77835010e-01,
-             5.07498765e-01, 5.37155355e-01, 5.65419479e-01,
-             5.92686124e-01, 6.19861622e-01, 6.46945403e-01,
-             6.73936907e-01, 7.00835579e-01, 7.27640871e-01],
-            [7.58680358e-01, 8.01695237e-01, 8.35686284e-01,
-             8.60598212e-01, 8.76625002e-01, 8.84194741e-01,
-             8.83948647e-01, 8.76714923e-01, 8.95016030e-01,
-             9.14039881e-01, 9.27287161e-01, 9.36546985e-01,
-             9.43656076e-01, 9.50421050e-01, 9.58544227e-01],
-            [9.86916929e-01, 1.02423117e+00, 1.03591220e+00,
-             1.02666645e+00, 1.00491333e+00, 9.80759775e-01,
-             9.63746819e-01, 9.60798629e-01, 9.47739946e-01,
-             9.27428067e-01, 9.01184523e-01, 8.71168132e-01,
-             8.40161241e-01, 8.11290344e-01, 7.87705814e-01],
-            [7.57749840e-01, 7.20020026e-01, 6.82329616e-01,
-             6.44678929e-01, 6.07068282e-01, 5.69497990e-01,
-             5.31968369e-01, 4.94025422e-01, 4.54275131e-01,
-             4.14517560e-01, 3.74757709e-01, 3.35000583e-01,
-             2.95251189e-01, 2.55514533e-01, 2.15795621e-01],
-            [1.85805611e-01, 1.58245609e-01, 1.30686714e-01,
-             1.03128926e-01, 7.55722460e-02, 4.80166757e-02,
-             2.04622160e-02, 3.79809920e-03, 3.46310306e-03,
-             3.10070529e-03, 2.68579661e-03, 2.19341216e-03,
-             1.59875239e-03, 8.77203803e-04, 4.35952940e-06]],
-
-            [[1.88249866e-01, 2.05728128e-01, 2.23209861e-01,
-              2.40695072e-01, 2.58183766e-01, 2.75675949e-01,
-              2.93171625e-01, 3.10670801e-01, 3.32877903e-01,
-              3.58244116e-01, 3.83638063e-01, 4.09059827e-01,
-              4.34509485e-01, 4.59987117e-01, 4.85492795e-01],
-             [5.04317660e-01, 4.97523483e-01, 4.92879482e-01,
-              4.90522941e-01, 4.90521579e-01, 4.92874471e-01,
-              4.97514769e-01, 5.04314130e-01, 5.48356836e-01,
-              6.02679755e-01, 6.57930117e-01, 7.13582394e-01,
-              7.69129132e-01, 8.24101035e-01, 8.78084923e-01],
-             [9.05957986e-01, 9.00459829e-01, 9.01710827e-01,
-              9.09304816e-01, 9.21567297e-01, 9.36002510e-01,
-              9.49878533e-01, 9.60836244e-01, 9.50521017e-01,
-              9.42321192e-01, 9.36098294e-01, 9.31447978e-01,
-              9.27737112e-01, 9.24164130e-01, 9.19837458e-01],
-             [9.08479555e-01, 8.93119640e-01, 8.77756168e-01,
-              8.62389039e-01, 8.47018155e-01, 8.31643415e-01,
-              8.16264720e-01, 7.98248733e-01, 7.69688456e-01,
-              7.41111049e-01, 7.12515170e-01, 6.83899486e-01,
-              6.55262669e-01, 6.26603399e-01, 5.97920364e-01],
-             [5.71406981e-01, 5.45439361e-01, 5.19471340e-01,
-              4.93502919e-01, 4.67534097e-01, 4.41564875e-01,
-              4.15595252e-01, 3.91172349e-01, 3.69029170e-01,
-              3.46833147e-01, 3.24591169e-01, 3.02310146e-01,
-              2.79997004e-01, 2.57658679e-01, 2.35302110e-01]],
-
-            [[1.96102817e-02, 2.23037080e-02, 2.49835320e-02,
-              2.76497605e-02, 3.03024001e-02, 3.29414575e-02,
-              3.55669395e-02, 3.81788529e-02, 5.03598778e-02,
-              6.89209657e-02, 8.74757090e-02, 1.06024973e-01,
-              1.24569626e-01, 1.43110536e-01, 1.61648577e-01],
-             [1.82340027e-01, 2.15315774e-01, 2.53562955e-01,
-              2.95884521e-01, 3.41038527e-01, 3.87773687e-01,
-              4.34864157e-01, 4.81142673e-01, 5.00410360e-01,
-              5.19991397e-01, 5.47394263e-01, 5.82556639e-01,
-              6.25097005e-01, 6.74344521e-01, 7.29379582e-01],
-             [7.75227971e-01, 8.13001048e-01, 8.59395545e-01,
-              9.04577146e-01, 9.40342288e-01, 9.61653621e-01,
-              9.67479211e-01, 9.60799542e-01, 9.63421077e-01,
-              9.66445062e-01, 9.67352042e-01, 9.63790783e-01,
-              9.53840372e-01, 9.36234978e-01, 9.10530024e-01],
-             [8.86771441e-01, 8.67903107e-01, 8.48953980e-01,
-              8.29924111e-01, 8.10813555e-01, 7.91622365e-01,
-              7.72350598e-01, 7.51439565e-01, 7.24376642e-01,
-              6.97504841e-01, 6.70822717e-01, 6.44328750e-01,
-              6.18021348e-01, 5.91898843e-01, 5.65959492e-01],
-             [5.40017537e-01, 5.14048293e-01, 4.88079755e-01,
-              4.62111921e-01, 4.36144791e-01, 4.10178361e-01,
-              3.84212632e-01, 3.58028450e-01, 3.31935148e-01,
-              3.06445966e-01, 2.81566598e-01, 2.57302099e-01,
-              2.33656886e-01, 2.10634733e-01, 1.88238767e-01]]])
-
-        np.testing.assert_allclose(values, expected)
-
-        # try it with an RGB
-        arr = np.arange(75).reshape(5, 15) / 74.
-        alpha = arr > 40.
-        data = xr.DataArray([arr.copy(), alpha],
-                            dims=['bands', 'y', 'x'],
-                            coords={'bands': ['L', 'A']})
-        img = xrimage.XRImage(data)
-        img.colorize(brbg)
-
-        values = img.data.values
-        expected = np.concatenate((expected,
-                                   alpha.reshape((1,) + alpha.shape)))
-        np.testing.assert_allclose(values, expected)
-
-    def test_colorize_rgba(self):
-        """Test colorize with an RGBA colormap."""
-        import xarray as xr
-        from trollimage import xrimage
-        from trollimage.colormap import Colormap
-
-        # RGBA colormap
-        bw = Colormap(
-            (0.0, (1.0, 1.0, 1.0, 1.0)),
-            (1.0, (0.0, 0.0, 0.0, 0.5)),
-        )
-
-        arr = np.arange(75).reshape(5, 15) / 74.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
-        img = xrimage.XRImage(data)
-        img.colorize(bw)
-        values = img.data.compute()
-        assert (4, 5, 15) == values.shape
-        np.testing.assert_allclose(values[:, 0, 0], [1.0, 1.0, 1.0, 1.0], rtol=1e-03)
-        np.testing.assert_allclose(values[:, -1, -1], [0.0, 0.0, 0.0, 0.5])
-
-    def test_palettize(self):
-        """Test palettize with an RGB colormap."""
-        import xarray as xr
-        from trollimage import xrimage
-        from trollimage.colormap import brbg
-
-        arr = np.arange(75).reshape(5, 15) / 74.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
-        img = xrimage.XRImage(data)
-        img.palettize(brbg)
-
-        values = img.data.values
-        expected = np.array([[
-            [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
-            [2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3],
-            [4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5],
-            [6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7],
-            [8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 10]]])
-        np.testing.assert_allclose(values, expected)
-
-    def test_palettize_rgba(self):
-        """Test palettize with an RGBA colormap."""
-        import xarray as xr
-        from trollimage import xrimage
-        from trollimage.colormap import Colormap
-
-        # RGBA colormap
-        bw = Colormap(
-            (0.0, (1.0, 1.0, 1.0, 1.0)),
-            (1.0, (0.0, 0.0, 0.0, 0.5)),
-        )
-
-        arr = np.arange(75).reshape(5, 15) / 74.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
-        img = xrimage.XRImage(data)
-        img.palettize(bw)
-
-        values = img.data.values
-        assert (1, 5, 15) == values.shape
-        assert (2, 4) == bw.colors.shape
-
     def test_stack(self):
         """Test stack."""
-        import xarray as xr
         from trollimage import xrimage
 
         # background image
@@ -2051,7 +1852,6 @@ class TestXRImage:
 
     def test_blend(self):
         """Test blend."""
-        import xarray as xr
         from trollimage import xrimage
 
         core1 = np.arange(75).reshape(5, 5, 3) / 75.0
@@ -2101,7 +1901,6 @@ class TestXRImage:
 
     def test_show(self):
         """Test that the show commands calls PIL.show."""
-        import xarray as xr
         from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75., dims=[
@@ -2113,7 +1912,6 @@ class TestXRImage:
 
     def test_apply_pil(self):
         """Test the apply_pil method."""
-        import xarray as xr
         from trollimage import xrimage
 
         np_data = np.arange(75).reshape(5, 5, 3) / 75.
@@ -2169,12 +1967,251 @@ class TestXRImage:
             pil_img.convert.assert_called_with('RGB')
 
 
+class TestXRImageColorize:
+    """Test the colorize method of the XRImage class."""
+
+    _expected = np.array([[
+        [3.29409498e-01, 3.59108764e-01, 3.88800969e-01,
+         4.18486092e-01, 4.48164112e-01, 4.77835010e-01,
+         5.07498765e-01, 5.37155355e-01, 5.65419479e-01,
+         5.92686124e-01, 6.19861622e-01, 6.46945403e-01,
+         6.73936907e-01, 7.00835579e-01, 7.27640871e-01],
+        [7.58680358e-01, 8.01695237e-01, 8.35686284e-01,
+         8.60598212e-01, 8.76625002e-01, 8.84194741e-01,
+         8.83948647e-01, 8.76714923e-01, 8.95016030e-01,
+         9.14039881e-01, 9.27287161e-01, 9.36546985e-01,
+         9.43656076e-01, 9.50421050e-01, 9.58544227e-01],
+        [9.86916929e-01, 1.02423117e+00, 1.03591220e+00,
+         1.02666645e+00, 1.00491333e+00, 9.80759775e-01,
+         9.63746819e-01, 9.60798629e-01, 9.47739946e-01,
+         9.27428067e-01, 9.01184523e-01, 8.71168132e-01,
+         8.40161241e-01, 8.11290344e-01, 7.87705814e-01],
+        [7.57749840e-01, 7.20020026e-01, 6.82329616e-01,
+         6.44678929e-01, 6.07068282e-01, 5.69497990e-01,
+         5.31968369e-01, 4.94025422e-01, 4.54275131e-01,
+         4.14517560e-01, 3.74757709e-01, 3.35000583e-01,
+         2.95251189e-01, 2.55514533e-01, 2.15795621e-01],
+        [1.85805611e-01, 1.58245609e-01, 1.30686714e-01,
+         1.03128926e-01, 7.55722460e-02, 4.80166757e-02,
+         2.04622160e-02, 3.79809920e-03, 3.46310306e-03,
+         3.10070529e-03, 2.68579661e-03, 2.19341216e-03,
+         1.59875239e-03, 8.77203803e-04, 4.35952940e-06]],
+
+        [[1.88249866e-01, 2.05728128e-01, 2.23209861e-01,
+          2.40695072e-01, 2.58183766e-01, 2.75675949e-01,
+          2.93171625e-01, 3.10670801e-01, 3.32877903e-01,
+          3.58244116e-01, 3.83638063e-01, 4.09059827e-01,
+          4.34509485e-01, 4.59987117e-01, 4.85492795e-01],
+         [5.04317660e-01, 4.97523483e-01, 4.92879482e-01,
+          4.90522941e-01, 4.90521579e-01, 4.92874471e-01,
+          4.97514769e-01, 5.04314130e-01, 5.48356836e-01,
+          6.02679755e-01, 6.57930117e-01, 7.13582394e-01,
+          7.69129132e-01, 8.24101035e-01, 8.78084923e-01],
+         [9.05957986e-01, 9.00459829e-01, 9.01710827e-01,
+          9.09304816e-01, 9.21567297e-01, 9.36002510e-01,
+          9.49878533e-01, 9.60836244e-01, 9.50521017e-01,
+          9.42321192e-01, 9.36098294e-01, 9.31447978e-01,
+          9.27737112e-01, 9.24164130e-01, 9.19837458e-01],
+         [9.08479555e-01, 8.93119640e-01, 8.77756168e-01,
+          8.62389039e-01, 8.47018155e-01, 8.31643415e-01,
+          8.16264720e-01, 7.98248733e-01, 7.69688456e-01,
+          7.41111049e-01, 7.12515170e-01, 6.83899486e-01,
+          6.55262669e-01, 6.26603399e-01, 5.97920364e-01],
+         [5.71406981e-01, 5.45439361e-01, 5.19471340e-01,
+          4.93502919e-01, 4.67534097e-01, 4.41564875e-01,
+          4.15595252e-01, 3.91172349e-01, 3.69029170e-01,
+          3.46833147e-01, 3.24591169e-01, 3.02310146e-01,
+          2.79997004e-01, 2.57658679e-01, 2.35302110e-01]],
+
+        [[1.96102817e-02, 2.23037080e-02, 2.49835320e-02,
+          2.76497605e-02, 3.03024001e-02, 3.29414575e-02,
+          3.55669395e-02, 3.81788529e-02, 5.03598778e-02,
+          6.89209657e-02, 8.74757090e-02, 1.06024973e-01,
+          1.24569626e-01, 1.43110536e-01, 1.61648577e-01],
+         [1.82340027e-01, 2.15315774e-01, 2.53562955e-01,
+          2.95884521e-01, 3.41038527e-01, 3.87773687e-01,
+          4.34864157e-01, 4.81142673e-01, 5.00410360e-01,
+          5.19991397e-01, 5.47394263e-01, 5.82556639e-01,
+          6.25097005e-01, 6.74344521e-01, 7.29379582e-01],
+         [7.75227971e-01, 8.13001048e-01, 8.59395545e-01,
+          9.04577146e-01, 9.40342288e-01, 9.61653621e-01,
+          9.67479211e-01, 9.60799542e-01, 9.63421077e-01,
+          9.66445062e-01, 9.67352042e-01, 9.63790783e-01,
+          9.53840372e-01, 9.36234978e-01, 9.10530024e-01],
+         [8.86771441e-01, 8.67903107e-01, 8.48953980e-01,
+          8.29924111e-01, 8.10813555e-01, 7.91622365e-01,
+          7.72350598e-01, 7.51439565e-01, 7.24376642e-01,
+          6.97504841e-01, 6.70822717e-01, 6.44328750e-01,
+          6.18021348e-01, 5.91898843e-01, 5.65959492e-01],
+         [5.40017537e-01, 5.14048293e-01, 4.88079755e-01,
+          4.62111921e-01, 4.36144791e-01, 4.10178361e-01,
+          3.84212632e-01, 3.58028450e-01, 3.31935148e-01,
+          3.06445966e-01, 2.81566598e-01, 2.57302099e-01,
+          2.33656886e-01, 2.10634733e-01, 1.88238767e-01]]])
+
+    @pytest.mark.parametrize("colormap_tag", [None, "colormap"])
+    def test_colorize_geotiff_tag(self, tmp_path, colormap_tag):
+        """Test that a colorized colormap can be saved to a geotiff tag."""
+        new_range = (0.0, 0.5)
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        new_brbg = brbg.set_range(*new_range, inplace=False)
+        img = xrimage.XRImage(data)
+        img.colorize(new_brbg)
+
+        dst = str(tmp_path / "test.tif")
+        img.save(dst, colormap_tag=colormap_tag)
+        with rio.open(dst, "r") as gtiff_file:
+            metadata = gtiff_file.tags()
+            if colormap_tag is None:
+                assert "colormap" not in metadata
+            else:
+                assert "colormap" in metadata
+                loaded_brbg = Colormap.from_file(metadata["colormap"])
+                np.testing.assert_allclose(new_brbg.values, loaded_brbg.values)
+                np.testing.assert_allclose(new_brbg.colors, loaded_brbg.colors)
+
+    @pytest.mark.parametrize(
+        ("new_range", "input_scale", "input_offset", "expected_scale", "expected_offset"),
+        [
+            ((0.0, 1.0), 1.0, 0.0, 1.0, 0.0),
+            ((0.0, 0.5), 1.0, 0.0, 2.0, 0.0),
+            ((2.0, 4.0), 2.0, 2.0, 0.5, -1.0),
+        ],
+    )
+    def test_colorize_l_rgb(self, new_range, input_scale, input_offset, expected_scale, expected_offset):
+        """Test colorize with an RGB colormap."""
+        arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        new_brbg = brbg.set_range(*new_range, inplace=False)
+        img = xrimage.XRImage(data)
+        img.colorize(new_brbg)
+        values = img.data.compute()
+
+        if new_range[1] == 0.5:
+            expected2 = self._expected.copy().reshape((3, 75))
+            flat_expected = self._expected.reshape((3, 75))
+            expected2[:, :38] = flat_expected[:, ::2]
+            expected2[:, 38:] = flat_expected[:, -1:]
+            expected = expected2.reshape((3, 5, 15))
+        else:
+            expected = self._expected
+        np.testing.assert_allclose(values, expected)
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == expected_scale
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == expected_offset
+        assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
+
+    def test_colorize_la_rgb(self):
+        """Test colorizing an LA image with an RGB colormap."""
+        arr = np.arange(75).reshape(5, 15) / 74.
+        alpha = arr > 40.
+        data = xr.DataArray([arr.copy(), alpha],
+                            dims=['bands', 'y', 'x'],
+                            coords={'bands': ['L', 'A']})
+        img = xrimage.XRImage(data)
+        img.colorize(brbg)
+
+        values = img.data.values
+        expected = np.concatenate((self._expected,
+                                   alpha.reshape((1,) + alpha.shape)))
+        np.testing.assert_allclose(values, expected)
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+        assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
+
+    def test_colorize_rgba(self):
+        """Test colorize with an RGBA colormap."""
+        from trollimage import xrimage
+        from trollimage.colormap import Colormap
+
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
+
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        img.colorize(bw)
+        values = img.data.compute()
+        assert (4, 5, 15) == values.shape
+        np.testing.assert_allclose(values[:, 0, 0], [1.0, 1.0, 1.0, 1.0], rtol=1e-03)
+        np.testing.assert_allclose(values[:, -1, -1], [0.0, 0.0, 0.0, 0.5])
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 1.0
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+        assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
+
+
+class TestXRImagePalettize:
+    """Test the XRImage palettize method."""
+
+    @pytest.mark.parametrize(
+        ("new_range", "input_scale", "input_offset"),
+        [
+            ((0.0, 1.0), 1.0, 0.0),
+            ((0.0, 0.5), 1.0, 0.0),
+            ((2.0, 4.0), 2.0, 2.0),
+        ],
+    )
+    def test_palettize(self, new_range, input_scale, input_offset):
+        """Test palettize with an RGB colormap."""
+        from trollimage import xrimage
+        from trollimage.colormap import brbg
+
+        arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        new_brbg = brbg.set_range(*new_range, inplace=False)
+        img.palettize(new_brbg)
+
+        values = img.data.values
+        expected = np.array([[
+            [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+            [2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3],
+            [4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5],
+            [6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7],
+            [8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 10]]])
+        if new_range[1] == 0.5:
+            flat_expected = expected.reshape((1, 75))
+            expected2 = flat_expected.copy()
+            expected2[:, :38] = flat_expected[:, ::2]
+            expected2[:, 38:] = flat_expected[:, -1:]
+            expected = expected2.reshape((1, 5, 15))
+        np.testing.assert_allclose(values, expected)
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 0.1
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+
+    def test_palettize_rgba(self):
+        """Test palettize with an RGBA colormap."""
+        from trollimage import xrimage
+        from trollimage.colormap import Colormap
+
+        # RGBA colormap
+        bw = Colormap(
+            (0.0, (1.0, 1.0, 1.0, 1.0)),
+            (1.0, (0.0, 0.0, 0.0, 0.5)),
+        )
+
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        img = xrimage.XRImage(data)
+        img.palettize(bw)
+
+        values = img.data.values
+        assert (1, 5, 15) == values.shape
+        assert (2, 4) == bw.colors.shape
+
+
 class TestXRImageSaveScaleOffset(unittest.TestCase):
     """Test case for saving an image with scale and offset tags."""
 
     def setUp(self) -> None:
         """Set up the test case."""
-        import xarray as xr
         from trollimage import xrimage
         data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
