@@ -2159,9 +2159,6 @@ class TestXRImagePalettize:
     )
     def test_palettize(self, new_range, input_scale, input_offset):
         """Test palettize with an RGB colormap."""
-        from trollimage import xrimage
-        from trollimage.colormap import brbg
-
         arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
         data = xr.DataArray(arr.copy(), dims=['y', 'x'])
         img = xrimage.XRImage(data)
@@ -2205,6 +2202,29 @@ class TestXRImagePalettize:
         values = img.data.values
         assert (1, 5, 15) == values.shape
         assert (2, 4) == bw.colors.shape
+
+    @pytest.mark.parametrize("colormap_tag", [None, "colormap"])
+    @pytest.mark.parametrize("keep_palette", [False, True])
+    def test_palettize_geotiff_tag(self, tmp_path, colormap_tag, keep_palette):
+        """Test that a palettized can be saved to a geotiff tag."""
+        new_range = (0.0, 0.5)
+        arr = np.arange(75).reshape(5, 15) / 74.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+        new_brbg = brbg.set_range(*new_range, inplace=False)
+        img = xrimage.XRImage(data)
+        img.palettize(new_brbg)
+
+        dst = str(tmp_path / "test.tif")
+        img.save(dst, colormap_tag=colormap_tag, keep_palette=keep_palette)
+        with rio.open(dst, "r") as gtiff_file:
+            metadata = gtiff_file.tags()
+            if colormap_tag is None:
+                assert "colormap" not in metadata
+            else:
+                assert "colormap" in metadata
+                loaded_brbg = Colormap.from_file(metadata["colormap"])
+                np.testing.assert_allclose(new_brbg.values, loaded_brbg.values)
+                np.testing.assert_allclose(new_brbg.colors, loaded_brbg.colors)
 
 
 class TestXRImageSaveScaleOffset(unittest.TestCase):

@@ -595,8 +595,9 @@ class XRImage(object):
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
-        if colormap_tag and "colormap" in data.attrs.get('enhancement_history', [{}])[-2]:
-            tags[colormap_tag] = data.attrs['enhancement_history'][-2]['colormap'].to_csv()
+        enhancement_colormap = self._get_colormap_from_enhancement_history(data)
+        if colormap_tag and enhancement_colormap is not None:
+            tags[colormap_tag] = enhancement_colormap.to_csv()
         if scale_offset_tags:
             scale_label, offset_label = scale_offset_tags
             scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
@@ -654,6 +655,13 @@ class XRImage(object):
         # store them when they would like. Caller is responsible for
         # closing the file
         return to_store
+
+    @staticmethod
+    def _get_colormap_from_enhancement_history(data_arr):
+        for enhance_dict in reversed(data_arr.attrs.get('enhancement_history', [])):
+            if "colormap" in enhance_dict:
+                return enhance_dict["colormap"]
+        return None
 
     @staticmethod
     def _split_regular_vs_lazy_tags(tags, r_file):
