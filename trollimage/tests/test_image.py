@@ -26,6 +26,7 @@ from unittest import mock
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
+import dask.array as da
 import numpy as np
 import xarray as xr
 import rasterio as rio
@@ -33,26 +34,10 @@ import pytest
 
 from trollimage import image, xrimage
 from trollimage.colormap import Colormap, brbg
+from .utils import assert_maximum_dask_computes
 
 
 EPSILON = 0.0001
-
-
-class CustomScheduler(object):
-    """Custom dask scheduler that raises an exception if dask is computed too many times."""
-
-    def __init__(self, max_computes=1):
-        """Set starting and maximum compute counts."""
-        self.max_computes = max_computes
-        self.total_computes = 0
-
-    def __call__(self, dsk, keys, **kwargs):
-        """Compute dask task and keep track of number of times we do so."""
-        import dask
-        self.total_computes += 1
-        if self.total_computes > self.max_computes:
-            raise RuntimeError("Too many dask computations were scheduled: {}".format(self.total_computes))
-        return dask.get(dsk, keys, **kwargs)
 
 
 class TestEmptyImage(unittest.TestCase):
@@ -720,7 +705,6 @@ class TestXRImage:
 
     def test_init(self):
         """Test object initialization."""
-        from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
         assert img.mode == 'L'
@@ -756,7 +740,6 @@ class TestXRImage:
         Xarray >0.15 makes data read-only after expand_dims.
 
         """
-        from trollimage import xrimage
         data = xr.DataArray([[0, 0.5, 0.5], [0.5, 0.25, 0.25]], dims=['y', 'x'])
         img = xrimage.XRImage(data)
         assert img.mode == 'L'
@@ -766,8 +749,6 @@ class TestXRImage:
 
     def test_regression_double_format_save(self):
         """Test that double format information isn't passed to save."""
-        from trollimage import xrimage
-
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         with mock.patch.object(xrimage.XRImage, 'pil_save') as pil_save:
@@ -781,7 +762,6 @@ class TestXRImage:
     def test_rgb_save(self):
         """Test saving RGB/A data to simple image formats."""
         from dask.delayed import Delayed
-        from trollimage import xrimage
 
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -812,8 +792,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_single_band_jpeg(self):
         """Test saving single band to jpeg formats."""
-        from trollimage import xrimage
-
         # Single band image
         data = np.arange(75).reshape(15, 5, 1) / 74.
         data[-1, -1, 0] = np.nan
@@ -839,8 +817,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_single_band_png(self):
         """Test saving single band images to simple image formats."""
-        from trollimage import xrimage
-
         # Single band image
         data = np.arange(75).reshape(15, 5, 1) / 74.
         data[-1, -1, 0] = np.nan
@@ -884,8 +860,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_palettes(self):
         """Test saving paletted images to simple image formats."""
-        from trollimage import xrimage
-
         # Single band image palettized
         from trollimage.colormap import brbg, Colormap
         data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74., dims=[
@@ -909,9 +883,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_float(self):
         """Test saving geotiffs when input data is float."""
-        import dask.array as da
-        from trollimage import xrimage
-
         # numpy array image - scale to 0 to 1 first
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75.,
                             dims=['y', 'x', 'bands'],
@@ -1079,8 +1050,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
         """Test saving geotiffs when input data is int."""
-        import dask.array as da
-        from trollimage import xrimage
         from rasterio.control import GroundControlPoint
 
         # numpy array image
@@ -1270,9 +1239,6 @@ class TestXRImage:
         to.
 
         """
-        import dask.array as da
-        from trollimage import xrimage
-
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -1295,8 +1261,6 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_jp2_int(self):
         """Test saving jp2000 when input data is int."""
-        from trollimage import xrimage
-
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -1316,8 +1280,6 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_cloud_optimized_geotiff(self):
         """Test saving cloud optimized geotiffs."""
-        from trollimage import xrimage
-
         # trigger COG driver to create 2 overview levels
         # COG driver is only available in GDAL 3.1 or later
         if rio.__gdal_version__ >= '3.1':
@@ -1335,8 +1297,6 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_overviews(self):
         """Test saving geotiffs with overviews."""
-        from trollimage import xrimage
-
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -1374,8 +1334,6 @@ class TestXRImage:
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_tags(self):
         """Test saving geotiffs with tags."""
-        from trollimage import xrimage
-
         # numpy array image
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
@@ -1390,8 +1348,6 @@ class TestXRImage:
 
     def test_gamma(self):
         """Test gamma correction."""
-        from trollimage import xrimage
-
         arr = np.arange(75).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1406,8 +1362,6 @@ class TestXRImage:
 
     def test_crude_stretch(self):
         """Check crude stretching."""
-        from trollimage import xrimage
-
         arr = np.arange(75).reshape(5, 5, 3)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1434,8 +1388,6 @@ class TestXRImage:
 
     def test_invert(self):
         """Check inversion of the image."""
-        from trollimage import xrimage
-
         arr = np.arange(75).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1459,8 +1411,6 @@ class TestXRImage:
 
     def test_linear_stretch(self):
         """Test linear stretching with cutoffs."""
-        from trollimage import xrimage
-
         arr = np.arange(75).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1499,8 +1449,6 @@ class TestXRImage:
 
     def test_histogram_stretch(self):
         """Test histogram stretching."""
-        from trollimage import xrimage
-
         arr = np.arange(75).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1550,9 +1498,6 @@ class TestXRImage:
     @pytest.mark.parametrize("base", ["e", "10", "2"])
     def test_logarithmic_stretch(self, min_stretch, max_stretch, base):
         """Test logarithmic strecthing."""
-        from trollimage import xrimage
-        from .utils import assert_maximum_dask_computes
-
         arr = np.arange(75).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1669,8 +1614,6 @@ class TestXRImage:
 
     def test_convert_modes(self):
         """Test modes convertions."""
-        import dask
-        from trollimage import xrimage
         from trollimage.colormap import brbg, Colormap
 
         # RGBA colormap
@@ -1697,7 +1640,7 @@ class TestXRImage:
         assert new_img.data is not img.data
 
         # L -> LA (int)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+        with assert_maximum_dask_computes(1):
             img = xrimage.XRImage((dataset1 * 150).astype(np.uint8))
             img.data.attrs['_FillValue'] = 0  # set fill value
             img = img.convert('LA')
@@ -1710,7 +1653,7 @@ class TestXRImage:
             np.testing.assert_allclose(alpha[1:], 255)
 
         # L -> LA (float)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+        with assert_maximum_dask_computes(1):
             img = xrimage.XRImage(dataset1)
             img = img.convert('LA')
             assert img.mode == 'LA'
@@ -1719,13 +1662,13 @@ class TestXRImage:
             np.testing.assert_allclose(img.data.sel(bands='A'), 1.)
 
         # LA -> L (float)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+        with assert_maximum_dask_computes(0):
             img = img.convert('L')
             assert img.mode == 'L'
             assert len(img.data.coords['bands']) == 1
 
         # L -> RGB (float)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+        with assert_maximum_dask_computes(1):
             img = img.convert('RGB')
             assert img.mode == 'RGB'
             assert len(img.data.coords['bands']) == 3
@@ -1735,7 +1678,7 @@ class TestXRImage:
             np.testing.assert_allclose(data.sel(bands=['B']), arr1)
 
         # RGB -> RGBA (float)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+        with assert_maximum_dask_computes(1):
             img = img.convert('RGBA')
             assert img.mode == 'RGBA'
             assert len(img.data.coords['bands']) == 4
@@ -1748,7 +1691,7 @@ class TestXRImage:
             np.testing.assert_allclose(data.sel(bands='A'), 1.)
 
         # RGB -> RGBA (int)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=1)):
+        with assert_maximum_dask_computes(1):
             img = xrimage.XRImage((dataset1 * 150).astype(np.uint8))
             img = img.convert('RGB')  # L -> RGB
             assert np.issubdtype(img.data.dtype, np.integer)
@@ -1764,14 +1707,14 @@ class TestXRImage:
             np.testing.assert_allclose(data.sel(bands='A'), 255)
 
         # LA -> RGBA (float)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+        with assert_maximum_dask_computes(0):
             img = xrimage.XRImage(dataset2)
             img = img.convert('RGBA')
             assert img.mode == 'RGBA'
             assert len(img.data.coords['bands']) == 4
 
         # L -> palettize -> RGBA (float)
-        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+        with assert_maximum_dask_computes(0):
             img = xrimage.XRImage(dataset1)
             img.palettize(brbg)
             pal = img.palette
@@ -1784,7 +1727,7 @@ class TestXRImage:
         # PA -> RGB (float)
         img = xrimage.XRImage(dataset3)
         img.palette = pal
-        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+        with assert_maximum_dask_computes(0):
             img = img.convert('RGB')
             assert np.issubdtype(img.data.dtype, np.floating)
             assert img.mode == 'RGB'
@@ -1794,7 +1737,7 @@ class TestXRImage:
             img.convert('A')
 
         # L -> palettize -> RGBA (float) with RGBA colormap
-        with dask.config.set(scheduler=CustomScheduler(max_computes=0)):
+        with assert_maximum_dask_computes(0):
             img = xrimage.XRImage(dataset1)
             img.palettize(bw)
 
@@ -2150,14 +2093,14 @@ class TestXRImagePalettize:
     """Test the XRImage palettize method."""
 
     @pytest.mark.parametrize(
-        ("new_range", "input_scale", "input_offset"),
+        ("new_range", "input_scale", "input_offset", "expected_scale", "expected_offset"),
         [
-            ((0.0, 1.0), 1.0, 0.0),
-            ((0.0, 0.5), 1.0, 0.0),
-            ((2.0, 4.0), 2.0, 2.0),
+            ((0.0, 1.0), 1.0, 0.0, 1.0, 0.0),
+            ((0.0, 0.5), 1.0, 0.0, 2.0, 0.0),
+            ((2.0, 4.0), 2.0, 2.0, 0.5, -1.0),
         ],
     )
-    def test_palettize(self, new_range, input_scale, input_offset):
+    def test_palettize(self, new_range, input_scale, input_offset, expected_scale, expected_offset):
         """Test palettize with an RGB colormap."""
         arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
         data = xr.DataArray(arr.copy(), dims=['y', 'x'])
@@ -2180,8 +2123,8 @@ class TestXRImagePalettize:
             expected = expected2.reshape((1, 5, 15))
         np.testing.assert_allclose(values, expected)
         assert "enhancement_history" in img.data.attrs
-        assert img.data.attrs["enhancement_history"][-1]["scale"] == 0.1
-        assert img.data.attrs["enhancement_history"][-1]["offset"] == 0.0
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == expected_scale
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == expected_offset
 
     def test_palettize_rgba(self):
         """Test palettize with an RGBA colormap."""
@@ -2206,7 +2149,7 @@ class TestXRImagePalettize:
     @pytest.mark.parametrize("colormap_tag", [None, "colormap"])
     @pytest.mark.parametrize("keep_palette", [False, True])
     def test_palettize_geotiff_tag(self, tmp_path, colormap_tag, keep_palette):
-        """Test that a palettized can be saved to a geotiff tag."""
+        """Test that a palettized image can be saved to a geotiff tag."""
         new_range = (0.0, 0.5)
         arr = np.arange(75).reshape(5, 15) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x'])
@@ -2279,7 +2222,6 @@ class TestXRImageSaveScaleOffset(unittest.TestCase):
 
 
 def _get_tags_after_writing_to_geotiff(data):
-    from trollimage import xrimage
     import rasterio as rio
 
     img = xrimage.XRImage(data)
