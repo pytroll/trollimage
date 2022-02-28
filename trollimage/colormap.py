@@ -349,10 +349,18 @@ class Colormap(object):
         return cmap
 
     def to_rio(self):
-        """Convert the colormap to a rasterio colormap."""
+        """Convert the colormap to a rasterio colormap.
+
+        Note that rasterio requires color tables to have round integer value
+        control points. This method assumes that the range of this Colormap
+        is already in the desired output range and to avoid issues with
+        rasterio will round the values and convert them to unsigned integers.
+        """
         colors = (((self.colors * 1.0 - self.colors.min()) /
                    (self.colors.max() - self.colors.min())) * 255)
-        return dict(zip(self.values, tuple(map(tuple, colors))))
+        # rasterio doesn't allow non-integer colormap values
+        values = np.round(self.values).astype(np.uint)
+        return dict(zip(values, tuple(map(tuple, colors))))
 
     def to_csv(
             self,

@@ -1197,9 +1197,26 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
 
-    def test_save_geotiff_int_with_cmap(self):
-        """Test saving integer data to geotiff with a colormap."""
-        t_cmap = Colormap(*tuple((i, (i / 20, i / 20, i / 20)) for i in range(20)))
+    @pytest.mark.parametrize(
+        "cmap",
+        [
+            Colormap(*tuple((i, (i / 20, i / 20, i / 20)) for i in range(20))),
+            Colormap(*tuple((i + 0.00001, (i / 20, i / 20, i / 20)) for i in range(20))),
+            Colormap(*tuple((i if i != 2 else 2.00000001, (i / 20, i / 20, i / 20)) for i in range(20))),
+        ]
+    )
+    def test_save_geotiff_int_with_cmap(self, cmap):
+        """Test saving integer data to geotiff with a colormap.
+
+        Rasterio specifically can't handle colormaps that are not round
+        integers. Unfortunately it only warns when it finds a value in the
+        color table that it doesn't expect. For example if an unsigned 8-bit
+        color table is being filled with a trollimage Colormap where due to
+        floating point one of the values is 15.0000001 instead of 15.0,
+        rasterio will issue a warning and then not add a color for that value.
+        This test makes sure the colormap written is the colormap read back.
+
+        """
         exp_cmap = {i: (int(i * 255 / 19), int(i * 255 / 19), int(i * 255 / 19), 255) for i in range(20)}
         exp_cmap.update({i: (0, 0, 0, 255) for i in range(20, 256)})
         data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
@@ -1207,7 +1224,7 @@ class TestXRImage:
                             coords={'bands': ['P']})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, keep_palette=True, cmap=t_cmap)
+            img.save(tmp.name, keep_palette=True, cmap=cmap)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
                 cmap = f.colormap(1)
