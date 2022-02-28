@@ -1,3 +1,14 @@
+## Version 1.18.1 (2022/02/28)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 102](https://github.com/pytroll/trollimage/pull/102) - Fix enhancement_history not working with keep_palette=True
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.18.0 (2022/02/24)
 
 ### Pull Requests Merged
