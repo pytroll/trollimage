@@ -595,8 +595,9 @@ class XRImage(object):
         elif driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
-        if colormap_tag and "colormap" in data.attrs.get('enhancement_history', [{}])[-2]:
-            tags[colormap_tag] = data.attrs['enhancement_history'][-2]['colormap'].to_csv()
+        enhancement_colormap = self._get_colormap_from_enhancement_history(data)
+        if colormap_tag and enhancement_colormap is not None:
+            tags[colormap_tag] = enhancement_colormap.to_csv()
         if scale_offset_tags:
             scale_label, offset_label = scale_offset_tags
             scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
@@ -654,6 +655,13 @@ class XRImage(object):
         # store them when they would like. Caller is responsible for
         # closing the file
         return to_store
+
+    @staticmethod
+    def _get_colormap_from_enhancement_history(data_arr):
+        for enhance_dict in reversed(data_arr.attrs.get('enhancement_history', [])):
+            if "colormap" in enhance_dict:
+                return enhance_dict["colormap"]
+        return None
 
     @staticmethod
     def _split_regular_vs_lazy_tags(tags, r_file):
@@ -1536,9 +1544,41 @@ class XRImage(object):
             colormap (:class:`~trollimage.colormap.Colormap`):
                 Colormap to be applied to the image.
 
-        .. note::
-
+        Notes:
             Works only on "L" or "LA" images.
+
+            Similar to other enhancement methods (colorize, stretch, etc)
+            this method adds an ``enhancement_history`` list to the metadata
+            stored in the image ``DataArray``'s metadata (``.attrs``).
+            In other methods, however, the metadata directly translates to
+            the linear operations performed in that enhancement. The palettize
+            operation converts data values to indices into a colormap.
+            This result is based on the range of values defined in the Colormap
+            (``cmap.values``). To be most useful, the enhancement history scale
+            and offset values represent the range of the colormap as if scaling
+            the data to a 0-1 range. This means that once the data is saved to
+            a format as an RGB (the palette colors are applied) the scale and
+            offset can be used to determine the original range of the data
+            based on the min/max of the data type of the format (ex. uint8).
+            For example:
+
+            .. code-block:: python
+
+                dtype_min = 0
+                dtype_max = 255
+                scale = ...  # scale from geotiff
+                offset = ...  # offset from geotiff
+                data_min = offset
+                data_max = (dtype_max - dtype_min) * scale + offset
+
+            If a geotiff is saved with ``keep_palette=True`` then the data
+            saved to the geotiff are the palette indices and will not be
+            scaled to the data type of the format. There will also be a
+            standard geotiff color table in the geotiff to identify that
+            these are indices rather than some other type of image data. This
+            means in this case the scale and offset can be used to determine
+            the original range of the data starting from a 0-1 range
+            (``dtype_min`` is 0 and ``dtype_max`` is 1 in the code above).
 
         """
         if self.mode not in ("L", "LA"):
@@ -1555,11 +1595,11 @@ class XRImage(object):
 
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
-        # the data values are now indexes into the palette array of colors
-        # so it can't be more than the maximum index (len - 1)
-        palette_num_values = len(self.palette) - 1
-        scale_factor = 1.0 / palette_num_values
-        offset = 0
+        # See docstring notes above for how scale/offset should be used
+        cmap_min = colormap.values[0]
+        cmap_max = colormap.values[-1]
+        scale_factor = 1.0 / (cmap_max - cmap_min)
+        offset = -cmap_min * scale_factor
 
         self.data.attrs.setdefault('enhancement_history', []).append({
             'scale': scale_factor,
