@@ -1197,6 +1197,8 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     @pytest.mark.parametrize(
         "cmap",
         [
@@ -1233,6 +1235,8 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             assert cmap == exp_cmap
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_with_bad_cmap(self):
         """Test saving integer data to geotiff with a bad colormap."""
         t_cmap = Colormap(*tuple((i, (i / 20, i / 20, i / 20)) for i in range(20)))
