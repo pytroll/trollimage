@@ -1158,38 +1158,6 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             assert cmap == exp_cmap
 
-        # with trollimage colormap provided
-        from trollimage.colormap import Colormap
-        t_cmap = Colormap(*tuple((i, (i / 20, i / 20, i / 20)) for i in range(20)))
-        exp_cmap = {i: (int(i * 255 / 19), int(i * 255 / 19), int(i * 255 / 19), 255) for i in range(20)}
-        exp_cmap.update({i: (0, 0, 0, 255) for i in range(20, 256)})
-        data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
-                            dims=['y', 'x', 'bands'],
-                            coords={'bands': ['P']})
-        img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, keep_palette=True, cmap=t_cmap)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-                cmap = f.colormap(1)
-            assert file_data.shape == (1, 9, 9)  # no alpha band
-            exp = np.arange(81).reshape(9, 9, 1)
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            assert cmap == exp_cmap
-
-        # with bad colormap provided
-        bad_cmap = [[i, [i, i, i]] for i in range(256)]
-        data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
-                            dims=['y', 'x', 'bands'],
-                            coords={'bands': ['P']})
-        img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            with pytest.raises(ValueError):
-                img.save(tmp.name, keep_palette=True, cmap=bad_cmap)
-            with pytest.raises(ValueError):
-                img.save(tmp.name, keep_palette=True, cmap=t_cmap,
-                         dtype='uint16')
-
         # with input fill value
         data = np.arange(75).reshape(5, 5, 3)
         # second pixel is all bad
@@ -1228,6 +1196,40 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
+
+    def test_save_geotiff_int_with_cmap(self):
+        """Test saving integer data to geotiff with a colormap."""
+        t_cmap = Colormap(*tuple((i, (i / 20, i / 20, i / 20)) for i in range(20)))
+        exp_cmap = {i: (int(i * 255 / 19), int(i * 255 / 19), int(i * 255 / 19), 255) for i in range(20)}
+        exp_cmap.update({i: (0, 0, 0, 255) for i in range(20, 256)})
+        data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['P']})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name, keep_palette=True, cmap=t_cmap)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+                cmap = f.colormap(1)
+            assert file_data.shape == (1, 9, 9)  # no alpha band
+            exp = np.arange(81).reshape(9, 9, 1)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            assert cmap == exp_cmap
+
+    def test_save_geotiff_int_with_bad_cmap(self):
+        """Test saving integer data to geotiff with a bad colormap."""
+        t_cmap = Colormap(*tuple((i, (i / 20, i / 20, i / 20)) for i in range(20)))
+        bad_cmap = [[i, [i, i, i]] for i in range(256)]
+        data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['P']})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            with pytest.raises(ValueError):
+                img.save(tmp.name, keep_palette=True, cmap=bad_cmap)
+            with pytest.raises(ValueError):
+                img.save(tmp.name, keep_palette=True, cmap=t_cmap,
+                         dtype='uint16')
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
