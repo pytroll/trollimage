@@ -1544,9 +1544,41 @@ class XRImage(object):
             colormap (:class:`~trollimage.colormap.Colormap`):
                 Colormap to be applied to the image.
 
-        .. note::
-
+        Notes:
             Works only on "L" or "LA" images.
+
+            Similar to other enhancement methods (colorize, stretch, etc)
+            this method adds an ``enhancement_history`` list to the metadata
+            stored in the image ``DataArray``'s metadata (``.attrs``).
+            In other methods, however, the metadata directly translates to
+            the linear operations performed in that enhancement. The palettize
+            operation converts data values to indices into a colormap.
+            This result is based on the range of values defined in the Colormap
+            (``cmap.values``). To be most useful, the enhancement history scale
+            and offset values represent the range of the colormap as if scaling
+            the data to a 0-1 range. This means that once the data is saved to
+            a format as an RGB (the palette colors are applied) the scale and
+            offset can be used to determine the original range of the data
+            based on the min/max of the data type of the format (ex. uint8).
+            For example:
+
+            .. code-block:: python
+
+                dtype_min = 0
+                dtype_max = 255
+                scale = ...  # scale from geotiff
+                offset = ...  # offset from geotiff
+                data_min = offset
+                data_max = (dtype_max - dtype_min) * scale + offset
+
+            If a geotiff is saved with ``keep_palette=True`` then the data
+            saved to the geotiff are the palette indices and will not be
+            scaled to the data type of the format. There will also be a
+            standard geotiff color table in the geotiff to identify that
+            these are indices rather than some other type of image data. This
+            means in this case the scale and offset can be used to determine
+            the original range of the data starting from a 0-1 range
+            (``dtype_min`` is 0 and ``dtype_max`` is 1 in the code above).
 
         """
         if self.mode not in ("L", "LA"):
@@ -1563,11 +1595,11 @@ class XRImage(object):
 
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
-        # the data values are now indexes into the palette array of colors
-        # so it can't be more than the maximum index (len - 1)
-        palette_num_values = len(self.palette) - 1
-        scale_factor = 1.0 / palette_num_values
-        offset = 0
+        # See docstring notes above for how scale/offset should be used
+        cmap_min = colormap.values[0]
+        cmap_max = colormap.values[-1]
+        scale_factor = 1.0 / (cmap_max - cmap_min)
+        offset = -cmap_min * scale_factor
 
         self.data.attrs.setdefault('enhancement_history', []).append({
             'scale': scale_factor,
