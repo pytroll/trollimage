@@ -599,9 +599,7 @@ class XRImage(object):
         if colormap_tag and enhancement_colormap is not None:
             tags[colormap_tag] = enhancement_colormap.to_csv()
         if scale_offset_tags:
-            scale_label, offset_label = scale_offset_tags
-            scale, offset = self.get_scaling_from_history(data.attrs.get('enhancement_history', []))
-            tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
+            self._add_scale_offset_to_tags(scale_offset_tags, data, tags)
 
         # If we are changing the driver then use appropriate kwargs
         if driver == 'COG':
@@ -698,6 +696,15 @@ class XRImage(object):
         if compute:
             return delay.compute()
         return delay
+
+    def _add_scale_offset_to_tags(self, scale_offset_tags, data_arr, tags):
+        scale_label, offset_label = scale_offset_tags
+        try:
+            scale, offset = self.get_scaling_from_history(data_arr.attrs.get('enhancement_history', []))
+        except NotImplementedError:
+            logger.debug("Ignoring scale/offset tags for non-scaling enhancement operations")
+        else:
+            tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
     def get_scaling_from_history(self, history=None):
         """Merge the scales and offsets from the history.

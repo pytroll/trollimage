@@ -2193,10 +2193,10 @@ class TestXRImagePalettize:
                 np.testing.assert_allclose(new_brbg.colors, loaded_brbg.colors)
 
 
-class TestXRImageSaveScaleOffset(unittest.TestCase):
+class TestXRImageSaveScaleOffset:
     """Test case for saving an image with scale and offset tags."""
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         """Set up the test case."""
         from trollimage import xrimage
         data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
@@ -2213,6 +2213,12 @@ class TestXRImageSaveScaleOffset(unittest.TestCase):
             self._save_and_check_tags(
                 expected_tags,
                 include_scale_offset_tags=True)
+
+    def test_gamma_geotiff_scale_offset(self, tmp_path):
+        """Test that saving gamma-enhanced data to a geotiff doesn't fail."""
+        self.img.gamma(.5)
+        out_fn = str(tmp_path / "test.tif")
+        self.img.save(out_fn, scale_offset_tags=("scale", "offset"))
 
     def _save_and_check_tags(self, expected_tags, **kwargs):
         with NamedTemporaryFile(suffix='.tif') as tmp:
