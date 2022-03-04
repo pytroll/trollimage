@@ -705,7 +705,9 @@ class XRImage(object):
         except NotImplementedError:
             logger.debug("Ignoring scale/offset tags for non-scaling enhancement operations")
         else:
-            if not isinstance(scale, numbers.Number) or not isinstance(offset, numbers.Number):
+            scale_is_not_scalar = not isinstance(scale, numbers.Number) and len(scale) != 1
+            offset_is_not_scalar = not isinstance(offset, numbers.Number) and len(offset) != 1
+            if scale_is_not_scalar or offset_is_not_scalar:
                 logger.debug("Skipping multi-band scale/offset tags which "
                              "can't be saved to geotiff.")
                 return
