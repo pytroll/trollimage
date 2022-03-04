@@ -1,3 +1,14 @@
+## Version 1.18.2 (2022/03/04)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 103](https://github.com/pytroll/trollimage/pull/103) - Fix geotiff scale/offset failing for non-linear enhancements
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.18.1 (2022/02/28)
 
 ### Pull Requests Merged
