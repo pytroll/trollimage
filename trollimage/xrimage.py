@@ -33,6 +33,7 @@ chunks can be saved in parallel.
 """
 
 import logging
+import numbers
 import os
 import threading
 import warnings
@@ -704,6 +705,10 @@ class XRImage(object):
         except NotImplementedError:
             logger.debug("Ignoring scale/offset tags for non-scaling enhancement operations")
         else:
+            if not isinstance(scale, numbers.Number) or not isinstance(offset, numbers.Number):
+                logger.debug("Skipping multi-band scale/offset tags which "
+                             "can't be saved to geotiff.")
+                return
             tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
     def get_scaling_from_history(self, history=None):

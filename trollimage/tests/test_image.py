@@ -2202,6 +2202,9 @@ class TestXRImageSaveScaleOffset:
         data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
         self.img = xrimage.XRImage(data)
+        rgb_data = xr.DataArray(np.arange(3 * 25).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        self.rgb_img = xrimage.XRImage(rgb_data)
 
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_scale_offset(self):
@@ -2215,10 +2218,20 @@ class TestXRImageSaveScaleOffset:
                 include_scale_offset_tags=True)
 
     def test_gamma_geotiff_scale_offset(self, tmp_path):
-        """Test that saving gamma-enhanced data to a geotiff doesn't fail."""
+        """Test that saving gamma-enhanced data to a geotiff with scale/offset tags doesn't fail."""
         self.img.gamma(.5)
         out_fn = str(tmp_path / "test.tif")
         self.img.save(out_fn, scale_offset_tags=("scale", "offset"))
+
+    def test_rgb_geotiff_scale_offset(self, tmp_path):
+        """Test that saving RGB data to a geotiff with scale/offset tags doesn't fail."""
+        self.rgb_img.stretch(
+            stretch="crude",
+            min_stretch=[-25, -40, 243],
+            max_stretch=[0, 5, 208]
+        )
+        out_fn = str(tmp_path / "test.tif")
+        self.rgb_img.save(out_fn, scale_offset_tags=("scale", "offset"))
 
     def _save_and_check_tags(self, expected_tags, **kwargs):
         with NamedTemporaryFile(suffix='.tif') as tmp:
