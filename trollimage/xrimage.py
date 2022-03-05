@@ -508,6 +508,14 @@ class XRImage(object):
                 If set to a ``(str, str)`` tuple, scale and offset will be
                 stored in GDALMetaData tags.  Those can then be used to
                 retrieve the original data values from pixel values.
+                Scale and offset will not be saved for images that had
+                non-linear enhancements applied (ex. gamma) as they can't be
+                represented by a simple scale and offset. Scale and offset
+                are also not saved for multi-band images (ex. RGB) as storing
+                multiple values in a single GDALMetaData tag is not currently
+                supported. These cases are ignored instead of raising an error
+                to simplify batch processing that may be saving multiple images
+                with a single set of keyword arguments.
             colormap_tag (str or None):
                 If set and the image was colorized or palettized, a tag will
                 be added with this name with the value of a comma-separated
@@ -703,13 +711,13 @@ class XRImage(object):
         try:
             scale, offset = self.get_scaling_from_history(data_arr.attrs.get('enhancement_history', []))
         except NotImplementedError:
-            logger.debug("Ignoring scale/offset tags for non-scaling enhancement operations")
+            logger.info("Ignoring scale/offset tags for non-scaling enhancement operations")
         else:
             scale_is_not_scalar = not isinstance(scale, numbers.Number) and len(scale) != 1
             offset_is_not_scalar = not isinstance(offset, numbers.Number) and len(offset) != 1
             if scale_is_not_scalar or offset_is_not_scalar:
-                logger.debug("Skipping multi-band scale/offset tags which "
-                             "can't be saved to geotiff.")
+                logger.info("Skipping multi-band scale/offset tags which "
+                            "can't be saved to geotiff.")
                 return
             tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
