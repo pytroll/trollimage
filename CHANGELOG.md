@@ -1,3 +1,14 @@
+## Version 1.18.3 (2022/03/07)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 104](https://github.com/pytroll/trollimage/pull/104) - Set scale/offset tags to (NaN, NaN) for incompatible enhancements
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.18.2 (2022/03/04)
 
 ### Pull Requests Merged
