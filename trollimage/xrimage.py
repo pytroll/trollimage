@@ -508,14 +508,12 @@ class XRImage:
                 If set to a ``(str, str)`` tuple, scale and offset will be
                 stored in GDALMetaData tags.  Those can then be used to
                 retrieve the original data values from pixel values.
-                Scale and offset will not be saved for images that had
+                Scale and offset will be set to (NaN, NaN) for images that had
                 non-linear enhancements applied (ex. gamma) as they can't be
                 represented by a simple scale and offset. Scale and offset
-                are also not saved for multi-band images (ex. RGB) as storing
-                multiple values in a single GDALMetaData tag is not currently
-                supported. These cases are ignored instead of raising an error
-                to simplify batch processing that may be saving multiple images
-                with a single set of keyword arguments.
+                are also saved as (NaN, NaN) for multi-band images (ex. RGB)
+                as storing multiple values in a single GDALMetaData tag is not
+                currently supported.
             colormap_tag (str or None):
                 If set and the image was colorized or palettized, a tag will
                 be added with this name with the value of a comma-separated
