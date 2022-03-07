@@ -308,7 +308,7 @@ def delayed_pil_save(img, *args, **kwargs):
         raise
 
 
-class XRImage(object):
+class XRImage:
     """Image class using an :class:`xarray.DataArray` as internal storage.
 
     It can be saved to a variety of image formats, but if Rasterio is
@@ -708,18 +708,8 @@ class XRImage(object):
 
     def _add_scale_offset_to_tags(self, scale_offset_tags, data_arr, tags):
         scale_label, offset_label = scale_offset_tags
-        try:
-            scale, offset = self.get_scaling_from_history(data_arr.attrs.get('enhancement_history', []))
-        except NotImplementedError:
-            logger.info("Ignoring scale/offset tags for non-scaling enhancement operations")
-        else:
-            scale_is_not_scalar = not isinstance(scale, numbers.Number) and len(scale) != 1
-            offset_is_not_scalar = not isinstance(offset, numbers.Number) and len(offset) != 1
-            if scale_is_not_scalar or offset_is_not_scalar:
-                logger.info("Skipping multi-band scale/offset tags which "
-                            "can't be saved to geotiff.")
-                return
-            tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
+        scale, offset = self.get_scaling_from_history(data_arr.attrs.get('enhancement_history', []))
+        tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
     def get_scaling_from_history(self, history=None):
         """Merge the scales and offsets from the history.
@@ -732,8 +722,18 @@ class XRImage(object):
         try:
             scaling = [(item['scale'], item['offset']) for item in history]
         except KeyError as err:
-            raise NotImplementedError('Can only get combine scaling from a list of scaling operations: %s' % str(err))
-        return combine_scales_offsets(*scaling)
+            logger.debug("Can only get combine scaling from a list of linear "
+                         f"scaling operations: {err}. Setting scale and offset "
+                         "to (NaN, NaN).")
+            return np.nan, np.nan
+        scale, offset = combine_scales_offsets(*scaling)
+        scale_is_not_scalar = not isinstance(scale, numbers.Number) and len(scale) != 1
+        offset_is_not_scalar = not isinstance(offset, numbers.Number) and len(offset) != 1
+        if scale_is_not_scalar or offset_is_not_scalar:
+            logger.debug("Multi-band scale/offset tags can't be saved to "
+                         "geotiff. Setting scale and offset to (NaN, NaN).")
+            return np.nan, np.nan
+        return scale, offset
 
     @delayed(nout=1, pure=True)
     def _delayed_apply_pil(self, fun, pil_image, fun_args, fun_kwargs,

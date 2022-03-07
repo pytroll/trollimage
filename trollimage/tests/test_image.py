@@ -2222,6 +2222,9 @@ class TestXRImageSaveScaleOffset:
         self.img.gamma(.5)
         out_fn = str(tmp_path / "test.tif")
         self.img.save(out_fn, scale_offset_tags=("scale", "offset"))
+        with rio.open(out_fn, "r") as ds:
+            assert np.isnan(float(ds.tags()["scale"]))
+            assert np.isnan(float(ds.tags()["offset"]))
 
     def test_rgb_geotiff_scale_offset(self, tmp_path):
         """Test that saving RGB data to a geotiff with scale/offset tags doesn't fail."""
@@ -2232,6 +2235,9 @@ class TestXRImageSaveScaleOffset:
         )
         out_fn = str(tmp_path / "test.tif")
         self.rgb_img.save(out_fn, scale_offset_tags=("scale", "offset"))
+        with rio.open(out_fn, "r") as ds:
+            assert np.isnan(float(ds.tags()["scale"]))
+            assert np.isnan(float(ds.tags()["offset"]))
 
     def _save_and_check_tags(self, expected_tags, **kwargs):
         with NamedTemporaryFile(suffix='.tif') as tmp:
