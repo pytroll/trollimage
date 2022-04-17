@@ -1,22 +1,18 @@
-.. TrollImage documentation master file, created by
-   sphinx-quickstart on Mon Dec  2 09:40:29 2013.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to TrollImage's documentation!
-======================================
+TrollImage
+==========
 
 .. image:: _static/hayan.png
 
 Get the source code here_ !
 
-.. _here: http://github.com/mraspaud/trollimage
+.. _here: http://github.com/pytroll/trollimage
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
+   installation
    image
    xrimage
    colorspaces
