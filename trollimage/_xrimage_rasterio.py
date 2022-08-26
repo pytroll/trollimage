@@ -39,24 +39,27 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def convert_area_to_crs_transform_gcps(area):
-    """Convert AreaDefinition or SwathDefinition to rasterio geolocation information.
+def get_data_arr_crs_transform_gcps(data_arr):
+    """Convert DataArray's AreaDefinition or SwathDefinition to rasterio geolocation information.
 
     If possible, a rasterio geotransform object will be created. If it can't be made
     then it is assumed the provided geometry object is a SwathDefinition and will be
     checked for GCP coordinates (``swath_def.lons.attrs['gcps']``).
 
     Args:
-        area: Pyresample AreaDefinition or SwathDefinition
+        data_arr: Xarray DataArray.
 
     Returns:
-        Tuple of (crs, transform, gcps).
+        Tuple of (crs, transform, gcps). Each element defaults to ``None`` if
+        it couldn't be calculated.
+
     """
     crs = None
     transform = None
     gcps = None
 
     try:
+        area = data_arr.attr["area"]
         if rasterio.__gdal_version__ >= '3':
             wkt_version = 'WKT2_2018'
         else:
@@ -75,8 +78,8 @@ def convert_area_to_crs_transform_gcps(area):
         logger.info("Couldn't create geotransform")
     except AttributeError:
         try:
-            gcps = area.lons.attrs['gcps']
-            crs = area.lons.attrs['crs']
+            gcps = data_arr.attrs["area"].lons.attrs['gcps']
+            crs = data_arr.attrs["area"].lons.attrs['crs']
         except KeyError:
             logger.info("Couldn't create geotransform")
     return crs, transform, gcps

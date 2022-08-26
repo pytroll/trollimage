@@ -372,8 +372,8 @@ class XRImage:
                 format_kwargs.setdefault('photometric',
                                          photometric_map[mode.upper()])
 
-            from ._xrimage_rasterio import convert_area_to_crs_transform_gcps
-            crs, transform, gcps = convert_area_to_crs_transform_gcps(data.attrs["area"])
+            from ._xrimage_rasterio import get_data_arr_crs_transform_gcps
+            crs, transform, gcps = get_data_arr_crs_transform_gcps(data)
 
             stime = data.attrs.get("start_time")
             if stime:
