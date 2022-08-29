@@ -1197,6 +1197,8 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_with_area_def(self):
         """Test saving a integer image with an AreaDefinition."""
         from pyproj import CRS
