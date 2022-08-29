@@ -1073,6 +1073,8 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], 255)
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_delayed(self):
         """Test saving a geotiff but not computing the result immediately."""
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
@@ -1087,6 +1089,8 @@ class TestXRImage:
             da.store(*delay)
             delay[1].close()
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_gcps(self):
         """Test saving geotiffs when input data is int and has GCPs."""
         from rasterio.control import GroundControlPoint
@@ -1124,6 +1128,8 @@ class TestXRImage:
                 assert ref.z == val.z
             assert crs == fcrs
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_rio_colormap(self):
         """Test saving geotiffs when input data is int and a rasterio colormap is provided."""
         exp_cmap = {i: (i, 255 - i, i, 255) for i in range(256)}
@@ -1141,6 +1147,8 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             assert cmap == exp_cmap
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_with_fill(self):
         """Test saving geotiffs when input data is int and a fill value is specified."""
         data = np.arange(75).reshape(5, 5, 3)
@@ -1165,6 +1173,8 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_with_fill_and_alpha(self):
         """Test saving int geotiffs with a fill value and input alpha band."""
         data = np.arange(75).reshape(5, 5, 3)
