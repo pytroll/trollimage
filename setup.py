@@ -52,5 +52,5 @@ setup(name="trollimage",
           'geotiff': ['rasterio>=1.0'],
           'xarray': ['xarray', 'dask[array]'],
       },
-      tests_require=['xarray', 'dask[array]'],
+      tests_require=['xarray', 'dask[array]', 'pyproj', 'pyresample'],
       )

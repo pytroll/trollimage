@@ -51,7 +51,7 @@ def get_data_arr_crs_transform_gcps(data_arr):
     gcps = None
 
     try:
-        area = data_arr.attr["area"]
+        area = data_arr.attrs["area"]
         if rasterio.__gdal_version__ >= '3':
             wkt_version = 'WKT2_2018'
         else:
