@@ -20,12 +20,8 @@ from contextlib import suppress
 
 import dask.array as da
 
-try:
-    import rasterio
-    from rasterio.enums import Resampling
-except ImportError:
-    rasterio = None
-
+import rasterio
+from rasterio.enums import Resampling
 from rasterio.windows import Window
 
 logger = logging.getLogger(__name__)
