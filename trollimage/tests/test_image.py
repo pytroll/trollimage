@@ -1047,43 +1047,22 @@ class TestXRImage:
         tags = _get_tags_after_writing_to_geotiff(data)
         assert "TIFFTAG_DATETIME" in tags
 
+    @pytest.mark.parametrize("output_ext", [".tif", ".tiff"])
+    @pytest.mark.parametrize("use_dask", [False, True])
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
-    def test_save_geotiff_int(self):
+    def test_save_geotiff_int(self, output_ext, use_dask):
         """Test saving geotiffs when input data is int."""
-        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
-            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
-        img = xrimage.XRImage(data)
-        assert np.issubdtype(img.data.dtype, np.integer)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band added
-            exp = np.arange(75).reshape(5, 5, 3)
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            np.testing.assert_allclose(file_data[3], 255)
-        # test .tiff too
-        with NamedTemporaryFile(suffix='.tiff') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band added
-            exp = np.arange(75).reshape(5, 5, 3)
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            np.testing.assert_allclose(file_data[3], 255)
+        arr = np.arange(75).reshape(5, 5, 3)
+        if use_dask:
+            arr = da.from_array(arr, chunks=5)
 
-        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
+        data = xr.DataArray(arr,
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         assert np.issubdtype(img.data.dtype, np.integer)
-        # Regular default save
-        with NamedTemporaryFile(suffix='.tif') as tmp:
+        with NamedTemporaryFile(suffix=output_ext) as tmp:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
@@ -1094,7 +1073,12 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], 255)
 
-        # dask delayed save
+    def test_save_geotiff_delayed(self):
+        """Test saving a geotiff but not computing the result immediately."""
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             delay = img.save(tmp.name, compute=False)
             assert isinstance(delay, tuple)
