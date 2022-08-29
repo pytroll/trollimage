@@ -1130,6 +1130,38 @@ class TestXRImage:
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int_no_gcp_swath(self):
+        """Test saving geotiffs when input data whose SwathDefinition has no GCPs.
+
+        If shouldn't fail, but it also shouldn't have a non-default CRS or transform.
+
+        """
+        from pyresample import SwathDefinition
+
+        lons = xr.DataArray(da.from_array(np.arange(25).reshape(5, 5), chunks=5),
+                            dims=['y', 'x'],
+                            attrs={})
+
+        lats = xr.DataArray(da.from_array(np.arange(25).reshape(5, 5), chunks=5),
+                            dims=['y', 'x'],
+                            attrs={})
+        swath_def = SwathDefinition(lons, lats)
+
+        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']},
+                            attrs={'area': swath_def})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                assert f.crs.to_epsg() == 4326  # default
+                assert f.transform.a == 1.0
+                assert f.transform.b == 0.0
+                assert f.transform.c == 0.0
+
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_rio_colormap(self):
         """Test saving geotiffs when input data is int and a rasterio colormap is provided."""
         exp_cmap = {i: (i, 255 - i, i, 255) for i in range(256)}
