@@ -1133,7 +1133,7 @@ class TestXRImage:
     def test_save_geotiff_int_no_gcp_swath(self):
         """Test saving geotiffs when input data whose SwathDefinition has no GCPs.
 
-        If shouldn't fail, but it also shouldn't have a non-default CRS or transform.
+        If shouldn't fail, but it also shouldn't have a non-default transform.
 
         """
         from pyresample import SwathDefinition
@@ -1155,7 +1155,6 @@ class TestXRImage:
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
-                assert f.crs.to_epsg() == 4326  # default
                 assert f.transform.a == 1.0
                 assert f.transform.b == 0.0
                 assert f.transform.c == 0.0
