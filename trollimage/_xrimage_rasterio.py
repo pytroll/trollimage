@@ -26,15 +26,7 @@ try:
 except ImportError:
     rasterio = None
 
-try:
-    # rasterio 1.0+
-    from rasterio.windows import Window
-except ImportError:
-    # raster 0.36.0
-    # remove this once rasterio 1.0+ is officially available
-    def Window(x_off, y_off, x_size, y_size):
-        """Replace the missing Window object in rasterio < 1.0."""
-        return (y_off, y_off + y_size), (x_off, x_off + x_size)
+from rasterio.windows import Window
 
 logger = logging.getLogger(__name__)
 
