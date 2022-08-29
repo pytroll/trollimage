@@ -1051,8 +1051,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int(self):
         """Test saving geotiffs when input data is int."""
-        from rasterio.control import GroundControlPoint
-
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
@@ -1105,7 +1103,9 @@ class TestXRImage:
             da.store(*delay)
             delay[1].close()
 
-        # GCPs
+    def test_save_geotiff_int_gcps(self):
+        """Test saving geotiffs when input data is int and has GCPs."""
+        from rasterio.control import GroundControlPoint
         from pyresample import SwathDefinition
 
         gcps = [GroundControlPoint(1, 1, 100.0, 1000.0, z=0.0),
@@ -1140,7 +1140,8 @@ class TestXRImage:
                 assert ref.z == val.z
             assert crs == fcrs
 
-        # with rasterio colormap provided
+    def test_save_geotiff_int_rio_colormap(self):
+        """Test saving geotiffs when input data is int and a rasterio colormap is provided."""
         exp_cmap = {i: (i, 255 - i, i, 255) for i in range(256)}
         data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
                             dims=['y', 'x', 'bands'],
@@ -1156,7 +1157,8 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             assert cmap == exp_cmap
 
-        # with input fill value
+    def test_save_geotiff_int_with_fill(self):
+        """Test saving geotiffs when input data is int and a fill value is specified."""
         data = np.arange(75).reshape(5, 5, 3)
         # second pixel is all bad
         # pixel [0, 1, 1] is also naturally 5 by arange above
@@ -1179,7 +1181,18 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
-        # input fill value but alpha on output
+    def test_save_geotiff_int_with_fill_and_alpha(self):
+        """Test saving int geotiffs with a fill value and input alpha band."""
+        data = np.arange(75).reshape(5, 5, 3)
+        # second pixel is all bad
+        # pixel [0, 1, 1] is also naturally 5 by arange above
+        data[0, 1, :] = 5
+        data = xr.DataArray(da.from_array(data, chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            attrs={'_FillValue': 5},
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
