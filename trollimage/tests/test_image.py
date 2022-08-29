@@ -1106,10 +1106,7 @@ class TestXRImage:
             delay[1].close()
 
         # GCPs
-        class FakeSwathDefinition():
-            def __init__(self, lons, lats):
-                self.lons = lons
-                self.lats = lats
+        from pyresample import SwathDefinition
 
         gcps = [GroundControlPoint(1, 1, 100.0, 1000.0, z=0.0),
                 GroundControlPoint(2, 3, 400.0, 2000.0, z=0.0)]
@@ -1124,11 +1121,12 @@ class TestXRImage:
                             dims=['y', 'x'],
                             attrs={'gcps': gcps,
                                    'crs': crs})
+        swath_def = SwathDefinition(lons, lats)
 
         data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']},
-                            attrs={'area': FakeSwathDefinition(lons, lats)})
+                            attrs={'area': swath_def})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
