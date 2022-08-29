@@ -35,9 +35,7 @@ chunks can be saved in parallel.
 import logging
 import numbers
 import os
-import threading
 import warnings
-from contextlib import suppress
 
 import dask
 import dask.array as da
@@ -47,207 +45,7 @@ from PIL import Image as PILImage
 from dask.delayed import delayed
 from trollimage.image import check_image_format
 
-try:
-    import rasterio
-    from rasterio.enums import Resampling
-except ImportError:
-    rasterio = None
-
-try:
-    # rasterio 1.0+
-    from rasterio.windows import Window
-except ImportError:
-    # raster 0.36.0
-    # remove this once rasterio 1.0+ is officially available
-    def Window(x_off, y_off, x_size, y_size):
-        """Replace the missing Window object in rasterio < 1.0."""
-        return (y_off, y_off + y_size), (x_off, x_off + x_size)
-
 logger = logging.getLogger(__name__)
-
-
-class RIOFile(object):
-    """Rasterio wrapper to allow da.store to do window saving."""
-
-    def __init__(self, path, mode='w', **kwargs):
-        """Initialize the object."""
-        self.path = path
-        self.mode = mode
-        self.kwargs = kwargs
-        self.rfile = None
-        self.lock = threading.Lock()
-
-    @property
-    def width(self):
-        """Width of the band images."""
-        return self.kwargs['width']
-
-    @property
-    def height(self):
-        """Height of the band images."""
-        return self.kwargs['height']
-
-    @property
-    def closed(self):
-        """Check if the file is closed."""
-        return self.rfile is None or self.rfile.closed
-
-    def open(self, mode=None):
-        """Open the file."""
-        mode = mode or self.mode
-        if self.closed:
-            self.rfile = rasterio.open(self.path, mode, **self.kwargs)
-
-    def close(self):
-        """Close the file."""
-        with self.lock:
-            if not self.closed:
-                self.rfile.close()
-
-    def __enter__(self):
-        """Enter method."""
-        self.open()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Exit method."""
-        self.close()
-
-    def __del__(self):
-        """Delete the instance."""
-        with suppress(IOError, OSError):
-            self.close()
-
-    @property
-    def colorinterp(self):
-        """Return the color interpretation of the image."""
-        return self.rfile.colorinterp
-
-    @colorinterp.setter
-    def colorinterp(self, val):
-        if rasterio.__version__.startswith("0."):
-            # not supported in older versions, set by PHOTOMETRIC tag
-            logger.warning("Rasterio 1.0+ required for setting colorinterp")
-        else:
-            self.rfile.colorinterp = val
-
-    def write(self, *args, **kwargs):
-        """Write to the file."""
-        with self.lock:
-            self.open('r+')
-            return self.rfile.write(*args, **kwargs)
-
-    def build_overviews(self, *args, **kwargs):
-        """Write overviews."""
-        with self.lock:
-            self.open('r+')
-            return self.rfile.build_overviews(*args, **kwargs)
-
-    def update_tags(self, *args, **kwargs):
-        """Update tags."""
-        with self.lock:
-            self.open('a')
-            return self.rfile.update_tags(*args, **kwargs)
-
-
-class RIOTag:
-    """Rasterio wrapper to allow da.store on tag."""
-
-    def __init__(self, rfile, name):
-        """Init the rasterio tag."""
-        self.rfile = rfile
-        self.name = name
-
-    def __setitem__(self, key, item):
-        """Put the data in the tag."""
-        kwargs = {self.name: item.item()}
-        self.rfile.update_tags(**kwargs)
-
-    def close(self):
-        """Close the file."""
-        return self.rfile.close()
-
-
-class RIODataset:
-    """A wrapper for a rasterio dataset."""
-
-    def __init__(self, rfile, overviews=None, overviews_resampling=None,
-                 overviews_minsize=256):
-        """Init the rasterio dataset."""
-        self.rfile = rfile
-        self.overviews = overviews
-        if overviews_resampling is None:
-            overviews_resampling = 'nearest'
-        self.overviews_resampling = Resampling[overviews_resampling]
-        self.overviews_minsize = overviews_minsize
-
-    def __setitem__(self, key, item):
-        """Put the data chunk in the image."""
-        if len(key) == 3:
-            indexes = list(range(
-                key[0].start + 1,
-                key[0].stop + 1,
-                key[0].step or 1
-            ))
-            y = key[1]
-            x = key[2]
-        else:
-            indexes = 1
-            y = key[0]
-            x = key[1]
-        chy_off = y.start
-        chy = y.stop - y.start
-        chx_off = x.start
-        chx = x.stop - x.start
-
-        # band indexes
-        self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
-                         indexes=indexes)
-
-    def close(self):
-        """Close the file."""
-        if self.overviews is not None:
-            overviews = self.overviews
-            # it's an empty list
-            if len(overviews) == 0:
-                from rasterio.rio.overview import get_maximum_overview_level
-                width = self.rfile.width
-                height = self.rfile.height
-                max_level = get_maximum_overview_level(
-                    width, height, self.overviews_minsize)
-                overviews = [2 ** j for j in range(1, max_level + 1)]
-            logger.debug('Building overviews %s with %s resampling',
-                         str(overviews), self.overviews_resampling.name)
-            self.rfile.build_overviews(overviews, resampling=self.overviews_resampling)
-
-        return self.rfile.close()
-
-
-def color_interp(data):
-    """Get the color interpretation for this image."""
-    from rasterio.enums import ColorInterp as ci
-    modes = {'L': [ci.gray],
-             'LA': [ci.gray, ci.alpha],
-             'YCbCr': [ci.Y, ci.Cb, ci.Cr],
-             'YCbCrA': [ci.Y, ci.Cb, ci.Cr, ci.alpha]}
-
-    try:
-        mode = ''.join(data['bands'].values)
-        return modes[mode]
-    except KeyError:
-        colors = {'R': ci.red,
-                  'G': ci.green,
-                  'B': ci.blue,
-                  'A': ci.alpha,
-                  'C': ci.cyan,
-                  'M': ci.magenta,
-                  'Y': ci.yellow,
-                  'H': ci.hue,
-                  'S': ci.saturation,
-                  'L': ci.lightness,
-                  'K': ci.black,
-                  }
-        return [colors[band] for band in data['bands'].values]
 
 
 def combine_scales_offsets(*args):
@@ -445,12 +243,15 @@ class XRImage:
         """
         kwformat = format_kwargs.pop('format', None)
         fformat = fformat or kwformat or os.path.splitext(filename)[1][1:]
-        if fformat in ('tif', 'tiff', 'jp2') and rasterio:
-
-            return self.rio_save(filename, fformat=fformat, driver=driver,
-                                 fill_value=fill_value, compute=compute,
-                                 keep_palette=keep_palette, cmap=cmap,
-                                 **format_kwargs)
+        if fformat in ('tif', 'tiff', 'jp2'):
+            try:
+                return self.rio_save(filename, fformat=fformat, driver=driver,
+                                     fill_value=fill_value, compute=compute,
+                                     keep_palette=keep_palette, cmap=cmap,
+                                     **format_kwargs)
+            except ImportError:
+                logger.warning("Missing 'rasterio' dependency to save GeoTIFF "
+                               "image. Will try using PIL...")
         return self.pil_save(filename, fformat, fill_value,
                              compute=compute, **format_kwargs)
 
@@ -525,6 +326,7 @@ class XRImage:
             The delayed or computed result of the saving.
 
         """
+        from ._xrimage_rasterio import RIOFile, RIODataset, split_regular_vs_lazy_tags
         fformat = fformat or os.path.splitext(filename)[1][1:]
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
@@ -570,36 +372,14 @@ class XRImage:
                 format_kwargs.setdefault('photometric',
                                          photometric_map[mode.upper()])
 
-            try:
-                area = data.attrs['area']
-                if rasterio.__gdal_version__ >= '3':
-                    wkt_version = 'WKT2_2018'
-                else:
-                    wkt_version = 'WKT1_GDAL'
-                if hasattr(area, 'crs'):
-                    crs = rasterio.crs.CRS.from_wkt(area.crs.to_wkt(version=wkt_version))
-                else:
-                    crs = rasterio.crs.CRS(data.attrs['area'].proj_dict)
-                west, south, east, north = data.attrs['area'].area_extent
-                height, width = data.sizes['y'], data.sizes['x']
-                transform = rasterio.transform.from_bounds(west, south,
-                                                           east, north,
-                                                           width, height)
-
-            except KeyError:  # No area
-                logger.info("Couldn't create geotransform")
-            except AttributeError:
-                try:
-                    gcps = data.attrs['area'].lons.attrs['gcps']
-                    crs = data.attrs['area'].lons.attrs['crs']
-                except KeyError:
-                    logger.info("Couldn't create geotransform")
+            from ._xrimage_rasterio import get_data_arr_crs_transform_gcps
+            crs, transform, gcps = get_data_arr_crs_transform_gcps(data)
 
             stime = data.attrs.get("start_time")
             if stime:
                 stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
                 tags.setdefault('TIFFTAG_DATETIME', stime_str)
-        elif driver == 'JPEG' and 'A' in mode:
+        if driver == 'JPEG' and 'A' in mode:
             raise ValueError('JPEG does not support alpha')
 
         enhancement_colormap = self._get_colormap_from_enhancement_history(data)
@@ -624,6 +404,7 @@ class XRImage:
                          **format_kwargs)
         r_file.open()
         if not keep_palette:
+            from ._xrimage_rasterio import color_interp
             r_file.colorinterp = color_interp(data)
 
         if keep_palette and cmap is not None:
@@ -636,8 +417,7 @@ class XRImage:
             except AttributeError:
                 raise ValueError("Colormap is not formatted correctly")
 
-        tags, da_tags = self._split_regular_vs_lazy_tags(tags, r_file)
-
+        tags, da_tags = split_regular_vs_lazy_tags(tags, r_file)
         r_file.rfile.update_tags(**tags)
         r_dataset = RIODataset(r_file, overviews,
                                overviews_resampling=overviews_resampling,
@@ -667,21 +447,6 @@ class XRImage:
             if "colormap" in enhance_dict:
                 return enhance_dict["colormap"]
         return None
-
-    @staticmethod
-    def _split_regular_vs_lazy_tags(tags, r_file):
-        """Split tags into regular vs lazy (dask) tags."""
-        da_tags = []
-        for key, val in list(tags.items()):
-            try:
-                if isinstance(val.data, da.Array):
-                    da_tags.append((val.data, RIOTag(r_file, key)))
-                    tags.pop(key)
-                else:
-                    tags[key] = val.item()
-            except AttributeError:
-                continue
-        return tags, da_tags
 
     def pil_save(self, filename, fformat=None, fill_value=None,
                  compute=True, **format_kwargs):

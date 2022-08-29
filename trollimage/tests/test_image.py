@@ -34,6 +34,7 @@ import pytest
 
 from trollimage import image, xrimage
 from trollimage.colormap import Colormap, brbg
+from trollimage._xrimage_rasterio import RIODataset
 from .utils import assert_maximum_dask_computes
 
 
@@ -1001,7 +1002,7 @@ class TestXRImage:
             delay = img.save(tmp.name, compute=False)
             assert isinstance(delay, tuple)
             assert isinstance(delay[0], da.Array)
-            assert isinstance(delay[1], xrimage.RIODataset)
+            assert isinstance(delay[1], RIODataset)
             da.store(*delay)
             delay[1].close()
 
@@ -1101,7 +1102,7 @@ class TestXRImage:
             delay = img.save(tmp.name, compute=False)
             assert isinstance(delay, tuple)
             assert isinstance(delay[0], da.Array)
-            assert isinstance(delay[1], xrimage.RIODataset)
+            assert isinstance(delay[1], RIODataset)
             da.store(*delay)
             delay[1].close()
 
