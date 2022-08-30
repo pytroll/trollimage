@@ -20,12 +20,8 @@ from contextlib import suppress
 
 import dask.array as da
 
-try:
-    import rasterio
-    from rasterio.enums import Resampling
-except ImportError:
-    rasterio = None
-
+import rasterio
+from rasterio.enums import Resampling
 from rasterio.windows import Window
 
 logger = logging.getLogger(__name__)
@@ -51,7 +47,7 @@ def get_data_arr_crs_transform_gcps(data_arr):
     gcps = None
 
     try:
-        area = data_arr.attr["area"]
+        area = data_arr.attrs["area"]
         if rasterio.__gdal_version__ >= '3':
             wkt_version = 'WKT2_2018'
         else:

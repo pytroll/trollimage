@@ -1047,46 +1047,22 @@ class TestXRImage:
         tags = _get_tags_after_writing_to_geotiff(data)
         assert "TIFFTAG_DATETIME" in tags
 
+    @pytest.mark.parametrize("output_ext", [".tif", ".tiff"])
+    @pytest.mark.parametrize("use_dask", [False, True])
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
-    def test_save_geotiff_int(self):
+    def test_save_geotiff_int(self, output_ext, use_dask):
         """Test saving geotiffs when input data is int."""
-        from rasterio.control import GroundControlPoint
+        arr = np.arange(75).reshape(5, 5, 3)
+        if use_dask:
+            arr = da.from_array(arr, chunks=5)
 
-        # numpy array image
-        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
-            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
-        img = xrimage.XRImage(data)
-        assert np.issubdtype(img.data.dtype, np.integer)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band added
-            exp = np.arange(75).reshape(5, 5, 3)
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            np.testing.assert_allclose(file_data[3], 255)
-        # test .tiff too
-        with NamedTemporaryFile(suffix='.tiff') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band added
-            exp = np.arange(75).reshape(5, 5, 3)
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            np.testing.assert_allclose(file_data[3], 255)
-
-        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
+        data = xr.DataArray(arr,
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         assert np.issubdtype(img.data.dtype, np.integer)
-        # Regular default save
-        with NamedTemporaryFile(suffix='.tif') as tmp:
+        with NamedTemporaryFile(suffix=output_ext) as tmp:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
@@ -1097,7 +1073,14 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], 255)
 
-        # dask delayed save
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_delayed(self):
+        """Test saving a geotiff but not computing the result immediately."""
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
+            'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             delay = img.save(tmp.name, compute=False)
             assert isinstance(delay, tuple)
@@ -1106,11 +1089,12 @@ class TestXRImage:
             da.store(*delay)
             delay[1].close()
 
-        # GCPs
-        class FakeArea():
-            def __init__(self, lons, lats):
-                self.lons = lons
-                self.lats = lats
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int_gcps(self):
+        """Test saving geotiffs when input data is int and has GCPs."""
+        from rasterio.control import GroundControlPoint
+        from pyresample import SwathDefinition
 
         gcps = [GroundControlPoint(1, 1, 100.0, 1000.0, z=0.0),
                 GroundControlPoint(2, 3, 400.0, 2000.0, z=0.0)]
@@ -1125,11 +1109,12 @@ class TestXRImage:
                             dims=['y', 'x'],
                             attrs={'gcps': gcps,
                                    'crs': crs})
+        swath_def = SwathDefinition(lons, lats)
 
         data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']},
-                            attrs={'area': FakeArea(lons, lats)})
+                            attrs={'area': swath_def})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
@@ -1143,7 +1128,41 @@ class TestXRImage:
                 assert ref.z == val.z
             assert crs == fcrs
 
-        # with rasterio colormap provided
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int_no_gcp_swath(self):
+        """Test saving geotiffs when input data whose SwathDefinition has no GCPs.
+
+        If shouldn't fail, but it also shouldn't have a non-default transform.
+
+        """
+        from pyresample import SwathDefinition
+
+        lons = xr.DataArray(da.from_array(np.arange(25).reshape(5, 5), chunks=5),
+                            dims=['y', 'x'],
+                            attrs={})
+
+        lats = xr.DataArray(da.from_array(np.arange(25).reshape(5, 5), chunks=5),
+                            dims=['y', 'x'],
+                            attrs={})
+        swath_def = SwathDefinition(lons, lats)
+
+        data = xr.DataArray(da.from_array(np.arange(75).reshape(5, 5, 3), chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']},
+                            attrs={'area': swath_def})
+        img = xrimage.XRImage(data)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                assert f.transform.a == 1.0
+                assert f.transform.b == 0.0
+                assert f.transform.c == 0.0
+
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int_rio_colormap(self):
+        """Test saving geotiffs when input data is int and a rasterio colormap is provided."""
         exp_cmap = {i: (i, 255 - i, i, 255) for i in range(256)}
         data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
                             dims=['y', 'x', 'bands'],
@@ -1159,7 +1178,10 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[0], exp[:, :, 0])
             assert cmap == exp_cmap
 
-        # with input fill value
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int_with_fill(self):
+        """Test saving geotiffs when input data is int and a fill value is specified."""
         data = np.arange(75).reshape(5, 5, 3)
         # second pixel is all bad
         # pixel [0, 1, 1] is also naturally 5 by arange above
@@ -1182,7 +1204,20 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
-        # input fill value but alpha on output
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int_with_fill_and_alpha(self):
+        """Test saving int geotiffs with a fill value and input alpha band."""
+        data = np.arange(75).reshape(5, 5, 3)
+        # second pixel is all bad
+        # pixel [0, 1, 1] is also naturally 5 by arange above
+        data[0, 1, :] = 5
+        data = xr.DataArray(da.from_array(data, chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            attrs={'_FillValue': 5},
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
@@ -1197,6 +1232,41 @@ class TestXRImage:
             np.testing.assert_allclose(file_data[1], exp[:, :, 1])
             np.testing.assert_allclose(file_data[2], exp[:, :, 2])
             np.testing.assert_allclose(file_data[3], exp_alpha)
+
+    @pytest.mark.skipif(sys.platform.startswith('win'),
+                        reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_geotiff_int_with_area_def(self):
+        """Test saving a integer image with an AreaDefinition."""
+        from pyproj import CRS
+        from pyresample import AreaDefinition
+        crs = CRS.from_user_input(4326)
+        area_def = AreaDefinition(
+            "test", "test", "",
+            crs, 5, 5, [-300, -250, 200, 250],
+        )
+
+        data = xr.DataArray(np.arange(75).reshape(5, 5, 3),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']},
+                            attrs={"area": area_def})
+        img = xrimage.XRImage(data)
+        assert np.issubdtype(img.data.dtype, np.integer)
+        with NamedTemporaryFile(suffix='.tif') as tmp:
+            img.save(tmp.name)
+            with rio.open(tmp.name) as f:
+                file_data = f.read()
+                assert f.crs.to_epsg() == 4326
+                geotransform = f.transform
+                assert geotransform.a == 100
+                assert geotransform.c == -300
+                assert geotransform.e == -100
+                assert geotransform.f == 250
+            assert file_data.shape == (4, 5, 5)  # alpha band added
+            exp = np.arange(75).reshape(5, 5, 3)
+            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+            np.testing.assert_allclose(file_data[3], 255)
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
