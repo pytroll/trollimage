@@ -829,7 +829,6 @@ class XRImage:
     def _scale_alpha_or_fill_data(self, data, fill_value, dtype):
         input_fill_value = self._get_input_fill_value(data)
         needs_alpha = fill_value is None and not self.mode.endswith('A')
-        print(input_fill_value, needs_alpha, data.attrs)
         if needs_alpha:
             # We don't have a fill value or an alpha, let's add an alpha
             return self._add_alpha_and_scale(data, input_fill_value, dtype)
