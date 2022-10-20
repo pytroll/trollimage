@@ -2139,6 +2139,25 @@ class TestXRImageColorize:
         assert img.data.attrs["enhancement_history"][-1]["offset"] == expected_offset
         assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
 
+    def test_colorize_int_l_rgb_with_fills(self):
+        """Test integer data with _FillValue is masked (NaN) when colorized."""
+        arr = np.arange(75, dtype=np.uint8).reshape(5, 15)
+        arr[1, :] = 255
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'],
+                            attrs={"_FillValue": 255})
+        new_brbg = brbg.set_range(5, 20, inplace=False)
+        img = xrimage.XRImage(data)
+        img.colorize(new_brbg)
+        values = img.data.compute()
+        assert values.shape == (3,) + arr.shape  # RGB
+        np.testing.assert_allclose(values[:, 1, :], np.nan)
+        assert np.count_nonzero(np.isnan(values)) == arr.shape[1] * 3
+
+        assert "enhancement_history" in img.data.attrs
+        assert img.data.attrs["enhancement_history"][-1]["scale"] == 1 / (20 - 5)
+        assert img.data.attrs["enhancement_history"][-1]["offset"] == -5 / (20 - 5)
+        assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
+
     def test_colorize_la_rgb(self):
         """Test colorizing an LA image with an RGB colormap."""
         arr = np.arange(75).reshape(5, 15) / 74.

@@ -829,6 +829,7 @@ class XRImage:
     def _scale_alpha_or_fill_data(self, data, fill_value, dtype):
         input_fill_value = self._get_input_fill_value(data)
         needs_alpha = fill_value is None and not self.mode.endswith('A')
+        print(input_fill_value, needs_alpha, data.attrs)
         if needs_alpha:
             # We don't have a fill value or an alpha, let's add an alpha
             return self._add_alpha_and_scale(data, input_fill_value, dtype)
@@ -1279,13 +1280,8 @@ class XRImage:
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
 
-        if self.mode == "LA":
-            alpha = self.data.sel(bands=['A'])
-        else:
-            alpha = None
-
-        l_data = self.data.sel(bands='L')
-
+        l_data = self._get_masked_floating_luminance_data()
+        alpha = self.data.sel(bands=['A']) if self.mode == "LA" else None
         new_data = colormap.colorize(l_data.data)
 
         if colormap.colors.shape[1] == 4:
@@ -1302,15 +1298,22 @@ class XRImage:
         attrs = self.data.attrs
         dims = self.data.dims
         self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
-        cmap_min = colormap.values[0]
-        cmap_max = colormap.values[-1]
-        scale_factor = 1.0 / (cmap_max - cmap_min)
-        offset = -cmap_min * scale_factor
+        scale_factor, offset = self._get_colormap_scale_offset(colormap)
         self.data.attrs.setdefault('enhancement_history', []).append({
             'scale': scale_factor,
             'offset': offset,
             'colormap': colormap,
         })
+
+    def _get_masked_floating_luminance_data(self):
+        l_data = self.data.sel(bands='L')
+        # mask any integer fields with _FillValue
+        # assume NaN is used otherwise
+        if self.mode == "L" and np.issubdtype(self.data.dtype, np.integer):
+            fill_value = self._get_input_fill_value(self.data)
+            if fill_value is not None:
+                l_data = l_data.where(l_data != fill_value)
+        return l_data
 
     def palettize(self, colormap):
         """Palettize the current image using ``colormap``.
@@ -1381,16 +1384,20 @@ class XRImage:
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
         # See docstring notes above for how scale/offset should be used
-        cmap_min = colormap.values[0]
-        cmap_max = colormap.values[-1]
-        scale_factor = 1.0 / (cmap_max - cmap_min)
-        offset = -cmap_min * scale_factor
-
+        scale_factor, offset = self._get_colormap_scale_offset(colormap)
         self.data.attrs.setdefault('enhancement_history', []).append({
             'scale': scale_factor,
             'offset': offset,
             'colormap': colormap,
         })
+
+    @staticmethod
+    def _get_colormap_scale_offset(colormap):
+        cmap_min = colormap.values[0]
+        cmap_max = colormap.values[-1]
+        scale_factor = 1.0 / (cmap_max - cmap_min)
+        offset = -cmap_min * scale_factor
+        return scale_factor, offset
 
     def blend(self, src):
         r"""Alpha blend *src* on top of the current image.
