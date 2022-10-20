@@ -1263,7 +1263,12 @@ class XRImage:
         """Colorize the current image using ``colormap``.
 
         Convert a greyscale image (mode "L" or "LA") to a color image (mode
-        "RGB" or "RGBA") by applying a colormap.
+        "RGB" or "RGBA") by applying a colormap. If floating point data being
+        colorized contains NaNs then the result will also contain NaNs instead
+        of a color from the colormap. Integer data that includes
+        a ``.attrs['_FillValue']`` will be converted to a floating point array
+        and values equal to ``_FillValue`` replaced with NaN before being
+        colorized.
 
         To create a color image in mode "P" or "PA", use
         :meth:`~XRImage.palettize`.
