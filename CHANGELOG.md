@@ -1,3 +1,29 @@
+## Version 1.19.0 (2022/10/21)
+
+### Issues Closed
+
+* [Issue 72](https://github.com/pytroll/trollimage/issues/72) - Add install instructions ([PR 105](https://github.com/pytroll/trollimage/pull/105) by [@djhoese](https://github.com/djhoese))
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 109](https://github.com/pytroll/trollimage/pull/109) - Fix XRImage.colorize to mask integer data with _FillValue ([545](https://github.com/ssec/polar2grid/issues/545))
+* [PR 108](https://github.com/pytroll/trollimage/pull/108) - Fix typo in rasterio AreaDefinition handling
+
+#### Features added
+
+* [PR 107](https://github.com/pytroll/trollimage/pull/107) - Refactor rasterio usage to improve import time
+
+#### Documentation changes
+
+* [PR 105](https://github.com/pytroll/trollimage/pull/105) - Add installation instructions ([72](https://github.com/pytroll/trollimage/issues/72))
+
+In this release 4 pull requests were closed.
+
+
 ## Version 1.18.3 (2022/03/07)
 
 ### Pull Requests Merged
