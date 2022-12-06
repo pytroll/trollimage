@@ -514,6 +514,38 @@ class Colormap(object):
             cmap.append((value, tuple(color)))
         return Colormap(*cmap)
 
+    @classmethod
+    def from_xrda(cls, palette, dtype, info):
+        """Create Colormap from xarray dataarray with metadata."""
+        squeezed_palette = np.asanyarray(palette).squeeze() / 255.0
+        set_range = True
+        if hasattr(palette, 'attrs') and 'palette_meanings' in palette.attrs:
+            set_range = False
+            meanings = palette.attrs['palette_meanings']
+            iterator = zip(meanings, squeezed_palette)
+        else:
+            iterator = enumerate(squeezed_palette[:-1])
+
+        if dtype == np.dtype('uint8'):
+            tups = [(val, tuple(tup))
+                    for (val, tup) in iterator]
+            colormap = cls(*tups)
+
+        elif 'valid_range' in info:
+            tups = [(val, tuple(tup))
+                    for (val, tup) in iterator]
+            colormap = cls(*tups)
+
+            if set_range:
+                sf = info.get('scale_factor', np.array(1))
+                colormap.set_range(
+                    *(np.array(info['valid_range']) * sf
+                      + info.get('add_offset', 0)))
+        else:
+            raise AttributeError("Data needs to have either a valid_range or be of type uint8" +
+                                 " in order to be displayable with an attached color-palette!")
+        return colormap
+
 
 def _is_actually_a_csv_string(string):
     """Try to guess whether this string contains CSV."""
