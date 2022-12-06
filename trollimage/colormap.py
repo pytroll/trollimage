@@ -22,11 +22,14 @@
 """A simple colormap module."""
 
 import contextlib
+import copy
 import os
 from io import StringIO
 from typing import Optional
 import warnings
 from numbers import Number
+import pathlib
+import sys
 
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
@@ -399,15 +402,14 @@ class Colormap(object):
     @classmethod
     def from_file(
             cls,
-            filename_or_string: str,
+            filename: str,
             colormap_mode: Optional[str] = None,
             color_scale: Number = 255,
     ):
         """Create Colormap from a comma-separated or binary file of colormap data.
 
         Args:
-            filename_or_string: Filename of a binary or CSV file or a
-                string version of the comma-separate data.
+            filename_or_string: Filename of a binary or CSV file
             colormap_mode: Force the scheme of the colormap data (ex. RGBA).
                 See information below on other possible values and how they
                 are interpreted. By default this is determined based on the
@@ -425,8 +427,7 @@ class Colormap(object):
         :func:`numpy.load`. All other extensions are
         read as a comma-separated file. For ``.npz`` files the data must be stored
         as a positional list where the first element represents the colormap to
-        use. See :func:`numpy.savez` for more information. The filename should
-        be an absolute path for consistency.
+        use. See :func:`numpy.savez` for more information.
 
         The colormap is interpreted as 1 of 4 different "colormap modes":
         ``RGB``, ``RGBA``, ``VRGB``, or ``VRGBA``. The
@@ -445,6 +446,12 @@ class Colormap(object):
         See the "Color Scale" section below for more information on the value
         range of provided numbers.
 
+        To read from a string containing CSV, use :meth:`~Colormap.from_csv`.
+
+        To get a named colormap, use :meth:`~Colormap.from_name`.
+
+        To get a colormap from an ndarray, use :meth:`~Colormap.from_ndorray`.
+
         **Color Scale**
 
         By default colors are expected to be in a 0-255 range. This
@@ -452,16 +459,73 @@ class Colormap(object):
         A common alternative to 255 is ``1`` to specify floating
         point numbers between 0 and 1. The resulting Colormap uses the normalized
         color values (0-1).
-
         """
-        if not os.path.isfile(filename_or_string):
-            filename_or_string = StringIO(filename_or_string)
-        values, colors = _get_values_colors_from_file(filename_or_string, colormap_mode, color_scale)
+        if _is_actually_a_csv_string(filename):
+            warnings.warn(
+                "Passing a data string to Colormap.from_file is deprecated. "
+                "Please use Colormap.from_string.",
+                category=DeprecationWarning)
+            return cls.from_string(filename, colormap_mode, color_scale)
+        values, colors = _get_values_colors_from_file(filename, colormap_mode, color_scale)
         return cls(values=values, colors=colors)
+
+    @classmethod
+    def from_string(cls, string, *args, **kwargs):
+        """Create colormap from string."""
+        openfile = StringIO(string)
+        cmap_data = _read_colormap_data_from_file(openfile)
+        return cls.from_ndarray(cmap_data, *args, **kwargs)
+
+    @classmethod
+    def from_np(cls, path, *args, **kwargs):
+        """Create Colormap from numpy-file."""
+        cmap_data = _read_colormap_data_from_np(path)
+        return cls.from_ndarray(cmap_data, *args, **kwargs)
+
+    @classmethod
+    def from_csv(cls, path, colormap_mode=None, color_scale=255):
+        """Create Colormap from CSV."""
+        cmap_data = np.loadtext(path, delimeter=",")
+        return cls.from_ndarray(cmap_data, colormap_mode, color_scale)
+
+    @classmethod
+    def from_ndarray(cls, cmap_data, colormap_mode=None, color_scale=255):
+        """Create Colormap from ndarray."""
+        values, colors = _get_values_colors_from_ndarray(cmap_data, colormap_mode, color_scale)
+        return cls(values=values, colors=colors)
+
+    @classmethod
+    def from_name(cls, name):
+        """Return named colormap."""
+        cmap = getattr(sys.modules[__name__], name)
+        return copy.copy(cmap)
+
+    @classmethod
+    def from_sequence_of_colors(cls, colors, values=None, color_scale=255):
+        """Create Colormap from sequence of colors."""
+        cmap = []
+        for idx, color in enumerate(colors):
+            if values is not None:
+                value = values[idx]
+            else:
+                value = idx / float(len(colors) - 1)
+            if color_scale != 1:
+                color = tuple(elem / float(color_scale) for elem in color)
+            cmap.append((value, tuple(color)))
+        return Colormap(*cmap)
+
+
+def _is_actually_a_csv_string(string):
+    """Try to guess whether this string contains CSV."""
+    return string.count("\n") > 0 and string.count(",") > 0
 
 
 def _get_values_colors_from_file(filename, colormap_mode, color_scale):
     data = _read_colormap_data_from_file(filename)
+    return _get_values_colors_from_ndarray(data, colormap_mode, color_scale)
+
+
+def _get_values_colors_from_ndarray(data, colormap_mode, color_scale):
     cols = data.shape[1]
     default_modes = {
         3: 'RGB',
@@ -492,14 +556,19 @@ def _read_colormap_data_from_file(filename_or_file_obj):
     if isinstance(filename_or_file_obj, str):
         ext = os.path.splitext(filename_or_file_obj)[1]
         if ext in (".npy", ".npz"):
-            file_content = np.load(filename_or_file_obj)
-            if ext == ".npz":
-                # .npz is a collection
-                # assume position list-like and get the first element
-                file_content = file_content["arr_0"]
-            return file_content
+            return _read_colormap_data_from_np(filename_or_file_obj)
     # CSV file or file-like object of CSV string data
     return np.loadtxt(filename_or_file_obj, delimiter=",")
+
+
+def _read_colormap_data_from_np(path):
+    path = pathlib.Path(path)
+    file_content = np.load(path)
+    if path.suffix == ".npz":
+        # .npz is a collection
+        # assume position list-like and get the first element
+        file_content = file_content["arr_0"]
+    return file_content
 
 
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
