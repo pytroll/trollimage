@@ -1021,7 +1021,7 @@ class Image(object):
 
         if((not self.channels[ch_nb].mask.all()) and
                 abs(max_stretch - min_stretch) > 0):
-            stretched = self.channels[ch_nb].data.astype(np.float)
+            stretched = self.channels[ch_nb].data.astype(np.float64)
             stretched -= min_stretch
             stretched /= max_stretch - min_stretch
             self.channels[ch_nb] = np.ma.array(stretched,
