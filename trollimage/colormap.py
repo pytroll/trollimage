@@ -485,7 +485,7 @@ class Colormap(object):
     @classmethod
     def from_csv(cls, path, colormap_mode=None, color_scale=255):
         """Create Colormap from CSV."""
-        cmap_data = np.loadtext(path, delimeter=",")
+        cmap_data = np.loadtxt(path, delimiter=",")
         return cls.from_ndarray(cmap_data, colormap_mode, color_scale)
 
     @classmethod
@@ -503,6 +503,8 @@ class Colormap(object):
     @classmethod
     def from_sequence_of_colors(cls, colors, values=None, color_scale=255):
         """Create Colormap from sequence of colors."""
+        # this method was moved from satpy. where it was in
+        # satpy.enhancements.create_colormap
         cmap = []
         for idx, color in enumerate(colors):
             if values is not None:
@@ -512,11 +514,13 @@ class Colormap(object):
             if color_scale != 1:
                 color = tuple(elem / float(color_scale) for elem in color)
             cmap.append((value, tuple(color)))
-        return Colormap(*cmap)
+        return cls(*cmap)
 
     @classmethod
     def from_xrda(cls, palette, dtype, info):
         """Create Colormap from xarray dataarray with metadata."""
+        # this method was moved from satpy, where it was in
+        # satpy.composites.ColormapCompositor.build_colormap
         squeezed_palette = np.asanyarray(palette).squeeze() / 255.0
         set_range = True
         if hasattr(palette, 'attrs') and 'palette_meanings' in palette.attrs:
