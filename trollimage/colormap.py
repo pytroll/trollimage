@@ -409,7 +409,7 @@ class Colormap(object):
         """Create Colormap from a comma-separated or binary file of colormap data.
 
         Args:
-            filename_or_string: Filename of a binary or CSV file
+            filename: Filename of a binary or CSV file
             colormap_mode: Force the scheme of the colormap data (ex. RGBA).
                 See information below on other possible values and how they
                 are interpreted. By default this is determined based on the
@@ -448,9 +448,10 @@ class Colormap(object):
 
         To read from a string containing CSV, use :meth:`~Colormap.from_csv`.
 
-        To get a named colormap, use :meth:`~Colormap.from_name`.
+        To get a named colormap, use :meth:`~Colormap.from_name` or load the
+        colormap directly as a module attribute.
 
-        To get a colormap from an ndarray, use :meth:`~Colormap.from_ndorray`.
+        To get a colormap from an ndarray, use :meth:`~Colormap.from_ndarray`.
 
         **Color Scale**
 
