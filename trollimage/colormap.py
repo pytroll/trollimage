@@ -548,6 +548,10 @@ class Colormap(object):
 
         The data should contain at least three and at most five columns.
 
+        For historical reasons, this method exists alongside
+        :meth:`from_sequence_of_colors` and :meth:`from_array_with_metadata` despite similar
+        functionality.
+
         Args:
             cmap_data (ndarray): Array describing the colours.
                 Must have at least three and at most five columns and
@@ -578,7 +582,25 @@ class Colormap(object):
 
     @classmethod
     def from_sequence_of_colors(cls, colors, values=None, color_scale=255):
-        """Create Colormap from sequence of colors."""
+        """Create Colormap from sequence of colors.
+
+        Create a colormap from a sequence of colors, such as a list of colors.
+        If values is not given, assume values between 0 and 1, linearly spaced
+        according to the total number of colors.
+
+        For historical reasons, this method exists alongside
+        :meth:`from_ndarray` and :meth:`from_array_with_metadata` despite similar
+        functionality.
+
+        Args:
+            colors (Sequence): List of colors, where each element must itself
+                be a sequence of 3 or 4 numbers (RGB or RGBA).
+            values (array, optional): Values associated with the colors.  If
+                not given, assume linear between 0 and 1.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+            """
         # this method was moved from satpy. where it was in
         # satpy.enhancements.create_colormap
         # then it was refactored/rewritten
@@ -594,37 +616,75 @@ class Colormap(object):
             color_scale=color_scale)
 
     @classmethod
-    def from_xrda(cls, palette, dtype, info):
-        """Create Colormap from xarray dataarray with metadata."""
+    def from_array_with_metadata(
+            cls, palette, dtype, color_scale=255,
+            valid_range=None, scale_factor=1, add_offset=0):
+        """Create Colormap from an array with metadata.
+
+        Create a colormap from an array with associated metadata, either in
+        attributes or passed on to the function.
+
+        For historical reasons, this method exists alongside
+        :meth:`from_ndarray` and :meth:`from_sequence_of_colors` despite similar
+        functionality.
+
+        If ``palette`` is an xarray dataarray with the attribute
+        ``palette_meanings``, those meanings are interpreted as values
+        associated with the colormap.
+
+        If no values can be interpreted from the metadata, values will be
+        linearly interpolated between 0 and 255 (if ``dtype`` is ``np.uint8``)
+        or according to ``valid_range``.
+
+        Args:
+
+            palette (ndarray or xarray.DataArray)
+                Array describing colors, possibly with metadata.  If it has a
+                ``palette_meanings`` attribute, this will be used for color
+                interpretation.
+            dtype
+                dtype for the colormap
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+            valid_range
+                valid range for colors, if colormap is not of dtype uint8
+            scale_factor
+                scale factor to apply to the colormap
+            add_offset
+                add offset to apply to the colormap
+
+        """
         # this method was moved from satpy, where it was in
         # satpy.composites.ColormapCompositor.build_colormap
-        squeezed_palette = np.asanyarray(palette).squeeze() / 255.0
+        #
+        # then it was refactored/rewritten for trollimage
+        squeezed_palette = np.asanyarray(palette).squeeze()
         set_range = True
         if hasattr(palette, 'attrs') and 'palette_meanings' in palette.attrs:
             set_range = False
-            meanings = palette.attrs['palette_meanings']
-            iterator = zip(meanings, squeezed_palette)
+            values = np.asarray(palette.attrs['palette_meanings'])
         else:
-            iterator = enumerate(squeezed_palette[:-1])
+            # remove the last value because monkeys don't like water sprays
+            # on a more serious note, I don't know why we are removing the last
+            # value here, but this behaviour was copied from ancient satpy code
+            values = np.arange(squeezed_palette.shape[0]-1)
+            squeezed_palette = squeezed_palette[:-1, :]
 
-        if dtype == np.dtype('uint8'):
-            tups = [(val, tuple(tup))
-                    for (val, tup) in iterator]
-            colormap = cls(*tups)
-
-        elif 'valid_range' in info:
-            tups = [(val, tuple(tup))
-                    for (val, tup) in iterator]
-            colormap = cls(*tups)
-
+        color_array = np.concatenate((values[:, np.newaxis], squeezed_palette), axis=1)
+        colormap = cls.from_ndarray(
+            color_array,
+            "VRGB" if color_array.shape[1] == 4 else "VRGBA",
+            color_scale=color_scale)
+        if valid_range is not None:
             if set_range:
-                sf = info.get('scale_factor', np.array(1))
                 colormap.set_range(
-                    *(np.array(info['valid_range']) * sf
-                      + info.get('add_offset', 0)))
+                    *(np.array(valid_range) * scale_factor
+                      + add_offset))
         else:
-            raise AttributeError("Data needs to have either a valid_range or be of type uint8" +
-                                 " in order to be displayable with an attached color-palette!")
+            if dtype != np.dtype("uint8"):
+                raise AttributeError("Data need to have either a valid_range or be of type uint8" +
+                                     " in order to be displayable with an attached color-palette!")
         return colormap
 
 

@@ -685,17 +685,17 @@ def test_cmap_from_sequence_of_colors():
 def test_build_colormap_with_int_data_and_without_meanings():
     """Test colormap building."""
     palette = np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]])
-    cmap = colormap.Colormap.from_xrda(palette, np.uint8, {})
+    cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8)
     np.testing.assert_array_equal(cmap.values, [0, 1])
 
     with pytest.raises(AttributeError):
-        colormap.Colormap.from_xrda(palette/100, np.float32, {})
+        colormap.Colormap.from_array_with_metadata(palette/100, np.float32)
 
-    cmap = colormap.Colormap.from_xrda(
+    cmap = colormap.Colormap.from_array_with_metadata(
             palette,
             np.float32,
-            {"valid_range": [0, 100],
-             "scale_factor": 2})
+            valid_range=[0, 100],
+            scale_factor=2)
 
     np.testing.assert_array_equal(cmap.values, [0, 200])
 
@@ -705,7 +705,7 @@ def test_build_colormap_with_int_data_and_with_meanings():
     palette = xarray.DataArray(np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]]),
                            dims=['value', 'band'])
     palette.attrs['palette_meanings'] = [2, 3, 4]
-    cmap = colormap.Colormap.from_xrda(palette, np.uint8, {})
+    cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8)
     np.testing.assert_array_equal(cmap.values, [2, 3, 4])
 
 
