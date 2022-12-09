@@ -472,32 +472,107 @@ class Colormap(object):
 
     @classmethod
     def from_string(cls, string, *args, **kwargs):
-        """Create colormap from string."""
+        """Create colormap from string.
+
+        Create a colormap from a string that contains comma seperated values
+        (CSV).
+
+        To read from an external file that contains CSV, use :meth:`from_csv`.
+
+        Args:
+            string (str): String containing CSV.  Must have no less than three
+                and no more than five columns and describe entirely numeric
+                data.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
         openfile = StringIO(string)
         cmap_data = _read_colormap_data_from_file(openfile)
         return cls.from_ndarray(cmap_data, *args, **kwargs)
 
     @classmethod
     def from_np(cls, path, *args, **kwargs):
-        """Create Colormap from numpy-file."""
+        """Create Colormap from a numpy-file.
+
+        Create a colormap from a numpy data file ``.npy`` or ``.npz``.
+
+        The data should contain at least three and at most five columns.
+
+        Args:
+            path (str or Pathlib.Path): Path to file containing numpy data.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
         cmap_data = _read_colormap_data_from_np(path)
         return cls.from_ndarray(cmap_data, *args, **kwargs)
 
     @classmethod
     def from_csv(cls, path, colormap_mode=None, color_scale=255):
-        """Create Colormap from CSV."""
+        """Create Colormap from CSV file.
+
+        Create a Colormap from a file that contains comma seperated values
+        (CSV).
+
+        To read from a string that contains CSV, use :meth:`from_string`.
+
+        Args:
+            string (str or pathlib.Path): Path to file containing CSV.
+                The CSV must have at least three and at most five columns and
+                describe entirely numeric data.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
         cmap_data = np.loadtxt(path, delimiter=",")
         return cls.from_ndarray(cmap_data, colormap_mode, color_scale)
 
     @classmethod
     def from_ndarray(cls, cmap_data, colormap_mode=None, color_scale=255):
-        """Create Colormap from ndarray."""
+        """Create Colormap from ndarray.
+
+        Create a colormap from a numpy data array.
+
+        The data should contain at least three and at most five columns.
+
+        Args:
+            cmap_data (ndarray): Array describing the colours.
+                Must have at least three and at most five columns and
+                have a numeric dtype.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
         values, colors = _get_values_colors_from_ndarray(cmap_data, colormap_mode, color_scale)
         return cls(values=values, colors=colors)
 
     @classmethod
     def from_name(cls, name):
-        """Return named colormap."""
+        """Return named colormap.
+
+        Return a colormap by name.  Supported colormaps are the ones defined in
+        the module namespace.
+
+        Args:
+            name (str): Name of colormap.
+        """
         cmap = getattr(sys.modules[__name__], name)
         return copy.copy(cmap)
 
@@ -506,16 +581,17 @@ class Colormap(object):
         """Create Colormap from sequence of colors."""
         # this method was moved from satpy. where it was in
         # satpy.enhancements.create_colormap
-        cmap = []
-        for idx, color in enumerate(colors):
-            if values is not None:
-                value = values[idx]
-            else:
-                value = idx / float(len(colors) - 1)
-            if color_scale != 1:
-                color = tuple(elem / float(color_scale) for elem in color)
-            cmap.append((value, tuple(color)))
-        return cls(*cmap)
+        # then it was refactored/rewritten
+        color_array = np.array(colors)
+        if values is None:
+            values = np.linspace(0, 1, len(colors))
+        else:
+            values = np.asarray(values)
+        color_array = np.concatenate((values[:, np.newaxis], color_array), axis=1)
+        return cls.from_ndarray(
+            color_array,
+            "VRGB" if color_array.shape[1] == 4 else "VRGBA",
+            color_scale=color_scale)
 
     @classmethod
     def from_xrda(cls, palette, dtype, info):
