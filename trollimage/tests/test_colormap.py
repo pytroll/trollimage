@@ -634,7 +634,7 @@ class TestFromFileCreation:
         s = "0,0,0,0\n1,1,1,1\n2,2,2,2"
         cmap = colormap.Colormap.from_string(s, color_scale=1)
         np.testing.assert_array_equal(cmap.values, [0, 1, 2])
-        np.testing.assert_array_equal(cmap.colors, [[0, 0, 0], [1, 1, 1,], [2, 2, 2]])
+        np.testing.assert_array_equal(cmap.colors, [[0, 0, 0], [1, 1, 1], [2, 2, 2]])
 
     def test_cmap_from_np(self, tmp_path):
         """Test creating a colormap from a numpy file."""
@@ -703,7 +703,7 @@ def test_build_colormap_with_int_data_and_without_meanings():
 def test_build_colormap_with_int_data_and_with_meanings():
     """Test colormap building."""
     palette = xarray.DataArray(np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]]),
-                           dims=['value', 'band'])
+                               dims=['value', 'band'])
     palette.attrs['palette_meanings'] = [2, 3, 4]
     cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8)
     np.testing.assert_array_equal(cmap.values, [2, 3, 4])
