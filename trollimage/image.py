@@ -117,14 +117,14 @@ class Image(object):
 
         self._secondary_mode = "RGB"
 
-        if(channels is not None and
-           not isinstance(channels, (tuple, set, list,
-                                     np.ndarray, np.ma.core.MaskedArray))):
+        if (channels is not None and
+            not isinstance(channels, (tuple, set, list,
+                                      np.ndarray, np.ma.core.MaskedArray))):
             raise TypeError("Image channels should a tuple, set, list, numpy "
                             "array, or masked array.")
 
-        if(isinstance(channels, (tuple, list)) and
-           len(channels) != len(re.findall("[A-Z]", mode))):
+        if (isinstance(channels, (tuple, list)) and
+                len(channels) != len(re.findall("[A-Z]", mode))):
             errmsg = ("Number of channels (" +
                       "{n}) does not match mode {mode}.".format(
                           n=len(channels), mode=mode))
@@ -136,20 +136,20 @@ class Image(object):
         if mode not in self.modes:
             raise ValueError("Unknown mode.")
 
-        if(color_range is not None and
-           not _is_pair(color_range) and
-           not _is_list_of_pairs(color_range)):
+        if (color_range is not None and
+            not _is_pair(color_range) and
+                not _is_list_of_pairs(color_range)):
             raise ValueError("Color_range should be a pair"
                              " or a list/tuple/set of pairs.")
-        if(color_range is not None and
-           _is_list_of_pairs(color_range) and
-           (channels is None or
+        if (color_range is not None and
+            _is_list_of_pairs(color_range) and
+            (channels is None or
                 len(color_range) != len(channels))):
             raise ValueError("Color_range length does not match number of "
                              "channels.")
 
-        if(color_range is not None and
-           (((mode == "L" or mode == "P") and not _is_pair(color_range)) and
+        if (color_range is not None and
+            (((mode == "L" or mode == "P") and not _is_pair(color_range)) and
                 (len(color_range) != len(re.findall("[A-Z]", mode))))):
             raise ValueError("Color_range does not match mode")
 
@@ -256,8 +256,8 @@ class Image(object):
 
     def is_empty(self):
         """Check for an empty image."""
-        if(((self.channels == []) and (not self.shape == (0, 0))) or
-           ((not self.channels == []) and (self.shape == (0, 0)))):
+        if (((self.channels == []) and (not self.shape == (0, 0))) or
+                ((not self.channels == []) and (self.shape == (0, 0)))):
             raise RuntimeError("Channels-shape mismatch.")
         return self.channels == [] and self.shape == (0, 0)
 
@@ -425,9 +425,7 @@ class Image(object):
     def putalpha(self, alpha):
         """Add an *alpha* channel to the current image, or replaces it with *alpha* if it already exists."""
         alpha = np.ma.array(alpha)
-        if(not (alpha.shape[0] == 0 and
-                self.shape[0] == 0) and
-           alpha.shape != self.shape):
+        if (not (alpha.shape[0] == 0 and self.shape[0] == 0) and alpha.shape != self.shape):
             raise ValueError("Alpha channel shape should match image shape")
 
         if not self.mode.endswith("A"):
@@ -736,8 +734,7 @@ class Image(object):
         else:
             factor[1] = self.width * 1.0 / shape[1]
 
-        if(int(factor[0]) != factor[0] or
-           int(factor[1]) != factor[1]):
+        if (int(factor[0]) != factor[0] or int(factor[1]) != factor[1]):
             raise ValueError("Resize not of integer factor!")
 
         factor[0] = int(factor[0])
@@ -822,8 +819,7 @@ class Image(object):
         are several channels in the image. The behaviour of :func:`gamma` is
         undefined outside the normal [0,1] range of the channels.
         """
-        if(isinstance(gamma, (list, tuple, set)) and
-           len(gamma) != len(self.channels)):
+        if (isinstance(gamma, (list, tuple, set)) and len(gamma) != len(self.channels)):
             raise ValueError("Number of channels and gamma components differ.")
         if isinstance(gamma, (tuple, list)):
             gamma_list = list(gamma)
@@ -876,8 +872,7 @@ class Image(object):
         if self.mode.endswith("A"):
             ch_len -= 1
 
-        if((isinstance(stretch, tuple) or
-                isinstance(stretch, list))):
+        if ((isinstance(stretch, tuple) or isinstance(stretch, list))):
             if len(stretch) == 2:
                 for i in range(ch_len):
                     self.stretch_linear(i, cutoffs=stretch, **kwargs)
@@ -911,8 +906,7 @@ class Image(object):
 
         Note: 'Inverting' means that black becomes white, and vice-versa, not that the values are negated!
         """
-        if(isinstance(invert, (tuple, list)) and
-           len(self.channels) != len(invert)):
+        if (isinstance(invert, (tuple, list)) and len(self.channels) != len(invert)):
             raise ValueError(
                 "Number of channels and invert components differ.")
 
@@ -929,8 +923,7 @@ class Image(object):
         """Stretch the current image's colors by performing histogram equalization on channel *ch_nb*."""
         logger.info("Perform a histogram equalized contrast stretch.")
 
-        if(self.channels[ch_nb].size ==
-           np.ma.count_masked(self.channels[ch_nb])):
+        if (self.channels[ch_nb].size == np.ma.count_masked(self.channels[ch_nb])):
             logger.warning("Nothing to stretch !")
             return
 
@@ -978,9 +971,8 @@ class Image(object):
         """
         logger.debug("Perform a linear contrast stretch.")
 
-        if((self.channels[ch_nb].size ==
-            np.ma.count_masked(self.channels[ch_nb])) or
-           self.channels[ch_nb].min() == self.channels[ch_nb].max()):
+        if ((self.channels[ch_nb].size == np.ma.count_masked(self.channels[ch_nb])) or
+                self.channels[ch_nb].min() == self.channels[ch_nb].max()):
             logger.warning("Nothing to stretch !")
             return
 
@@ -1019,9 +1011,8 @@ class Image(object):
         if isinstance(max_stretch, (list, tuple)):
             max_stretch = max_stretch[ch_nb]
 
-        if((not self.channels[ch_nb].mask.all()) and
-                abs(max_stretch - min_stretch) > 0):
-            stretched = self.channels[ch_nb].data.astype(np.float64)
+        if ((not self.channels[ch_nb].mask.all()) and abs(max_stretch - min_stretch) > 0):
+            stretched = self.channels[ch_nb].data.astype(float)
             stretched -= min_stretch
             stretched /= max_stretch - min_stretch
             self.channels[ch_nb] = np.ma.array(stretched,
@@ -1060,7 +1051,7 @@ class Image(object):
             alpha = self.channels[1]
         else:
             alpha = None
-        self.channels = colormap.colorize(self.channels[0])
+        self.channels = list(colormap.colorize(self.channels[0]))
         if alpha is not None:
             self.channels.append(alpha)
             self.mode = "RGBA"
