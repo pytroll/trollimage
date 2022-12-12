@@ -695,9 +695,19 @@ def test_build_colormap_with_int_data_and_without_meanings():
             palette,
             np.float32,
             valid_range=[0, 100],
-            scale_factor=2)
+            scale_factor=2,
+            remove_last=True)
 
     np.testing.assert_array_equal(cmap.values, [0, 200])
+
+    cmap = colormap.Colormap.from_array_with_metadata(
+            palette,
+            np.float32,
+            valid_range=[0, 100],
+            scale_factor=2,
+            remove_last=False)
+
+    np.testing.assert_array_equal(cmap.values, [0, 100, 200])
 
 
 def test_build_colormap_with_int_data_and_with_meanings():

@@ -618,7 +618,8 @@ class Colormap(object):
     @classmethod
     def from_array_with_metadata(
             cls, palette, dtype, color_scale=255,
-            valid_range=None, scale_factor=1, add_offset=0):
+            valid_range=None, scale_factor=1, add_offset=0,
+            remove_last=True):
         """Create Colormap from an array with metadata.
 
         Create a colormap from an array with associated metadata, either in
@@ -653,6 +654,9 @@ class Colormap(object):
                 scale factor to apply to the colormap
             add_offset
                 add offset to apply to the colormap
+            remove_last
+                Remove the last value if the array has no metadata associated.
+                Defaults to true for historical reasons.
 
         """
         # this method was moved from satpy, where it was in
@@ -668,8 +672,9 @@ class Colormap(object):
             # remove the last value because monkeys don't like water sprays
             # on a more serious note, I don't know why we are removing the last
             # value here, but this behaviour was copied from ancient satpy code
-            values = np.arange(squeezed_palette.shape[0]-1)
-            squeezed_palette = squeezed_palette[:-1, :]
+            values = np.arange(squeezed_palette.shape[0]-remove_last)
+            if remove_last:
+                squeezed_palette = squeezed_palette[:-remove_last, :]
 
         color_array = np.concatenate((values[:, np.newaxis], squeezed_palette), axis=1)
         colormap = cls.from_ndarray(
