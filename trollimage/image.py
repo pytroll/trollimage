@@ -1051,7 +1051,7 @@ class Image(object):
             alpha = self.channels[1]
         else:
             alpha = None
-        self.channels = colormap.colorize(self.channels[0])
+        self.channels = list(colormap.colorize(self.channels[0]))
         if alpha is not None:
             self.channels.append(alpha)
             self.mode = "RGBA"

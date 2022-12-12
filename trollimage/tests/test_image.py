@@ -1385,7 +1385,7 @@ class TestXRImage:
                 img.save(tmp.name, tiled=True, overviews=[], driver='COG')
                 with rio.open(tmp.name) as f:
                     # The COG driver should add a tag indicating layout
-                    assert(f.tags(ns='IMAGE_STRUCTURE')['LAYOUT'] == 'COG')
+                    assert (f.tags(ns='IMAGE_STRUCTURE')['LAYOUT'] == 'COG')
                     assert len(f.overviews(1)) == 2
 
     @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
@@ -2002,6 +2002,22 @@ class TestXRImage:
             # make it happen
             res.data.data.compute()
             pil_img.convert.assert_called_with('RGB')
+
+
+class TestImageColorize:
+    """Test the colorize method of the Image class."""
+
+    def test_colorize_la_rgb(self):
+        """Test colorizing an LA image with an RGB colormap."""
+        arr = np.arange(75).reshape(5, 15) / 74.
+        alpha = arr > 40.
+        img = image.Image(channels=[arr.copy(), alpha], mode="LA")
+        img.colorize(brbg)
+
+        expected = list(TestXRImageColorize._expected)
+        for i in range(3):
+            np.testing.assert_allclose(img.channels[i], expected[i])
+        np.testing.assert_allclose(img.channels[3], alpha)
 
 
 class TestXRImageColorize:
