@@ -1019,9 +1019,8 @@ class Image(object):
         if isinstance(max_stretch, (list, tuple)):
             max_stretch = max_stretch[ch_nb]
 
-        if((not self.channels[ch_nb].mask.all()) and
-                abs(max_stretch - min_stretch) > 0):
-            stretched = self.channels[ch_nb].data.astype(np.float)
+        if((not self.channels[ch_nb].mask.all()) and abs(max_stretch - min_stretch) > 0):
+            stretched = self.channels[ch_nb].data.astype(float)
             stretched -= min_stretch
             stretched /= max_stretch - min_stretch
             self.channels[ch_nb] = np.ma.array(stretched,
