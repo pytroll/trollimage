@@ -629,13 +629,6 @@ class TestFromFileCreation:
             with pytest.raises(ValueError):
                 colormap.Colormap.from_file(cmap_filename)
 
-    def test_cmap_from_string(self):
-        """Test creating a colormap from a string."""
-        s = "0,0,0,0\n1,1,1,1\n2,2,2,2"
-        cmap = colormap.Colormap.from_string(s, color_scale=1)
-        np.testing.assert_array_equal(cmap.values, [0, 1, 2])
-        np.testing.assert_array_equal(cmap.colors, [[0, 0, 0], [1, 1, 1], [2, 2, 2]])
-
     def test_cmap_from_np(self, tmp_path):
         """Test creating a colormap from a numpy file."""
         cmap_data = _generate_cmap_test_data(None, "RGB")
@@ -653,6 +646,14 @@ class TestFromFileCreation:
         cmap = colormap.Colormap.from_csv(fnp, color_scale=1)
         np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.66666667, 1])
         np.testing.assert_array_equal(cmap.colors, cmap_data)
+
+
+def test_cmap_from_string():
+    """Test creating a colormap from a string."""
+    s = "0,0,0,0\n1,1,1,1\n2,2,2,2"
+    cmap = colormap.Colormap.from_string(s, color_scale=1)
+    np.testing.assert_array_equal(cmap.values, [0, 1, 2])
+    np.testing.assert_array_equal(cmap.colors, [[0, 0, 0], [1, 1, 1], [2, 2, 2]])
 
 
 def test_cmap_from_ndarray():
