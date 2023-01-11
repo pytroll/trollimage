@@ -1,25 +1,21 @@
-## Version 1.20.0 (2021/03/12)
+## Version 1.20.0 (2023/01/11)
 
-### Issues Closed
-
-* [Issue 74](https://github.com/pytroll/trollimage/issues/74) - MNT: Stop using ci-helpers in appveyor.yml
-
-In this release 1 issue was closed.
 
 ### Pull Requests Merged
 
 #### Bugs fixed
 
-* [PR 78](https://github.com/pytroll/trollimage/pull/78) - Fix list stretch tags
-* [PR 77](https://github.com/pytroll/trollimage/pull/77) - Remove defaults channel from ci conda environment and strict priority
+* [PR 118](https://github.com/pytroll/trollimage/pull/118) - Fix image colorization ([26](https://github.com/pytroll/pydecorate/issues/26))
 
 #### Features added
 
-* [PR 76](https://github.com/pytroll/trollimage/pull/76) - Add GitHub Actions for CI tests and sdist deployment
-* [PR 75](https://github.com/pytroll/trollimage/pull/75) - Change XRImage.save to keep fill_value separate from valid data
-* [PR 73](https://github.com/pytroll/trollimage/pull/73) - Refactor finalize method in XRImage class
+* [PR 117](https://github.com/pytroll/trollimage/pull/117) - Refactor colormap creation ([2308](https://github.com/pytroll/satpy/issues/2308))
 
-In this release 5 pull requests were closed.
+#### Documentation changes
+
+* [PR 110](https://github.com/pytroll/trollimage/pull/110) - Add readthedocs config file to force newer dependencies
+
+In this release 3 pull requests were closed.
 
 
 ## Version 1.19.0 (2022/10/21)
