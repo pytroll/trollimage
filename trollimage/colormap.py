@@ -22,11 +22,14 @@
 """A simple colormap module."""
 
 import contextlib
+import copy
 import os
 from io import StringIO
 from typing import Optional
 import warnings
 from numbers import Number
+import pathlib
+import sys
 
 import numpy as np
 from trollimage.colorspaces import rgb2hcl, hcl2rgb
@@ -399,15 +402,14 @@ class Colormap(object):
     @classmethod
     def from_file(
             cls,
-            filename_or_string: str,
+            filename: str,
             colormap_mode: Optional[str] = None,
             color_scale: Number = 255,
     ):
         """Create Colormap from a comma-separated or binary file of colormap data.
 
         Args:
-            filename_or_string: Filename of a binary or CSV file or a
-                string version of the comma-separate data.
+            filename: Filename of a binary or CSV file
             colormap_mode: Force the scheme of the colormap data (ex. RGBA).
                 See information below on other possible values and how they
                 are interpreted. By default this is determined based on the
@@ -425,8 +427,7 @@ class Colormap(object):
         :func:`numpy.load`. All other extensions are
         read as a comma-separated file. For ``.npz`` files the data must be stored
         as a positional list where the first element represents the colormap to
-        use. See :func:`numpy.savez` for more information. The filename should
-        be an absolute path for consistency.
+        use. See :func:`numpy.savez` for more information.
 
         The colormap is interpreted as 1 of 4 different "colormap modes":
         ``RGB``, ``RGBA``, ``VRGB``, or ``VRGBA``. The
@@ -445,6 +446,13 @@ class Colormap(object):
         See the "Color Scale" section below for more information on the value
         range of provided numbers.
 
+        To read from a string containing CSV, use :meth:`~Colormap.from_csv`.
+
+        To get a named colormap, use :meth:`~Colormap.from_name` or load the
+        colormap directly as a module attribute.
+
+        To get a colormap from an ndarray, use :meth:`~Colormap.from_ndarray`.
+
         **Color Scale**
 
         By default colors are expected to be in a 0-255 range. This
@@ -452,16 +460,250 @@ class Colormap(object):
         A common alternative to 255 is ``1`` to specify floating
         point numbers between 0 and 1. The resulting Colormap uses the normalized
         color values (0-1).
+        """
+        if _is_actually_a_csv_string(filename):
+            warnings.warn(
+                "Passing a data string to Colormap.from_file is deprecated. "
+                "Please use Colormap.from_string.",
+                category=DeprecationWarning)
+            return cls.from_string(filename, colormap_mode, color_scale)
+        values, colors = _get_values_colors_from_file(filename, colormap_mode, color_scale)
+        return cls(values=values, colors=colors)
+
+    @classmethod
+    def from_string(cls, string, *args, **kwargs):
+        """Create colormap from string.
+
+        Create a colormap from a string that contains comma seperated values
+        (CSV).
+
+        To read from an external file that contains CSV, use :meth:`from_csv`.
+
+        Args:
+            string (str): String containing CSV.  Must have no less than three
+                and no more than five columns and describe entirely numeric
+                data.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
+        openfile = StringIO(string)
+        cmap_data = _read_colormap_data_from_file(openfile)
+        return cls.from_ndarray(cmap_data, *args, **kwargs)
+
+    @classmethod
+    def from_np(cls, path, *args, **kwargs):
+        """Create Colormap from a numpy-file.
+
+        Create a colormap from a numpy data file ``.npy`` or ``.npz``.
+
+        The data should contain at least three and at most five columns.
+
+        Args:
+            path (str or Pathlib.Path): Path to file containing numpy data.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
+        cmap_data = _read_colormap_data_from_np(path)
+        return cls.from_ndarray(cmap_data, *args, **kwargs)
+
+    @classmethod
+    def from_csv(cls, path, colormap_mode=None, color_scale=255):
+        """Create Colormap from CSV file.
+
+        Create a Colormap from a file that contains comma seperated values
+        (CSV).
+
+        To read from a string that contains CSV, use :meth:`from_string`.
+
+        Args:
+            string (str or pathlib.Path): Path to file containing CSV.
+                The CSV must have at least three and at most five columns and
+                describe entirely numeric data.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
+        cmap_data = np.loadtxt(path, delimiter=",")
+        return cls.from_ndarray(cmap_data, colormap_mode, color_scale)
+
+    @classmethod
+    def from_ndarray(cls, cmap_data, colormap_mode=None, color_scale=255):
+        """Create Colormap from ndarray.
+
+        Create a colormap from a numpy data array.
+
+        The data should contain at least three and at most five columns.
+
+        For historical reasons, this method exists alongside
+        :meth:`from_sequence_of_colors` and :meth:`from_array_with_metadata` despite similar
+        functionality.
+
+        Args:
+            cmap_data (ndarray): Array describing the colours.
+                Must have at least three and at most five columns and
+                have a numeric dtype.
+            colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
+                "VRGBA".  If None (default), this is inferred from the dimensions of
+                the data contained in the CSV.  Modes starting with V have in
+                the first column the values to which the color relates.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+        """
+        values, colors = _get_values_colors_from_ndarray(cmap_data, colormap_mode, color_scale)
+        return cls(values=values, colors=colors)
+
+    @classmethod
+    def from_name(cls, name):
+        """Return named colormap.
+
+        Return a colormap by name.  Supported colormaps are the ones defined in
+        the module namespace.
+
+        Args:
+            name (str): Name of colormap.
+        """
+        cmap = getattr(sys.modules[__name__], name)
+        return copy.copy(cmap)
+
+    @classmethod
+    def from_sequence_of_colors(cls, colors, values=None, color_scale=255):
+        """Create Colormap from sequence of colors.
+
+        Create a colormap from a sequence of colors, such as a list of colors.
+        If values is not given, assume values between 0 and 1, linearly spaced
+        according to the total number of colors.
+
+        For historical reasons, this method exists alongside
+        :meth:`from_ndarray` and :meth:`from_array_with_metadata` despite similar
+        functionality.
+
+        Args:
+            colors (Sequence): List of colors, where each element must itself
+                be a sequence of 3 or 4 numbers (RGB or RGBA).
+            values (array, optional): Values associated with the colors.  If
+                not given, assume linear between 0 and 1.
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+            """
+        # this method was moved from satpy. where it was in
+        # satpy.enhancements.create_colormap
+        # then it was refactored/rewritten
+        color_array = np.array(colors)
+        if values is None:
+            values = np.linspace(0, 1, len(colors))
+        else:
+            values = np.asarray(values)
+        color_array = np.concatenate((values[:, np.newaxis], color_array), axis=1)
+        return cls.from_ndarray(
+            color_array,
+            "VRGB" if color_array.shape[1] == 4 else "VRGBA",
+            color_scale=color_scale)
+
+    @classmethod
+    def from_array_with_metadata(
+            cls, palette, dtype, color_scale=255,
+            valid_range=None, scale_factor=1, add_offset=0,
+            remove_last=True):
+        """Create Colormap from an array with metadata.
+
+        Create a colormap from an array with associated metadata, either in
+        attributes or passed on to the function.
+
+        For historical reasons, this method exists alongside
+        :meth:`from_ndarray` and :meth:`from_sequence_of_colors` despite similar
+        functionality.
+
+        If ``palette`` is an xarray dataarray with the attribute
+        ``palette_meanings``, those meanings are interpreted as values
+        associated with the colormap.
+
+        If no values can be interpreted from the metadata, values will be
+        linearly interpolated between 0 and 255 (if ``dtype`` is ``np.uint8``)
+        or according to ``valid_range``.
+
+        Args:
+
+            palette (ndarray or xarray.DataArray)
+                Array describing colors, possibly with metadata.  If it has a
+                ``palette_meanings`` attribute, this will be used for color
+                interpretation.
+            dtype
+                dtype for the colormap
+            color_scale (number): The value that represents white in the
+                numbers describing the colors. Defaults to 255, could also be 1
+                or something else.
+            valid_range
+                valid range for colors, if colormap is not of dtype uint8
+            scale_factor
+                scale factor to apply to the colormap
+            add_offset
+                add offset to apply to the colormap
+            remove_last
+                Remove the last value if the array has no metadata associated.
+                Defaults to true for historical reasons.
 
         """
-        if not os.path.isfile(filename_or_string):
-            filename_or_string = StringIO(filename_or_string)
-        values, colors = _get_values_colors_from_file(filename_or_string, colormap_mode, color_scale)
-        return cls(values=values, colors=colors)
+        # this method was moved from satpy, where it was in
+        # satpy.composites.ColormapCompositor.build_colormap
+        #
+        # then it was refactored/rewritten for trollimage
+        squeezed_palette = np.asanyarray(palette).squeeze()
+        set_range = True
+        if hasattr(palette, 'attrs') and 'palette_meanings' in palette.attrs:
+            set_range = False
+            values = np.asarray(palette.attrs['palette_meanings'])
+        else:
+            # remove the last value because monkeys don't like water sprays
+            # on a more serious note, I don't know why we are removing the last
+            # value here, but this behaviour was copied from ancient satpy code
+            values = np.arange(squeezed_palette.shape[0]-remove_last)
+            if remove_last:
+                squeezed_palette = squeezed_palette[:-remove_last, :]
+
+        color_array = np.concatenate((values[:, np.newaxis], squeezed_palette), axis=1)
+        colormap = cls.from_ndarray(
+            color_array,
+            "VRGB" if color_array.shape[1] == 4 else "VRGBA",
+            color_scale=color_scale)
+        if valid_range is not None:
+            if set_range:
+                colormap.set_range(
+                    *(np.array(valid_range) * scale_factor
+                      + add_offset))
+        else:
+            if dtype != np.dtype("uint8"):
+                raise AttributeError("Data need to have either a valid_range or be of type uint8" +
+                                     " in order to be displayable with an attached color-palette!")
+        return colormap
+
+
+def _is_actually_a_csv_string(string):
+    """Try to guess whether this string contains CSV."""
+    return string.count("\n") > 0 and string.count(",") > 0
 
 
 def _get_values_colors_from_file(filename, colormap_mode, color_scale):
     data = _read_colormap_data_from_file(filename)
+    return _get_values_colors_from_ndarray(data, colormap_mode, color_scale)
+
+
+def _get_values_colors_from_ndarray(data, colormap_mode, color_scale):
     cols = data.shape[1]
     default_modes = {
         3: 'RGB',
@@ -492,14 +734,19 @@ def _read_colormap_data_from_file(filename_or_file_obj):
     if isinstance(filename_or_file_obj, str):
         ext = os.path.splitext(filename_or_file_obj)[1]
         if ext in (".npy", ".npz"):
-            file_content = np.load(filename_or_file_obj)
-            if ext == ".npz":
-                # .npz is a collection
-                # assume position list-like and get the first element
-                file_content = file_content["arr_0"]
-            return file_content
+            return _read_colormap_data_from_np(filename_or_file_obj)
     # CSV file or file-like object of CSV string data
     return np.loadtxt(filename_or_file_obj, delimiter=",")
+
+
+def _read_colormap_data_from_np(path):
+    path = pathlib.Path(path)
+    file_content = np.load(path)
+    if path.suffix == ".npz":
+        # .npz is a collection
+        # assume position list-like and get the first element
+        file_content = file_content["arr_0"]
+    return file_content
 
 
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",

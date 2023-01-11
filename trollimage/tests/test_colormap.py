@@ -27,6 +27,7 @@ import unittest
 from trollimage import colormap
 import numpy as np
 from tempfile import NamedTemporaryFile
+import xarray
 
 import pytest
 
@@ -627,6 +628,96 @@ class TestFromFileCreation:
 
             with pytest.raises(ValueError):
                 colormap.Colormap.from_file(cmap_filename)
+
+    def test_cmap_from_np(self, tmp_path):
+        """Test creating a colormap from a numpy file."""
+        cmap_data = _generate_cmap_test_data(None, "RGB")
+        fnp = tmp_path / "test.npy"
+        np.save(fnp, cmap_data)
+        cmap = colormap.Colormap.from_np(fnp, color_scale=1)
+        np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.6666667, 1])
+        np.testing.assert_array_equal(cmap.colors, cmap_data)
+
+    def test_cmap_from_csv(self, tmp_path, color_scale=1):
+        """Test creating a colormap from a CSV file."""
+        cmap_data = _generate_cmap_test_data(None, "RGB")
+        fnp = tmp_path / "test.csv"
+        np.savetxt(fnp, cmap_data, delimiter=",")
+        cmap = colormap.Colormap.from_csv(fnp, color_scale=1)
+        np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.66666667, 1])
+        np.testing.assert_array_equal(cmap.colors, cmap_data)
+
+
+def test_cmap_from_string():
+    """Test creating a colormap from a string."""
+    s = "0,0,0,0\n1,1,1,1\n2,2,2,2"
+    cmap = colormap.Colormap.from_string(s, color_scale=1)
+    np.testing.assert_array_equal(cmap.values, [0, 1, 2])
+    np.testing.assert_array_equal(cmap.colors, [[0, 0, 0], [1, 1, 1], [2, 2, 2]])
+
+
+def test_cmap_from_ndarray():
+    """Test creating a colormap from a numpy array."""
+    cmap_data = _generate_cmap_test_data(None, "RGB")
+    cmap = colormap.Colormap.from_ndarray(cmap_data, color_scale=1)
+    np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.66666667, 1])
+    np.testing.assert_array_equal(cmap.colors, cmap_data)
+
+
+def test_cmap_from_name():
+    """Test creating a colormap from a string representing a name."""
+    cmap = colormap.Colormap.from_name("puor")
+    np.testing.assert_array_equal(cmap.values, colormap.puor.values)
+    np.testing.assert_array_equal(cmap.colors, colormap.puor.colors)
+
+
+def test_cmap_from_sequence_of_colors():
+    """Test creating a colormap from a sequence of colors."""
+    colors = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]
+    cmap = colormap.Colormap.from_sequence_of_colors(colors, color_scale=2)
+    np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.66666667, 1])
+    np.testing.assert_array_equal(cmap.colors*2, colors)
+
+    vals = [0, 5, 10, 15]
+    cmap = colormap.Colormap.from_sequence_of_colors(colors, values=vals, color_scale=2)
+    np.testing.assert_allclose(cmap.values, [0, 5, 10, 15])
+
+
+def test_build_colormap_with_int_data_and_without_meanings():
+    """Test colormap building."""
+    palette = np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]])
+    cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8)
+    np.testing.assert_array_equal(cmap.values, [0, 1])
+
+    with pytest.raises(AttributeError):
+        colormap.Colormap.from_array_with_metadata(palette/100, np.float32)
+
+    cmap = colormap.Colormap.from_array_with_metadata(
+            palette,
+            np.float32,
+            valid_range=[0, 100],
+            scale_factor=2,
+            remove_last=True)
+
+    np.testing.assert_array_equal(cmap.values, [0, 200])
+
+    cmap = colormap.Colormap.from_array_with_metadata(
+            palette,
+            np.float32,
+            valid_range=[0, 100],
+            scale_factor=2,
+            remove_last=False)
+
+    np.testing.assert_array_equal(cmap.values, [0, 100, 200])
+
+
+def test_build_colormap_with_int_data_and_with_meanings():
+    """Test colormap building."""
+    palette = xarray.DataArray(np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]]),
+                               dims=['value', 'band'])
+    palette.attrs['palette_meanings'] = [2, 3, 4]
+    cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8)
+    np.testing.assert_array_equal(cmap.values, [2, 3, 4])
 
 
 def _assert_monotonic_values(cmap, increasing=True):
