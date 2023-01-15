@@ -32,7 +32,9 @@ import pathlib
 import sys
 
 import numpy as np
-from trollimage.colorspaces import rgb2hcl, hcl2rgb
+from trollimage.colorspaces import rgb2hcl
+
+from numpy.typing import NDArray
 
 
 @contextlib.contextmanager
@@ -52,8 +54,10 @@ def colorize(arr, colors, values):
     Args:
         arr (numpy array, numpy masked array, dask array)
             data to be colorized.
+            # TODO: What is the shape?
         colors (numpy array):
             the colors to use (R, G, B)
+            # TODO: What is the shape? (N, 3) or (3, N) and what about alpha?
         values (numpy array):
             the values corresponding to the colors in the array
     """
@@ -79,6 +83,7 @@ def _colorize_dask(dask_array, colors, values):
 
 def _colorize(arr, colors, values):
     """Colorize the array."""
+    # channels = _interpolate_rgb_colors_colour(arr, colors, values)
     channels = _interpolate_rgb_colors(arr, colors, values)
     alpha = _interpolate_alpha(arr, colors, values)
     channels.extend(alpha)
@@ -86,10 +91,31 @@ def _colorize(arr, colors, values):
     return np.stack(channels, axis=0)
 
 
-def _interpolate_rgb_colors(arr, colors, values):
+# def _interpolate_rgb_colors(arr, colors, values):
+#     interp_xp_coords = np.array(values)
+#     hcl_colors = _convert_rgb_list_to_hcl(colors)
+#     interp_y_coords = np.array(hcl_colors)
+#     if values[0] > values[-1]:
+#         # monotonically decreasing
+#         interp_xp_coords = interp_xp_coords[::-1]
+#         interp_y_coords = interp_y_coords[::-1]
+#     channels = [np.interp(arr,
+#                           interp_xp_coords,
+#                           interp_y_coords[:, i])
+#                 for i in range(3)]
+#     channels = list(hcl2rgb(*channels))
+#     return channels
+
+
+def _interpolate_rgb_colors_colour(arr, colors, values):
     interp_xp_coords = np.array(values)
-    hcl_colors = _convert_rgb_list_to_hcl(colors)
-    interp_y_coords = np.array(hcl_colors)
+    # hcl_colors = _convert_rgb_list_to_hcl(colors)
+    import colour
+    print(colors.shape)
+    hcl_colors = colour.RGB_to_HCL(colors[:, :3])
+    print(hcl_colors)
+    # interp_y_coords = np.array(hcl_colors)
+    interp_y_coords = hcl_colors
     if values[0] > values[-1]:
         # monotonically decreasing
         interp_xp_coords = interp_xp_coords[::-1]
@@ -98,8 +124,140 @@ def _interpolate_rgb_colors(arr, colors, values):
                           interp_xp_coords,
                           interp_y_coords[:, i])
                 for i in range(3)]
-    channels = list(hcl2rgb(*channels))
-    return channels
+    new_hcl_colors = np.array(channels)
+    print(new_hcl_colors.shape)
+    new_rgb_arr = colour.HCL_to_RGB(new_hcl_colors.T)
+    # channels = list(hcl2rgb(*channels))
+    print(new_rgb_arr.shape)
+    return [new_rgb_arr[:, 0], new_rgb_arr[:, 1], new_rgb_arr[:, 2]]
+    # return channels
+
+
+def _interpolate_rgb_colors(arr, colors, values):
+    interp_xp_coords = np.array(values)
+    interp_y_coords = rgb2hcl_numpy(colors)
+    print(interp_y_coords, interp_y_coords.dtype)
+    if values[0] > values[-1]:
+        # monotonically decreasing
+        interp_xp_coords = interp_xp_coords[::-1]
+        interp_y_coords = interp_y_coords[::-1]
+    interp_hcl = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
+    interp_hcl[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
+    interp_hcl[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
+    interp_hcl[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
+    new_rgb = hcl2rgb_numpy(interp_hcl)
+    return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
+
+
+def rgb2hcl_numpy(rgba_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> NDArray:
+    """Convert numpy RGB[A] arrays to HCL (hue, chroma, lumnance) values."""
+    rgb_arr = rgba_arr[..., :3]
+    rgb_min = rgb_arr.min(axis=-1)
+    rgb_max = rgb_arr.max(axis=-1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        alpha = np.nan_to_num(rgb_min / rgb_max, nan=0, posinf=0, neginf=0) * (1 / y_0)
+    q = np.exp(alpha * gamma)
+    r = rgb_arr[..., 0]
+    g = rgb_arr[..., 1]
+    b = rgb_arr[..., 2]
+
+    hcl = np.empty(rgb_arr.shape, dtype=rgb_arr.dtype)
+    # luminance
+    hcl[..., 2] = (q * rgb_max + (1 - q) * rgb_min) / 2
+    # chroma
+    hcl[..., 1] = q * (np.abs(r - g) + np.abs(g - b) + np.abs(b - r)) / 3
+    del q, alpha, rgb_min, rgb_max  # no longer used, free memory
+
+    rg_diff_positive = (r - g) >= 0
+    gb_diff_positive = (g - b) >= 0
+    # https://www.mathworks.com/matlabcentral/fileexchange/
+    # 100878-rgb-to-hcl-and-hcl-to-rgb-color-conversion?s_tid=FX_rc1_behav
+    hue_offset = np.where(rg_diff_positive, 0, np.where(gb_diff_positive, np.pi, -np.pi))
+    hue_factor = np.where(rg_diff_positive ^ gb_diff_positive, 4 / 3, 2 / 3)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        hcl[..., 0] = hue_factor * np.arctan(np.nan_to_num((g - b) / (r - g), nan=0)) + hue_offset
+
+    return hcl
+
+
+def hcl2rgb_numpy(hcl_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> NDArray:
+    """Convert an HCL (hue, chroma, luminance) array to RGB."""
+    hue = hcl_arr[..., 0]  # in radians
+    chroma = hcl_arr[..., 1]
+    luminance = hcl_arr[..., 2]
+    chroma3 = 3 * chroma
+    luminance4 = 4 * luminance
+    with np.errstate(divide="ignore", invalid="ignore"):
+        _q = np.nan_to_num(chroma3 / luminance4, nan=0, posinf=0, neginf=0)
+        q = np.exp((1 - _q) * gamma / y_0)
+        rgb_min = (luminance4 - chroma3) / (4 * q - 2)
+        rgb_max = rgb_min + chroma3 / (2 * q)
+    # hue_pos = (hue >= 0)
+    # hue_lt_60 = hue <= np.pi / 3
+    # hue_lt_120 = hue <= 2 * np.pi / 3
+    # hue_lt_180 = hue <= np.pi
+    # hue_lt_n120 = hue <= -2 * np.pi / 3
+    # hue_lt_n60 = hue <= -np.pi / 3
+    # hue_0_60 = hue_pos & hue_lt_60
+    # hue_60_120 = ~hue_lt_60 & hue_lt_120
+    # hue_120_180 = ~hue_lt_120
+    # hue_n180_n120 = hue_lt_n120
+    # hue_n120_n60 = ~hue_lt_n120 & hue_lt_n60
+    # hue_n60_0 = ~hue_lt_n60 & ~hue_pos
+    # r = np.where(hue_0_60 | hue_n60_0, rgb_max, np.where(hue_120_180, rgb_min, tamp))
+    tan_3_2_H = np.tan(3 / 2 * hue)
+    tan_3_4_H_MP = np.tan(3 / 4 * (hue - np.pi))
+    tan_3_4_H = np.tan(3 / 4 * hue)
+    tan_3_2_H_PP = np.tan(3 / 2 * (hue + np.pi))
+
+    r_p60 = np.radians(60)
+    r_p120 = np.radians(120)
+    r_n60 = np.radians(-60)
+    r_n120 = np.radians(-120)
+    hue_conditions = [
+        np.logical_and(0 <= hue, hue <= r_p60),
+        np.logical_and(r_p60 < hue, hue <= r_p120),
+        np.logical_and(r_p120 < hue, hue <= np.pi),
+        np.logical_and(r_n60 <= hue, hue < 0),
+        np.logical_and(r_n120 <= hue, hue < r_n60),
+        np.logical_and(-np.pi < hue, hue < r_n120),
+    ]
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r = np.select(
+            hue_conditions,
+            [
+                rgb_max,
+                np.nan_to_num(rgb_max * (1 + tan_3_4_H_MP) - rgb_min / tan_3_4_H_MP, nan=0, posinf=0, neginf=0),
+                rgb_min,
+                rgb_max,
+                np.nan_to_num(rgb_min * (1 + tan_3_4_H) - rgb_max / tan_3_4_H, nan=0, posinf=0, neginf=0),
+                rgb_min,
+            ],
+        )
+        g = np.select(
+            hue_conditions,
+            [
+                (rgb_max * tan_3_2_H + rgb_min) / (1 + tan_3_2_H),
+                rgb_max,
+                rgb_max,
+                rgb_min,
+                rgb_min,
+                (rgb_min * tan_3_2_H_PP + rgb_max) / (1 + tan_3_2_H_PP),
+            ]
+        )
+        b = np.select(
+            hue_conditions,
+            [
+                rgb_min,
+                rgb_min,
+                rgb_max * (1 + tan_3_4_H_MP) - rgb_min * tan_3_4_H_MP,
+                rgb_min * (1 + tan_3_4_H) - rgb_max * tan_3_4_H,
+                rgb_max,
+                rgb_max,
+            ]
+        )
+    return np.stack([r, g, b], axis=-1)
 
 
 def _convert_rgb_list_to_hcl(colors):
@@ -600,7 +758,7 @@ class Colormap(object):
             color_scale (number): The value that represents white in the
                 numbers describing the colors. Defaults to 255, could also be 1
                 or something else.
-            """
+        """
         # this method was moved from satpy. where it was in
         # satpy.enhancements.create_colormap
         # then it was refactored/rewritten
@@ -638,7 +796,6 @@ class Colormap(object):
         or according to ``valid_range``.
 
         Args:
-
             palette (ndarray or xarray.DataArray)
                 Array describing colors, possibly with metadata.  If it has a
                 ``palette_meanings`` attribute, this will be used for color
