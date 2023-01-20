@@ -463,7 +463,7 @@ class TestColormap:
         import dask.array as da
         data = da.from_array(np.array([[1.5, 2.5, 3.5, 4],
                                        [1.5, 2.5, 3.5, 4],
-                                       [1.5, 2.5, 3.5, 4]]), chunks=2)
+                                       [1.5, 2.5, 3.5, 4]]), chunks=-1)
 
         expected_channels = [np.array([[0.22178232, 0.61069262, 0.50011605, 0.],
                                        [0.22178232, 0.61069262, 0.50011605, 0.],
@@ -476,13 +476,15 @@ class TestColormap:
                                        [0.49104964, 1.20509947, 0.49989589, 0.]])]
 
         cm = _mono_inc_colormap()
-        channels = cm.colorize(data)
-        for i, expected_channel in enumerate(expected_channels):
-            current_channel = channels[i, :, :]
-            assert isinstance(current_channel, da.Array)
-            np.testing.assert_allclose(current_channel.compute(),
-                                       expected_channel,
-                                       atol=0.001)
+        import dask
+        with dask.config.set(scheduler='sync'):
+            channels = cm.colorize(data)
+            assert isinstance(channels, da.Array)
+            channels_np = channels.compute()
+        print(channels_np[:, 0])
+        np.testing.assert_allclose(channels_np[0], expected_channels[0], atol=0.001)
+        np.testing.assert_allclose(channels_np[1], expected_channels[1], atol=0.001)
+        np.testing.assert_allclose(channels_np[2], expected_channels[2], atol=0.001)
 
 
 @contextlib.contextmanager
