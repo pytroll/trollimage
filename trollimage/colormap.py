@@ -152,7 +152,40 @@ def _interpolate_rgb_colors(arr, colors, values):
 
 
 def rgb2hcl_numpy(rgba_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> NDArray:
-    """Convert numpy RGB[A] arrays to HCL (hue, chroma, lumnance) values."""
+    """Convert numpy RGB[A] arrays to HCL (hue, chroma, lumnance) values.
+
+    This algorithm is based on the work described in:
+
+    Madenda, Sarifuddin. (2005). A new perceptually uniform color space with associated
+    color similarity measure for content-based image and video retrieval. Multimedia
+    Information Retrieval Workshop, 28th Annual ACM SIGIR Conference.
+
+    Additionally, the code is a numpy-friendly port of the matlab code in:
+
+    Sarifuddin Madenda (2023). RGB to HCL and HCL to RGB color conversion
+    (https://www.mathworks.com/matlabcentral/fileexchange/100878-rgb-to-hcl-and-hcl-to-rgb-color-conversion),
+    MATLAB Central File Exchange. Retrieved January 20, 2023.
+
+    Lastly, the python code here is inspired by a similar implementation of the
+    same algorithm in the `colour-science` python package:
+
+    https://github.com/colour-science/colour
+
+    Args:
+        rgba_arr: Numpy array of RGB or RGBA colors. The array can be any
+            shape as long as the channel (band) dimension is the last (-1)
+            dimension. If an Alpha (A) channel is provided it is ignored.
+            Values should be between 0 and 1.
+        gamma: Correction factor (see related paper). In normal use this does
+            not need to be changed from the default of 3.0.
+        y_0: White reference luminance. In normal use this does not need to
+            be changed from the default of 100.0.
+
+    Returns: HCL numpy array where the last dimension represents Hue, Chroma,
+        and Luminance. Hue is in radians from -pi to pi. Chroma is from 0 to
+        1. Luminance is also from 0 and 1 (usually a maximum of ~0.5).
+
+    """
     rgb_arr = rgba_arr[..., :3]
     rgb_min = rgb_arr.min(axis=-1)
     rgb_max = rgb_arr.max(axis=-1)
@@ -183,7 +216,38 @@ def rgb2hcl_numpy(rgba_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> 
 
 
 def hcl2rgb_numpy(hcl_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> NDArray:
-    """Convert an HCL (hue, chroma, luminance) array to RGB."""
+    """Convert an HCL (hue, chroma, luminance) array to RGB.
+
+    This algorithm is based on the work described in:
+
+    Madenda, Sarifuddin. (2005). A new perceptually uniform color space with associated
+    color similarity measure for content-based image and video retrieval. Multimedia
+    Information Retrieval Workshop, 28th Annual ACM SIGIR Conference.
+
+    Additionally, the code is a numpy-friendly port of the matlab code in:
+
+    Sarifuddin Madenda (2023). RGB to HCL and HCL to RGB color conversion
+    (https://www.mathworks.com/matlabcentral/fileexchange/100878-rgb-to-hcl-and-hcl-to-rgb-color-conversion),
+    MATLAB Central File Exchange. Retrieved January 20, 2023.
+
+    Lastly, the python code here is inspired by a similar implementation of the
+    same algorithm in the `colour-science` python package:
+
+    https://github.com/colour-science/colour
+
+    Args:
+        hcl_arr: Numpy array of HCL values. The array can be any
+            shape as long as the channel (band) dimension is the last (-1)
+            dimension. Hue must be between -pi to pi. Chroma and Luminance
+            should be between 0 and 1.
+        gamma: Correction factor (see related paper). In normal use this does
+            not need to be changed from the default of 3.0.
+        y_0: White reference luminance. In normal use this does not need to
+            be changed from the default of 100.0.
+
+    Returns: RGB array where each Red, Green, and Blue channel is between 0 and 1.
+
+    """
     hue = hcl_arr[..., 0]  # in radians
     chroma = hcl_arr[..., 1]
     luminance = hcl_arr[..., 2]
@@ -208,8 +272,8 @@ def hcl2rgb_numpy(hcl_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> N
     # hue_n60_0 = ~hue_lt_n60 & ~hue_pos
     # r = np.where(hue_0_60 | hue_n60_0, rgb_max, np.where(hue_120_180, rgb_min, tamp))
     tan_3_2_H = np.tan(3 / 2 * hue)
-    tan_3_4_H_MP = np.tan(3 / 4 * (hue - np.pi))
-    tan_3_4_H = np.tan(3 / 4 * hue)
+    tan_3_4_H_MP = np.tan(3 / 4 * (hue - np.pi))  # np.tan(-pi/2) or np.tan(-pi/4)
+    tan_3_4_H = np.tan(3 / 4 * hue)  # np.tan(-pi/2) or np.tan(-pi/4)
     tan_3_2_H_PP = np.tan(3 / 2 * (hue + np.pi))
 
     r_p60 = np.radians(60)
