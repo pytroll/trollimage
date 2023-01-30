@@ -32,7 +32,7 @@ import pathlib
 import sys
 
 import numpy as np
-from trollimage.colorspaces import rgb2hcl, hcl2rgb
+from trollimage._colorspaces import hcl2rgb
 
 from numpy.typing import NDArray
 
@@ -91,41 +91,6 @@ def _colorize(arr, colors, values):
     return np.stack(channels, axis=0)
 
 
-def _interpolate_rgb_colors_old(arr, colors, values):
-    interp_xp_coords = np.array(values)
-    hcl_colors = _convert_rgb_list_to_hcl(colors)
-    interp_y_coords = np.array(hcl_colors)
-    if values[0] > values[-1]:
-        # monotonically decreasing
-        interp_xp_coords = interp_xp_coords[::-1]
-        interp_y_coords = interp_y_coords[::-1]
-    channels = [np.interp(arr,
-                          interp_xp_coords,
-                          interp_y_coords[:, i])
-                for i in range(3)]
-    channels = list(hcl2rgb(*channels))
-    return channels
-
-
-def _interpolate_rgb_colors_colour(arr, colors, values):
-    interp_xp_coords = np.array(values)
-    import colour
-    hcl_colors = colour.RGB_to_HCL(colors[:, :3])
-    # interp_y_coords = np.array(hcl_colors)
-    interp_y_coords = hcl_colors
-    if values[0] > values[-1]:
-        # monotonically decreasing
-        interp_xp_coords = interp_xp_coords[::-1]
-        interp_y_coords = interp_y_coords[::-1]
-    channels = [np.interp(arr,
-                          interp_xp_coords,
-                          interp_y_coords[:, i])
-                for i in range(3)]
-    new_hcl_colors = np.array(channels)
-    new_rgb_arr = colour.HCL_to_RGB(new_hcl_colors.T)
-    return [new_rgb_arr[0], new_rgb_arr[1], new_rgb_arr[2]]
-
-
 def _interpolate_rgb_colors(arr, colors, values):
     interp_xp_coords = np.array(values)
     interp_y_coords = rgb2hcl_numpy(colors)
@@ -147,8 +112,7 @@ def _interpolate_rgb_colors(arr, colors, values):
     interp_hcl[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
     interp_hcl[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
     interp_hcl[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
-    from ._rgb2hcl import hcl2rgb_numpy
-    new_rgb = hcl2rgb_numpy(interp_hcl)
+    new_rgb = hcl2rgb(interp_hcl)
     return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
 
 
@@ -214,126 +178,6 @@ def rgb2hcl_numpy(rgba_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> 
         hcl[..., 0] = hue_factor * np.arctan(np.nan_to_num((g - b) / (r - g), nan=np.nan)) + hue_offset
 
     return hcl
-
-
-def hcl2rgb_numpy(hcl_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> NDArray:
-    """Convert an HCL (hue, chroma, luminance) array to RGB.
-
-    This algorithm is based on the work described in:
-
-    Madenda, Sarifuddin. (2005). A new perceptually uniform color space with associated
-    color similarity measure for content-based image and video retrieval. Multimedia
-    Information Retrieval Workshop, 28th Annual ACM SIGIR Conference.
-
-    Additionally, the code is a numpy-friendly port of the matlab code in:
-
-    Sarifuddin Madenda (2023). RGB to HCL and HCL to RGB color conversion
-    (https://www.mathworks.com/matlabcentral/fileexchange/100878-rgb-to-hcl-and-hcl-to-rgb-color-conversion),
-    MATLAB Central File Exchange. Retrieved January 20, 2023.
-
-    Lastly, the python code here is inspired by a similar implementation of the
-    same algorithm in the `colour-science` python package:
-
-    https://github.com/colour-science/colour
-
-    Args:
-        hcl_arr: Numpy array of HCL values. The array can be any
-            shape as long as the channel (band) dimension is the last (-1)
-            dimension. Hue must be between -pi to pi. Chroma and Luminance
-            should be between 0 and 1.
-        gamma: Correction factor (see related paper). In normal use this does
-            not need to be changed from the default of 3.0.
-        y_0: White reference luminance. In normal use this does not need to
-            be changed from the default of 100.0.
-
-    Returns: RGB array where each Red, Green, and Blue channel is between 0 and 1.
-
-    """
-    hue = hcl_arr[..., 0]  # in radians
-    chroma = hcl_arr[..., 1]
-    luminance = hcl_arr[..., 2]
-    chroma3 = 3 * chroma
-    luminance4 = 4 * luminance
-    with np.errstate(divide="ignore", invalid="ignore"):
-        _q = np.nan_to_num(chroma3 / luminance4, nan=0, posinf=0, neginf=0)
-        q = np.exp((1 - _q) * gamma / y_0)
-        rgb_min = (luminance4 - chroma3) / (4 * q - 2)
-        rgb_max = rgb_min + chroma3 / (2 * q)
-    # hue_pos = (hue >= 0)
-    # hue_lt_60 = hue <= np.pi / 3
-    # hue_lt_120 = hue <= 2 * np.pi / 3
-    # hue_lt_180 = hue <= np.pi
-    # hue_lt_n120 = hue <= -2 * np.pi / 3
-    # hue_lt_n60 = hue <= -np.pi / 3
-    # hue_0_60 = hue_pos & hue_lt_60
-    # hue_60_120 = ~hue_lt_60 & hue_lt_120
-    # hue_120_180 = ~hue_lt_120
-    # hue_n180_n120 = hue_lt_n120
-    # hue_n120_n60 = ~hue_lt_n120 & hue_lt_n60
-    # hue_n60_0 = ~hue_lt_n60 & ~hue_pos
-    # r = np.where(hue_0_60 | hue_n60_0, rgb_max, np.where(hue_120_180, rgb_min, tamp))
-    tan_3_2_H = np.tan(3 / 2 * hue)
-    tan_3_4_H_MP = np.tan(3 / 4 * (hue - np.pi))  # np.tan(-pi/2) or np.tan(-pi/4)
-    tan_3_4_H = np.tan(3 / 4 * hue)  # np.tan(-pi/2) or np.tan(-pi/4)
-    tan_3_2_H_PP = np.tan(3 / 2 * (hue + np.pi))
-
-    r_p60 = np.radians(60)
-    r_p120 = np.radians(120)
-    r_n60 = np.radians(-60)
-    r_n120 = np.radians(-120)
-    hue_conditions = [
-        np.logical_and(0 <= hue, hue <= r_p60),
-        np.logical_and(r_p60 < hue, hue <= r_p120),
-        np.logical_and(r_p120 < hue, hue <= np.pi),
-        np.logical_and(r_n60 <= hue, hue < 0),
-        np.logical_and(r_n120 <= hue, hue < r_n60),
-        np.logical_and(-np.pi < hue, hue < r_n120),
-    ]
-
-    with np.errstate(divide="ignore", invalid="ignore"):
-        r = np.select(
-            hue_conditions,
-            [
-                rgb_max,
-                np.nan_to_num((rgb_max * (1 + tan_3_4_H_MP) - rgb_min) / tan_3_4_H_MP, nan=np.nan, posinf=0, neginf=0),
-                rgb_min,
-                rgb_max,
-                np.nan_to_num((rgb_min * (1 + tan_3_4_H) - rgb_max) / tan_3_4_H, nan=np.nan, posinf=0, neginf=0),
-                rgb_min,
-            ],
-            default=np.nan,
-        )
-        g = np.select(
-            hue_conditions,
-            [
-                (rgb_max * tan_3_2_H + rgb_min) / (1 + tan_3_2_H),
-                rgb_max,
-                rgb_max,
-                rgb_min,
-                rgb_min,
-                (rgb_min * tan_3_2_H_PP + rgb_max) / (1 + tan_3_2_H_PP),
-            ],
-            default=np.nan,
-        )
-        b = np.select(
-            hue_conditions,
-            [
-                rgb_min,
-                rgb_min,
-                rgb_max * (1 + tan_3_4_H_MP) - rgb_min * tan_3_4_H_MP,
-                rgb_min * (1 + tan_3_4_H) - rgb_max * tan_3_4_H,
-                rgb_max,
-                rgb_max,
-            ],
-            default=np.nan,
-        )
-    return np.stack([r, g, b], axis=-1)
-
-
-def _convert_rgb_list_to_hcl(colors):
-    hcl_colors = np.array([rgb2hcl(*i[:3]) for i in colors])
-    _unwrap_colors_in_hcl_space(hcl_colors)
-    return hcl_colors
 
 
 def _unwrap_colors_in_hcl_space(hcl_colors):

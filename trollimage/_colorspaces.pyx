@@ -12,7 +12,7 @@ ctypedef fused floating:
 np.import_array()
 
 
-def hcl2rgb_numpy(
+def hcl2rgb(
         object hcl_arr,
         float gamma = 3.0,
         float y_0 = 100.0):

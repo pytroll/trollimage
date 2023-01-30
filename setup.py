@@ -37,8 +37,8 @@ else:
 
 EXTENSIONS = [
     Extension(
-        'trollimage._rgb2hcl',
-        sources=['trollimage/_rgb2hcl.pyx'],
+        'trollimage._colorspaces',
+        sources=['trollimage/_colorspaces.pyx'],
         extra_compile_args=extra_compile_args,
         include_dirs=[np.get_include()],
     ),
