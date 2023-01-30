@@ -481,7 +481,6 @@ class TestColormap:
             channels = cm.colorize(data)
             assert isinstance(channels, da.Array)
             channels_np = channels.compute()
-        print(channels_np[:, 0])
         np.testing.assert_allclose(channels_np[0], expected_channels[0], atol=0.001)
         np.testing.assert_allclose(channels_np[1], expected_channels[1], atol=0.001)
         np.testing.assert_allclose(channels_np[2], expected_channels[2], atol=0.001)

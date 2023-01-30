@@ -147,6 +147,7 @@ def _interpolate_rgb_colors(arr, colors, values):
     interp_hcl[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
     interp_hcl[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
     interp_hcl[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
+    from ._rgb2hcl import hcl2rgb_numpy
     new_rgb = hcl2rgb_numpy(interp_hcl)
     return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
 

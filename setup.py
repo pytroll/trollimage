@@ -22,24 +22,68 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Setup for trollimage."""
+import sys
 
 from setuptools import setup
 import versioneer
+import numpy as np
+from Cython.Build import build_ext
+from Cython.Distutils import Extension
+
+if sys.platform.startswith("win"):
+    extra_compile_args = []
+else:
+    extra_compile_args = ["-O3"]
+
+EXTENSIONS = [
+    Extension(
+        'trollimage._rgb2hcl',
+        sources=['trollimage/_rgb2hcl.pyx'],
+        extra_compile_args=extra_compile_args,
+        include_dirs=[np.get_include()],
+    ),
+]
+
+try:
+    sys.argv.remove("--cython-coverage")
+    cython_coverage = True
+except ValueError:
+    cython_coverage = False
+
+
+cython_directives = {
+    "language_level": "3",
+}
+define_macros = []
+if cython_coverage:
+    print("Enabling directives/macros for Cython coverage support")
+    cython_directives.update({
+        "linetrace": True,
+        "profile": True,
+    })
+    define_macros.extend([
+        ("CYTHON_TRACE", "1"),
+        ("CYTHON_TRACE_NOGIL", "1"),
+    ])
+    for ext in EXTENSIONS:
+        ext.define_macros = define_macros
+        ext.cython_directives.update(cython_directives)
+
+cmdclass = versioneer.get_cmdclass(cmdclass={"build_ext": build_ext})
 
 with open('README.rst', 'r') as readme_file:
     long_description = readme_file.read()
 
 setup(name="trollimage",
       version=versioneer.get_version(),
-      cmdclass=versioneer.get_cmdclass(),
+      cmdclass=cmdclass,
       description='Pytroll imaging library',
       long_description=long_description,
       author='Martin Raspaud',
       author_email='martin.raspaud@smhi.se',
       classifiers=["Development Status :: 5 - Production/Stable",
                    "Intended Audience :: Science/Research",
-                   "License :: OSI Approved :: GNU General Public License v3 " +
-                   "or later (GPLv3+)",
+                   "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
                    "Operating System :: OS Independent",
                    "Programming Language :: Python",
                    "Topic :: Scientific/Engineering"],
@@ -53,4 +97,5 @@ setup(name="trollimage",
           'xarray': ['xarray', 'dask[array]'],
       },
       tests_require=['xarray', 'dask[array]', 'pyproj', 'pyresample'],
+      ext_modules=EXTENSIONS,
       )
