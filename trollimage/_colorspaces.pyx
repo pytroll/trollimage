@@ -1,6 +1,6 @@
 cimport cython
 
-from libc.math cimport exp, tan, M_PI
+from libc.math cimport exp, tan, M_PI, atan, fabs
 cimport numpy as np
 import numpy as np
 
@@ -10,6 +10,120 @@ ctypedef fused floating:
 
 
 np.import_array()
+
+
+def rgb2hcl(
+        object rgba_arr,
+        float gamma = 3.0,
+        float y_0 = 100.0,
+):
+    """Convert numpy RGB[A] arrays to HCL (hue, chroma, lumnance) values.
+
+    This algorithm is based on the work described in:
+
+    Madenda, Sarifuddin. (2005). A new perceptually uniform color space with associated
+    color similarity measure for content-based image and video retrieval. Multimedia
+    Information Retrieval Workshop, 28th Annual ACM SIGIR Conference.
+
+    Additionally, the code is a numpy-friendly port of the matlab code in:
+
+    Sarifuddin Madenda (2023). RGB to HCL and HCL to RGB color conversion
+    (https://www.mathworks.com/matlabcentral/fileexchange/100878-rgb-to-hcl-and-hcl-to-rgb-color-conversion),
+    MATLAB Central File Exchange. Retrieved January 20, 2023.
+
+    Lastly, the python code here is inspired by a similar implementation of the
+    same algorithm in the `colour-science` python package:
+
+    https://github.com/colour-science/colour
+
+    Args:
+        rgba_arr: Numpy array of RGB or RGBA colors. The array can be any
+            shape as long as the channel (band) dimension is the last (-1)
+            dimension. If an Alpha (A) channel is provided it is ignored.
+            Values should be between 0 and 1.
+        gamma: Correction factor (see related paper). In normal use this does
+            not need to be changed from the default of 3.0.
+        y_0: White reference luminance. In normal use this does not need to
+            be changed from the default of 100.0.
+
+    Returns: HCL numpy array where the last dimension represents Hue, Chroma,
+        and Luminance. Hue is in radians from -pi to pi. Chroma is from 0 to
+        1. Luminance is also from 0 and 1 (usually a maximum of ~0.5).
+
+    """
+    cdef object rgb_arr = rgba_arr[..., :3]
+    cdef tuple shape = rgb_arr.shape
+    cdef np.ndarray rgb_2d = rgb_arr.reshape((-1, 3))
+    cdef np.ndarray hcl
+    if rgb_arr.dtype == np.float32:
+        hcl = _call_rgb_to_hcl(<np.ndarray[np.float32_t, ndim=2]> rgb_2d, gamma, y_0)
+    else:
+        hcl = _call_rgb_to_hcl(<np.ndarray[np.float64_t, ndim=2]> rgb_2d, gamma, y_0)
+    return hcl.reshape(shape)
+
+
+cdef np.ndarray[floating, ndim=2] _call_rgb_to_hcl(
+        np.ndarray[floating, ndim=2] rgb,
+        float gamma,
+        float y_0,
+):
+    cdef np.ndarray[floating, ndim=1] red = rgb[:, 0]
+    cdef np.ndarray[floating, ndim=1] green = rgb[:, 1]
+    cdef np.ndarray[floating, ndim=1] blue = rgb[:, 2]
+    cdef floating[:] red_view, green_view, blue_view
+    red_view = red
+    green_view = green
+    blue_view = blue
+    cdef np.ndarray[floating, ndim=2] hcl = np.empty((red_view.shape[0], 3), dtype=rgb.dtype)
+    cdef floating[:, ::1] hcl_view = hcl
+    with nogil:
+        _rgb_to_hcl(red_view, green_view, blue_view, hcl_view, gamma, y_0)
+    return hcl
+
+
+@cython.boundscheck(False)
+@cython.cdivision(True)
+@cython.wraparound(False)
+@cython.initializedcheck(False)
+cdef void _rgb_to_hcl(
+        floating[:] red_arr,
+        floating[:] green_arr,
+        floating[:] blue_arr,
+        floating[:, ::1] hcl_arr,
+        floating gamma,
+        floating y_0,
+) nogil:
+    cdef Py_ssize_t idx
+    cdef floating red, green, blue
+    cdef floating q, rgb_min, rgb_max, rg, gb, chroma, hue_factor, hue_offset
+    cdef bint rg_positive, gb_positive
+    for idx in range(red_arr.shape[0]):
+        red = red_arr[idx]
+        green = green_arr[idx]
+        blue = blue_arr[idx]
+        rgb_min = min(red, min(green, blue))
+        rgb_max = max(red, max(green, blue))
+        if rgb_max == 0.0:
+            q = 1.0
+        else:
+            q = exp((rgb_min * gamma) / (rgb_max * y_0))
+        # luminance
+        hcl_arr[idx, 2] = (q * rgb_max + (q - 1.0) * rgb_min) / 2.0
+        rg = red - green
+        gb = green - blue
+
+        # chroma
+        hcl_arr[idx, 1] = chroma = (fabs(blue - red) + fabs(rg) + fabs(gb)) * q / 3.0
+
+        # hue
+        if chroma == 0.0:
+            hcl_arr[idx, 0] = 0.0
+            continue
+        rg_positive = rg >= 0
+        gb_positive = gb >= 0
+        hue_offset = 0 if rg_positive else (M_PI if gb_positive else -M_PI)
+        hue_factor = 4.0 / 3.0 if rg_positive ^ gb_positive else 2.0 / 3.0
+        hcl_arr[idx, 0] = atan(gb / rg) * hue_factor + hue_offset
 
 
 def hcl2rgb(
@@ -71,7 +185,7 @@ cdef np.ndarray[floating, ndim=2] _call_hcl_to_rgb(
     chroma_view = chroma
     luminance_view = luminance
     cdef np.ndarray[floating, ndim=2] rgb = np.empty((hue_view.shape[0], 3), dtype=hcl.dtype)
-    cdef floating[:, :] rgb_view = rgb
+    cdef floating[:, ::1] rgb_view = rgb
     with nogil:
         _hcl_to_rgb(hue_view, chroma_view, luminance_view, rgb_view, gamma, y_0)
     return rgb
@@ -85,7 +199,7 @@ cdef void _hcl_to_rgb(
         floating[:] hue_arr,
         floating[:] chroma_arr,
         floating[:] luminance_arr,
-        floating[:, :] rgb_arr,
+        floating[:, ::1] rgb_arr,
         floating gamma,
         floating y_0,
 ) nogil:

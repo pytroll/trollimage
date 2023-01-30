@@ -32,9 +32,7 @@ import pathlib
 import sys
 
 import numpy as np
-from trollimage._colorspaces import hcl2rgb
-
-from numpy.typing import NDArray
+from trollimage._colorspaces import rgb2hcl, hcl2rgb
 
 
 @contextlib.contextmanager
@@ -93,7 +91,7 @@ def _colorize(arr, colors, values):
 
 def _interpolate_rgb_colors(arr, colors, values):
     interp_xp_coords = np.array(values)
-    interp_y_coords = rgb2hcl_numpy(colors)
+    interp_y_coords = rgb2hcl(colors)
     if values[0] > values[-1]:
         # monotonically decreasing
         interp_xp_coords = interp_xp_coords[::-1]
@@ -116,72 +114,8 @@ def _interpolate_rgb_colors(arr, colors, values):
     return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
 
 
-def rgb2hcl_numpy(rgba_arr: NDArray, gamma: float = 3.0, y_0: float = 100.0) -> NDArray:
-    """Convert numpy RGB[A] arrays to HCL (hue, chroma, lumnance) values.
-
-    This algorithm is based on the work described in:
-
-    Madenda, Sarifuddin. (2005). A new perceptually uniform color space with associated
-    color similarity measure for content-based image and video retrieval. Multimedia
-    Information Retrieval Workshop, 28th Annual ACM SIGIR Conference.
-
-    Additionally, the code is a numpy-friendly port of the matlab code in:
-
-    Sarifuddin Madenda (2023). RGB to HCL and HCL to RGB color conversion
-    (https://www.mathworks.com/matlabcentral/fileexchange/100878-rgb-to-hcl-and-hcl-to-rgb-color-conversion),
-    MATLAB Central File Exchange. Retrieved January 20, 2023.
-
-    Lastly, the python code here is inspired by a similar implementation of the
-    same algorithm in the `colour-science` python package:
-
-    https://github.com/colour-science/colour
-
-    Args:
-        rgba_arr: Numpy array of RGB or RGBA colors. The array can be any
-            shape as long as the channel (band) dimension is the last (-1)
-            dimension. If an Alpha (A) channel is provided it is ignored.
-            Values should be between 0 and 1.
-        gamma: Correction factor (see related paper). In normal use this does
-            not need to be changed from the default of 3.0.
-        y_0: White reference luminance. In normal use this does not need to
-            be changed from the default of 100.0.
-
-    Returns: HCL numpy array where the last dimension represents Hue, Chroma,
-        and Luminance. Hue is in radians from -pi to pi. Chroma is from 0 to
-        1. Luminance is also from 0 and 1 (usually a maximum of ~0.5).
-
-    """
-    rgb_arr = rgba_arr[..., :3]
-    rgb_min = rgb_arr.min(axis=-1)
-    rgb_max = rgb_arr.max(axis=-1)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        alpha = np.nan_to_num(rgb_min / rgb_max, nan=np.nan, posinf=0, neginf=0) * (1 / y_0)
-    q = np.where(rgb_max == 0, 1.0, np.exp(alpha * gamma))
-    r = rgb_arr[..., 0]
-    g = rgb_arr[..., 1]
-    b = rgb_arr[..., 2]
-
-    hcl = np.empty(rgb_arr.shape, dtype=rgb_arr.dtype)
-    # luminance
-    hcl[..., 2] = (q * rgb_max + (q - 1) * rgb_min) / 2
-    # chroma
-    hcl[..., 1] = q * (np.abs(r - g) + np.abs(g - b) + np.abs(b - r)) / 3
-    del q, alpha, rgb_min, rgb_max  # no longer used, free memory
-
-    rg_diff_positive = (r - g) >= 0
-    gb_diff_positive = (g - b) >= 0
-    # https://www.mathworks.com/matlabcentral/fileexchange/
-    # 100878-rgb-to-hcl-and-hcl-to-rgb-color-conversion?s_tid=FX_rc1_behav
-    hue_offset = np.where(rg_diff_positive, 0, np.where(gb_diff_positive, np.pi, -np.pi))
-    hue_factor = np.where(rg_diff_positive ^ gb_diff_positive, 4 / 3, 2 / 3)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        hcl[..., 0] = hue_factor * np.arctan(np.nan_to_num((g - b) / (r - g), nan=np.nan)) + hue_offset
-
-    return hcl
-
-
-def _unwrap_colors_in_hcl_space(hcl_colors):
-    hcl_colors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcl_colors)[:, 0])))
+# def _unwrap_colors_in_hcl_space(hcl_colors):
+#     hcl_colors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcl_colors)[:, 0])))
 
 
 def _interpolate_alpha(arr, colors, values):
