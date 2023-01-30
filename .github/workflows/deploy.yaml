@@ -1,4 +1,4 @@
-name: Deploy sdist
+name: Build Package
 
 
 on:
@@ -46,7 +46,7 @@ jobs:
         with:
           name: wheels
           path: ./wheelhouse/*.whl
-          
+
   upload_to_pypi:
     needs: [build_sdist, build_wheels]
     runs-on: ubuntu-latest
