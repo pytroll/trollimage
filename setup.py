@@ -23,6 +23,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Setup for trollimage."""
 import sys
+from typing import Any
 
 from setuptools import setup
 import versioneer
@@ -44,32 +45,49 @@ EXTENSIONS = [
     ),
 ]
 
-try:
-    sys.argv.remove("--cython-coverage")
-    cython_coverage = True
-except ValueError:
-    cython_coverage = False
-
-
-cython_directives = {
+cython_directives: dict[str, Any] = {
     "language_level": "3",
 }
-define_macros = []
-if cython_coverage:
-    print("Enabling directives/macros for Cython coverage support")
-    cython_directives.update({
-        "linetrace": True,
-        "profile": True,
-    })
-    define_macros.extend([
-        ("CYTHON_TRACE", "1"),
-        ("CYTHON_TRACE_NOGIL", "1"),
-    ])
-    for ext in EXTENSIONS:
-        ext.define_macros = define_macros
-        ext.cython_directives.update(cython_directives)
 
-cmdclass = versioneer.get_cmdclass(cmdclass={"build_ext": build_ext})
+
+class CythonCoverageBuildExtCommand(build_ext):
+    """Simple command extension to add Cython coverage flag.
+
+    With this class included in the build we are able to pass
+    ``--cython-coverage`` to compile Cython modules with flags necessary to
+    report test coverage.
+
+    """
+
+    user_options = build_ext.user_options + [
+        ('cython-coverage', None, None),
+    ]
+
+    def initialize_options(self):
+        """Initialize command line flag options to default values."""
+        super().initialize_options()
+        self.cython_coverage = False  # noqa
+
+    def run(self):
+        """Build extensions and handle cython coverage flags."""
+        define_macros = []
+        if self.cython_coverage:
+            print("Enabling directives/macros for Cython coverage support")
+            cython_directives.update({
+                "linetrace": True,
+                "profile": True,
+            })
+            define_macros.extend([
+                ("CYTHON_TRACE", "1"),
+                ("CYTHON_TRACE_NOGIL", "1"),
+            ])
+            for ext in EXTENSIONS:
+                ext.define_macros = define_macros
+                ext.cython_directives.update(cython_directives)
+        super().run()
+
+
+cmdclass = versioneer.get_cmdclass(cmdclass={"build_ext": CythonCoverageBuildExtCommand})
 
 with open('README.rst', 'r') as readme_file:
     long_description = readme_file.read()

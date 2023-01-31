@@ -60,6 +60,9 @@ jobs:
         shell: bash -l {0}
         run: |
           pip install --no-deps -e .
+          # pip forces non-wheel builds if we provide --cython-coverage as a --build-option
+          # and that's way too slow
+          python setup.py build_ext --inplace --cython-coverage --force
 
       - name: Run unit tests
         shell: bash -l {0}
