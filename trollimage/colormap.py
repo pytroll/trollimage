@@ -681,16 +681,18 @@ class Colormap(object):
             color_array,
             "VRGB" if color_array.shape[1] == 4 else "VRGBA",
             color_scale=color_scale)
+        if dtype == np.dtype("uint8"):
+            return colormap
+
         if valid_range is not None:
             if set_range:
                 colormap.set_range(
                     *(np.array(valid_range) * scale_factor
                       + add_offset))
-        else:
-            if dtype != np.dtype("uint8"):
-                raise AttributeError("Data need to have either a valid_range or be of type uint8" +
-                                     " in order to be displayable with an attached color-palette!")
-        return colormap
+            return colormap
+
+        raise AttributeError("Data need to have either a valid_range or be of type uint8" +
+                             " in order to be displayable with an attached color-palette!")
 
 
 def _is_actually_a_csv_string(string):
