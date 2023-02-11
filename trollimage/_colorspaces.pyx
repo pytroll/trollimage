@@ -11,11 +11,17 @@ ctypedef fused floating:
 
 np.import_array()
 
+cdef extern from "numpy/npy_math.h":
+    np.float32_t NPY_NANF
+    bint npy_isnan(np.float64_t x) nogil
+    bint npy_isnan(np.float32_t x) nogil
+
 
 def rgb2hcl(
         object rgba_arr,
         float gamma = 3.0,
         float y_0 = 100.0,
+        bint allow_nans = True,
 ):
     """Convert numpy RGB[A] arrays to HCL (hue, chroma, lumnance) values.
 
@@ -45,6 +51,11 @@ def rgb2hcl(
             not need to be changed from the default of 3.0.
         y_0: White reference luminance. In normal use this does not need to
             be changed from the default of 100.0.
+        allow_nans: Boolean flag to specify that NaNs can be returned in
+            operations that would produce it. This is most useful when
+            grayscale colors (Chroma=0) are converted where Hue (H) has no
+            effect. This allows for more control when interpolating in the HCL
+            color space. Defaults to True.
 
     Returns: HCL numpy array where the last dimension represents Hue, Chroma,
         and Luminance. Hue is in radians from -pi to pi. Chroma is from 0 to
@@ -66,6 +77,7 @@ cdef np.ndarray[floating, ndim=2] _call_rgb_to_hcl(
         np.ndarray[floating, ndim=2] rgb,
         float gamma,
         float y_0,
+        bint allow_nans = True,
 ):
     cdef np.ndarray[floating, ndim=1] red = rgb[:, 0]
     cdef np.ndarray[floating, ndim=1] green = rgb[:, 1]
@@ -77,7 +89,7 @@ cdef np.ndarray[floating, ndim=2] _call_rgb_to_hcl(
     cdef np.ndarray[floating, ndim=2] hcl = np.empty((red_view.shape[0], 3), dtype=rgb.dtype)
     cdef floating[:, ::1] hcl_view = hcl
     with nogil:
-        _rgb_to_hcl(red_view, green_view, blue_view, hcl_view, gamma, y_0)
+        _rgb_to_hcl(red_view, green_view, blue_view, hcl_view, gamma, y_0, 1)
     return hcl
 
 
@@ -92,6 +104,7 @@ cdef void _rgb_to_hcl(
         floating[:, ::1] hcl_arr,
         floating gamma,
         floating y_0,
+        bint allow_nans,
 ) nogil:
     cdef Py_ssize_t idx
     cdef floating red, green, blue
@@ -117,7 +130,7 @@ cdef void _rgb_to_hcl(
 
         # hue
         if chroma == 0.0:
-            hcl_arr[idx, 0] = 0.0
+            hcl_arr[idx, 0] = 0.0 if not allow_nans else <floating>NPY_NANF
             continue
         rg_positive = rg >= 0
         gb_positive = gb >= 0
@@ -205,7 +218,7 @@ cdef void _hcl_to_rgb(
 ) nogil:
     cdef Py_ssize_t idx
     cdef floating hue, chroma, luminance
-    cdef floating q, rgb_min, rgb_max, tmp
+    cdef floating q, q_, rgb_min, rgb_max, tmp
     for idx in range(hue_arr.shape[0]):
         hue = hue_arr[idx]
         luminance = luminance_arr[idx]
@@ -213,7 +226,11 @@ cdef void _hcl_to_rgb(
         if luminance == 0:
             q = 1.0
         else:
-            q = exp((1 - ((chroma * 3.0) / (luminance * 4.0))) * gamma / y_0)
+            if npy_isnan(chroma) or npy_isnan(luminance) or luminance == 0.0:
+                q_ = 0.0
+            else:
+                q_ = ((chroma * 3.0) / (luminance * 4.0))
+            q = exp((1 - q_) * gamma / y_0)
 
         rgb_min = ((luminance * 4.0) - (chroma * 3.0)) / (4.0 * q - 2.0)
         rgb_max = rgb_min + (chroma * 3.0) / (2.0 * q)

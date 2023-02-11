@@ -455,8 +455,9 @@ class TestColormap:
         cm = input_cmap_func()
         channels = cm.colorize(data)
         output_colors = [channels[:, i] for i in range(data.size)]
-        for output_color, expected_color in zip(output_colors, expected_result):
-            np.testing.assert_allclose(output_color, expected_color, atol=0.001)
+        np.testing.assert_allclose(output_colors[0], expected_result[0], atol=0.001)
+        np.testing.assert_allclose(output_colors[1], expected_result[1], atol=0.001)
+        np.testing.assert_allclose(output_colors[2], expected_result[2], atol=0.001)
 
     def test_colorize_dask_with_interpolation(self):
         """Test colorize dask arrays."""

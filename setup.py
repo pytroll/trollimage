@@ -81,9 +81,9 @@ class CythonCoverageBuildExtCommand(build_ext):
                 ("CYTHON_TRACE", "1"),
                 ("CYTHON_TRACE_NOGIL", "1"),
             ])
-            for ext in EXTENSIONS:
-                ext.define_macros = define_macros
-                ext.cython_directives.update(cython_directives)
+        for ext in EXTENSIONS:
+            ext.define_macros = define_macros
+            ext.cython_directives.update(cython_directives)
         super().run()
 
 
