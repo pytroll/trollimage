@@ -437,15 +437,15 @@ class TestColormap:
         [
             (_mono_inc_colormap,
              np.array([
-                 [0.22178232, 1.08365532, 0.49104964],
-                 [0.61069262, 0.94644083, 1.20509947],
-                 [0.50011605, 0.50000605, 0.49989589],
+                 [0.0, 1.0, 0.0],
+                 [0.514, 1.0068, 1.0068],
+                 [0.5, 0.5, 0.5],
                  [0.0, 0.0, 0.0]])),
             (_mono_dec_colormap,
              np.array([
-                 [0.50011605, 0.50000605, 0.49989589],
-                 [0.61069262, 0.94644083, 1.20509947],
-                 [0.22178232, 1.08365532, 0.49104964],
+                 [0.5, 0.5, 0.5],
+                 [0.514, 1.0068, 1.0068],
+                 [0.0, 1.0, 0.0],
                  [1.0, 1.0, 0.0]])),
         ]
     )
@@ -455,9 +455,11 @@ class TestColormap:
         cm = input_cmap_func()
         channels = cm.colorize(data)
         output_colors = [channels[:, i] for i in range(data.size)]
+        # test each resulting value (each one is an RGB color)
         np.testing.assert_allclose(output_colors[0], expected_result[0], atol=0.001)
         np.testing.assert_allclose(output_colors[1], expected_result[1], atol=0.001)
         np.testing.assert_allclose(output_colors[2], expected_result[2], atol=0.001)
+        np.testing.assert_allclose(output_colors[3], expected_result[3], atol=0.001)
 
     def test_colorize_dask_with_interpolation(self):
         """Test colorize dask arrays."""
@@ -466,15 +468,15 @@ class TestColormap:
                                        [1.5, 2.5, 3.5, 4],
                                        [1.5, 2.5, 3.5, 4]]), chunks=-1)
 
-        expected_channels = [np.array([[0.22178232, 0.61069262, 0.50011605, 0.],
-                                       [0.22178232, 0.61069262, 0.50011605, 0.],
-                                       [0.22178232, 0.61069262, 0.50011605, 0.]]),
-                             np.array([[1.08365532, 0.94644083, 0.50000605, 0.],
-                                       [1.08365532, 0.94644083, 0.50000605, 0.],
-                                       [1.08365532, 0.94644083, 0.50000605, 0.]]),
-                             np.array([[0.49104964, 1.20509947, 0.49989589, 0.],
-                                       [0.49104964, 1.20509947, 0.49989589, 0.],
-                                       [0.49104964, 1.20509947, 0.49989589, 0.]])]
+        expected_channels = [np.array([[0.0, 0.514, 0.5, 0.],
+                                       [0.0, 0.514, 0.5, 0.],
+                                       [0.0, 0.514, 0.5, 0.]]),
+                             np.array([[1.0, 1.0068, 0.5, 0.],
+                                       [1.0, 1.0068, 0.5, 0.],
+                                       [1.0, 1.0068, 0.5, 0.]]),
+                             np.array([[0.0, 1.0068, 0.5, 0.],
+                                       [0.0, 1.0068, 0.5, 0.],
+                                       [0.0, 1.0068, 0.5, 0.]])]
 
         cm = _mono_inc_colormap()
         import dask
