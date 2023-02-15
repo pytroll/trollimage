@@ -68,7 +68,7 @@ jobs:
       - name: Run unit tests
         shell: bash -l {0}
         run: |
-          pytest --cov=trollimage trollimage/tests --cov-report=xml
+          pytest --cov=trollimage trollimage/tests --cov-report=xml --cov-report=
 
       - name: Upload unittest coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -76,3 +76,19 @@ jobs:
           flags: unittests
           file: ./coverage.xml
           env_vars: OS,PYTHON_VERSION,UNSTABLE
+
+      - name: Coveralls Parallel
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          flag-name: run-${{ matrix.test_number }}
+          parallel: true
+        if: runner.os == 'Linux'
+
+  coveralls:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Coveralls Finished
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          parallel-finished: true
