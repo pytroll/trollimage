@@ -105,7 +105,7 @@ def _interpolate_rgb_colors(arr, colors, values):
             new_hues[..., 0] = new_hues[~np.isnan(new_hues)][0]
         while np.isnan(new_hues).any():
             new_hues[..., 1:] = np.where(np.isnan(new_hues[..., 1:]), new_hues[..., :-1], new_hues[..., 1:])
-    interp_y_coords[..., 0] = new_hues
+    interp_y_coords[..., 0] = np.unwrap(new_hues)
     interp_hcl = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
     interp_hcl[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
     interp_hcl[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
