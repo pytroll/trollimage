@@ -5,4 +5,4 @@ build-backend = "setuptools.build_meta"
 [tool.coverage.run]
 relative_files = true
 plugins = ["Cython.Coverage"]
-omit = ["trollimage/version.py"]
+omit = ["trollimage/version.py", "versioneer.py"]
