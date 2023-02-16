@@ -488,6 +488,37 @@ class TestColormap:
         np.testing.assert_allclose(channels_np[1], expected_channels[1], atol=0.001)
         np.testing.assert_allclose(channels_np[2], expected_channels[2], atol=0.001)
 
+    @pytest.mark.parametrize("reverse", [False, True])
+    def test_colorize_with_large_hue_jumps(self, reverse):
+        """Test colorize with a colormap that has large hue transitions."""
+        spectral = colormap.Colormap(
+            (0.0, (158 / 255.0, 1 / 255.0, 66 / 255.0)),
+            (0.1, (213 / 255.0, 62 / 255.0, 79 / 255.0)),
+            (0.2, (244 / 255.0, 109 / 255.0, 67 / 255.0)),
+            (0.3, (253 / 255.0, 174 / 255.0, 97 / 255.0)),
+            (0.4, (254 / 255.0, 224 / 255.0, 139 / 255.0)),
+            (0.5, (255 / 255.0, 255 / 255.0, 191 / 255.0)),
+            (0.6, (230 / 255.0, 245 / 255.0, 152 / 255.0)),
+            (0.7, (171 / 255.0, 221 / 255.0, 164 / 255.0)),
+            (0.8, (102 / 255.0, 194 / 255.0, 165 / 255.0)),
+            (0.9, (50 / 255.0, 136 / 255.0, 189 / 255.0)),
+            (1.0, (94 / 255.0, 79 / 255.0, 162 / 255.0)))
+        data = np.linspace(0.75, 0.95, 10)
+        expected = np.array([[0.52198445, 0.46787713, 0.41353419, 0.36634584, 0.32134727,
+                              0.27605595, 0.2304616, 0.20247561, 0.2280296, 0.25340211],
+                             [0.81381654, 0.79025656, 0.766587, 0.75759284, 0.75339856,
+                              0.70592722, 0.60446684, 0.51096222, 0.43360697, 0.36450801],
+                             [0.62343295, 0.6317971, 0.64342184, 0.67483929, 0.71910156,
+                              0.74906589, 0.74458915, 0.73529539, 0.71189212, 0.68840217]])
+
+        if reverse:
+            spectral = spectral.reverse(inplace=False)
+            data = data - 0.7
+            expected = expected[..., ::-1]
+
+        channels = spectral.colorize(data)
+        np.testing.assert_allclose(channels, expected, atol=0.001)
+
 
 @contextlib.contextmanager
 def closed_named_temp_file(**kwargs):

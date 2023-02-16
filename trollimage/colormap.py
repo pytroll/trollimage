@@ -110,12 +110,18 @@ def _interpolate_rgb_colors(arr, colors, values):
     interp_hcl[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
     interp_hcl[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
     interp_hcl[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
+    interp_hcl[..., 0] = _ununwrap(interp_hcl[..., 0])
     new_rgb = hcl2rgb(interp_hcl)
     return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
 
 
-# def _unwrap_colors_in_hcl_space(hcl_colors):
-#     hcl_colors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcl_colors)[:, 0])))
+def _ununwrap(input_radians):
+    """Undo the operations performed by numpy unwrap.
+
+    Taken from https://stackoverflow.com/a/15927914/433202
+
+    """
+    return (input_radians + np.pi) % (2 * np.pi) - np.pi
 
 
 def _interpolate_alpha(arr, colors, values):
