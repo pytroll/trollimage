@@ -47,18 +47,28 @@ def _file_or_stringio(filename_or_none):
 def colorize(arr, colors, values):
     """Colorize a monochromatic array *arr*, based *colors* given for *values*.
 
-    # TODO: Is this still true?
-    Interpolation is used. *values* must be in ascending order.
-
     Args:
-        arr (numpy array, numpy masked array, dask array)
-            data to be colorized.
-            # TODO: What is the shape?
+        arr (numpy array, numpy masked array, dask array):
+            Data to be mapped to the colors in the colors array using values
+            as control points. Data can be any shape, but must represent a
+            single (luminance) band of data (not RGB or any other colorspace).
         colors (numpy array):
-            the colors to use (R, G, B)
-            # TODO: What is the shape? (N, 3) or (3, N) and what about alpha?
+            Colors to map the data to. Colors can be RGB or RGBA in the
+            0 to 1 range. The array should be in the shape (N, 3 or 4) where
+            N is the size of the colormap (the number of colors) and the last
+            dimension is the band dimension where each element represents
+            Red (R), Green (G), Blue (B), and optionally Alpha (A).
         values (numpy array):
-            the values corresponding to the colors in the array
+            Control points mapping input data values to the colors to be
+            mapped to. Should be one dimension and the same number of elements
+            as the ``colors`` array has colors (N).
+
+    Returns: Resulting RGB/A array with the shape (3 or 4, ...) where the
+        first dimension is 3 if the colors array was RGB and 4 if the colors
+        array was RGBA. The remaining shape of the result matches the provided
+        ``data`` input shape. Like ``colors`` the color values will be between
+        0 and 1.
+
     """
     if can_be_block_mapped(arr):
         return _colorize_dask(arr, colors, values)
