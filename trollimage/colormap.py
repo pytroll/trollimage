@@ -600,7 +600,7 @@ class Colormap(object):
             color_scale (number): The value that represents white in the
                 numbers describing the colors. Defaults to 255, could also be 1
                 or something else.
-            """
+        """
         # this method was moved from satpy. where it was in
         # satpy.enhancements.create_colormap
         # then it was refactored/rewritten
@@ -638,7 +638,6 @@ class Colormap(object):
         or according to ``valid_range``.
 
         Args:
-
             palette (ndarray or xarray.DataArray)
                 Array describing colors, possibly with metadata.  If it has a
                 ``palette_meanings`` attribute, this will be used for color
@@ -862,7 +861,7 @@ sequential_colormaps = [blues, greens, greys, oranges, purples, reds,
 brbg = Colormap((0.0, (84 / 255.0, 48 / 255.0, 5 / 255.0)),
                 (0.1, (140 / 255.0, 81 / 255.0, 10 / 255.0)),
                 (0.2, (191 / 255.0, 129 / 255.0, 45 / 255.0)),
-                (0.3, (223 / 255.0, 129 / 255.0, 125 / 255.0)),
+                (0.3, (223 / 255.0, 194 / 255.0, 125 / 255.0)),
                 (0.4, (246 / 255.0, 232 / 255.0, 195 / 255.0)),
                 (0.5, (245 / 255.0, 245 / 255.0, 245 / 255.0)),
                 (0.6, (199 / 255.0, 234 / 255.0, 229 / 255.0)),

@@ -10,10 +10,10 @@ jobs:
       fail-fast: true
       matrix:
         os: ["windows-latest", "ubuntu-latest", "macos-latest"]
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.9", "3.10", "3.11"]
         experimental: [false]
         include:
-          - python-version: "3.9"
+          - python-version: "3.11"
             os: "ubuntu-latest"
             experimental: true
 
@@ -30,13 +30,14 @@ jobs:
       - name: Setup Conda Environment
         uses: conda-incubator/setup-miniconda@v2
         with:
-          miniconda-version: "latest"
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
           python-version: ${{ matrix.python-version }}
-          mamba-version: "*"
+          activate-environment: test-environment
           channels: conda-forge
           channel-priority: strict
           environment-file: continuous_integration/environment.yaml
-          activate-environment: test-environment
 
       - name: Install unstable dependencies
         if: matrix.experimental == true
@@ -64,7 +65,7 @@ jobs:
       - name: Run unit tests
         shell: bash -l {0}
         run: |
-          pytest --cov=trollimage trollimage/tests --cov-report=xml
+          pytest --cov=trollimage trollimage/tests --cov-report=xml --cov-report=
 
       - name: Upload unittest coverage to Codecov
         uses: codecov/codecov-action@v3
