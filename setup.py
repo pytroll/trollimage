@@ -70,7 +70,7 @@ class CythonCoverageBuildExtCommand(build_ext):
 
     def run(self):
         """Build extensions and handle cython coverage flags."""
-        define_macros = []
+        define_macros = [("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")]
         if self.cython_coverage:
             print("Enabling directives/macros for Cython coverage support")
             cython_directives.update({
