@@ -51,10 +51,14 @@ cdef np.ndarray[floating, ndim=2] _call_rgb_to_lch(
     cdef np.ndarray[floating, ndim=1] red = rgb[:, 0]
     cdef np.ndarray[floating, ndim=1] green = rgb[:, 1]
     cdef np.ndarray[floating, ndim=1] blue = rgb[:, 2]
+    cdef floating[:] red_view, green_view, blue_view
+    red_view = red
+    green_view = green
+    blue_view = blue
     cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=rgb.dtype)
     cdef floating[:, ::1] lch_view = lch
     with nogil:
-        _rgb_to_lch[floating](red, green, blue, lch_view)
+        _rgb_to_lch[floating](red_view, green_view, blue_view, lch_view)
     return lch
 
 
@@ -86,10 +90,14 @@ cdef np.ndarray[floating, ndim=2] _call_lch_to_rgb(
     cdef np.ndarray[floating, ndim=1] luminance = lch[:, 0]
     cdef np.ndarray[floating, ndim=1] chroma = lch[:, 1]
     cdef np.ndarray[floating, ndim=1] hue = lch[:, 2]  # in radians
+    cdef floating[:] hue_view, chroma_view, luminance_view
+    hue_view = hue
+    chroma_view = chroma
+    luminance_view = luminance
     cdef np.ndarray[floating, ndim=2] rgb = np.empty((lch.shape[0], 3), dtype=lch.dtype)
     cdef floating[:, ::1] rgb_view = rgb
     with nogil:
-        _lch_to_rgb[floating](luminance, chroma, hue, rgb_view)
+        _lch_to_rgb[floating](luminance_view, chroma_view, hue_view, rgb_view)
     return rgb
 
 
