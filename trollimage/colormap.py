@@ -32,7 +32,7 @@ import pathlib
 import sys
 
 import numpy as np
-from trollimage._colorspaces import rgb2hcl, hcl2rgb
+from trollimage._colorspaces import rgb2lch, lch2rgb
 
 
 @contextlib.contextmanager
@@ -101,13 +101,13 @@ def _colorize(arr, colors, values):
 
 def _interpolate_rgb_colors(arr, colors, values):
     interp_xp_coords = np.array(values)
-    interp_y_coords = rgb2hcl(colors)
+    interp_y_coords = rgb2lch(colors)
     if values[0] > values[-1]:
         # monotonically decreasing
         interp_xp_coords = interp_xp_coords[::-1]
         interp_y_coords = interp_y_coords[::-1]
     # handling NaN Hue values for interpolation
-    new_hues = interp_y_coords[..., 0]
+    new_hues = interp_y_coords[..., 2]
     if np.isnan(new_hues).all():
         new_hues[..., :] = 0
     else:
@@ -115,13 +115,13 @@ def _interpolate_rgb_colors(arr, colors, values):
             new_hues[..., 0] = new_hues[~np.isnan(new_hues)][0]
         while np.isnan(new_hues).any():
             new_hues[..., 1:] = np.where(np.isnan(new_hues[..., 1:]), new_hues[..., :-1], new_hues[..., 1:])
-    interp_y_coords[..., 0] = np.unwrap(new_hues)
-    interp_hcl = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
-    interp_hcl[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
-    interp_hcl[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
-    interp_hcl[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
-    interp_hcl[..., 0] = _ununwrap(interp_hcl[..., 0])
-    new_rgb = hcl2rgb(interp_hcl)
+    interp_y_coords[..., 2] = np.unwrap(new_hues)
+    interp_lch = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
+    interp_lch[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
+    interp_lch[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
+    interp_lch[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
+    interp_lch[..., 2] = _ununwrap(interp_lch[..., 2])
+    new_rgb = lch2rgb(interp_lch)
     return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
 
 
@@ -251,7 +251,7 @@ class Colormap(object):
         if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
             raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
         if not np.issubdtype(colors.dtype, np.floating):
-            warnings.warn("Colormap 'colors' should be flotaing point numbers between 0 and 1.")
+            warnings.warn("Colormap 'colors' should be flotaing point numbers between 0 and 1.", stacklevel=3)
             colors = colors.astype(np.float64)
         return colors
 
@@ -487,7 +487,9 @@ class Colormap(object):
             warnings.warn(
                 "Passing a data string to Colormap.from_file is deprecated. "
                 "Please use Colormap.from_string.",
-                category=DeprecationWarning)
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
             return cls.from_string(filename, colormap_mode, color_scale)
         values, colors = _get_values_colors_from_file(filename, colormap_mode, color_scale)
         return cls(values=values, colors=colors)

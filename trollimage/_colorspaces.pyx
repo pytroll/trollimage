@@ -1,4 +1,4 @@
-# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, initializedcheck=False, nonecheck=False
+# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, initializedcheck=False, nonecheck=False, cpow=True
 cimport cython
 
 from libc.math cimport cos, sin, atan2
@@ -73,52 +73,51 @@ cdef np.ndarray[floating, ndim=2] _call_rgb_to_lch(
     return lch
 
 
-# def hcl2rgb(
-#         object hcl_arr,
-#         float gamma = 3.0,
-#         float y_0 = 100.0):
-#     """Convert an HCL (hue, chroma, luminance) array to RGB.
-#
-#     Args:
-#         hcl_arr: Numpy array of HCL values. The array can be any
-#             shape as long as the channel (band) dimension is the last (-1)
-#             dimension. Hue must be between -pi to pi. Chroma and Luminance
-#             should be between 0 and 1.
-#         gamma: Correction factor (see related paper). In normal use this does
-#             not need to be changed from the default of 3.0.
-#         y_0: White reference luminance. In normal use this does not need to
-#             be changed from the default of 100.0.
-#
-#     Returns: RGB array where each Red, Green, and Blue channel is between 0 and 1.
-#
-#     """
-#     cdef tuple shape = hcl_arr.shape
-#     cdef np.ndarray hcl_2d = hcl_arr.reshape((-1, 3))
-#     cdef np.ndarray rgb
-#     if hcl_arr.dtype == np.float32:
-#         rgb = _call_hcl_to_rgb(<np.ndarray[np.float32_t, ndim=2]> hcl_2d, gamma, y_0)
-#     else:
-#         rgb = _call_hcl_to_rgb(<np.ndarray[np.float64_t, ndim=2]> hcl_2d, gamma, y_0)
-#     return rgb.reshape(shape)
-#
-#
-# cdef np.ndarray[floating, ndim=2] _call_hcl_to_rgb(
-#         np.ndarray[floating, ndim=2] hcl,
-#         float gamma,
-#         float y_0,
-# ):
-#     cdef np.ndarray[floating, ndim=1] hue = hcl[:, 0]  # in radians
-#     cdef np.ndarray[floating, ndim=1] chroma = hcl[:, 1]
-#     cdef np.ndarray[floating, ndim=1] luminance = hcl[:, 2]
-#     cdef floating[:] hue_view, chroma_view, luminance_view
-#     hue_view = hue
-#     chroma_view = chroma
-#     luminance_view = luminance
-#     cdef np.ndarray[floating, ndim=2] rgb = np.empty((hue_view.shape[0], 3), dtype=hcl.dtype)
-#     cdef floating[:, ::1] rgb_view = rgb
-#     with nogil:
-#         _hcl_to_rgb(hue_view, chroma_view, luminance_view, rgb_view, gamma, y_0)
-#     return rgb
+def lch2rgb(
+        object lch_arr,
+        # float gamma = 3.0,
+        # float y_0 = 100.0
+):
+    """Convert an HCL (hue, chroma, luminance) array to RGB.
+
+    Args:
+        lch_arr: Numpy array of HCL values. The array can be any
+            shape as long as the channel (band) dimension is the last (-1)
+            dimension. Hue must be between -pi to pi. Chroma and Luminance
+            should be between 0 and 1.
+        gamma: Correction factor (see related paper). In normal use this does
+            not need to be changed from the default of 3.0.
+        y_0: White reference luminance. In normal use this does not need to
+            be changed from the default of 100.0.
+
+    Returns: RGB array where each Red, Green, and Blue channel is between 0 and 1.
+
+    """
+    cdef tuple shape = lch_arr.shape
+    cdef np.ndarray lch_2d = lch_arr.reshape((-1, 3))
+    cdef np.ndarray rgb
+    if lch_arr.dtype == np.float32:
+        rgb = _call_lch_to_rgb(<np.ndarray[np.float32_t, ndim=2]> lch_2d)
+    else:
+        rgb = _call_lch_to_rgb(<np.ndarray[np.float64_t, ndim=2]> lch_2d)
+    return rgb.reshape(shape)
+
+
+cdef np.ndarray[floating, ndim=2] _call_lch_to_rgb(
+        np.ndarray[floating, ndim=2] lch,
+):
+    cdef np.ndarray[floating, ndim=1] luminance = lch[:, 0]
+    cdef np.ndarray[floating, ndim=1] chroma = lch[:, 1]
+    cdef np.ndarray[floating, ndim=1] hue = lch[:, 2]  # in radians
+    cdef floating[:] hue_view, chroma_view, luminance_view
+    hue_view = hue
+    chroma_view = chroma
+    luminance_view = luminance
+    cdef np.ndarray[floating, ndim=2] rgb = np.empty((hue_view.shape[0], 3), dtype=lch.dtype)
+    cdef floating[:, ::1] rgb_view = rgb
+    with nogil:
+        _lch_to_rgb(luminance_view, chroma_view, hue_view, rgb_view)
+    return rgb
 
 
 # cdef void _rgb_to_lab(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lab_arr) nogil:
@@ -135,7 +134,7 @@ cdef void _rgb_to_lch(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, f
     _rgb_to_xyz(r_arr, g_arr, b_arr, lch_arr)
     l, c, h = lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2]
     _xyz_to_lab(l, c, h, lch_arr)
-    _lab_to_lch(l, h, h, lch_arr)
+    _lab_to_lch(l, c, h, lch_arr)
     # _xyz_to_lab(lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
     # _lab_to_lch(lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
 
@@ -165,12 +164,16 @@ cdef void _rgb_to_lch(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, f
 #     _lab_to_xyz(xyz_arr[:, 0], xyz_arr[:, 1], xyz_arr[:, 2], xyz_arr)
 #
 #
-# cdef void _lch_to_rgb(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] rgb_arr) nogil:
-#     _lch_to_lab(l_arr, c_arr, h_arr, rgb_arr)
-#     _lab_to_xyz(rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
-#     _xyz_to_rgb(rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
-#
-#
+cdef void _lch_to_rgb(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] rgb_arr) nogil:
+    cdef floating[:] r, g, b
+    _lch_to_lab(l_arr, c_arr, h_arr, rgb_arr)
+    r = rgb_arr[:, 0]
+    g = rgb_arr[:, 1]
+    b = rgb_arr[:, 2]
+    _lab_to_xyz(r, g, b, rgb_arr)
+    _xyz_to_rgb(r, g, b, rgb_arr)
+
+
 # cdef void _lch_to_luv(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] luv_arr) nogil:
 #     _lch_to_lab(l_arr, c_arr, h_arr, luv_arr)
 #     _lab_to_xyz(luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
@@ -297,6 +300,7 @@ cdef void _xyz_to_lab(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, f
 
 cdef void _lab_to_lch(floating[:] L_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] lch) nogil:
     cdef Py_ssize_t idx
+    cdef floating c, h
 
     for idx in range(L_arr.shape[0]):
         lch[idx, 0] = L_arr[idx]
