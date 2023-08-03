@@ -704,16 +704,18 @@ class Colormap(object):
             color_array,
             "VRGB" if color_array.shape[1] == 4 else "VRGBA",
             color_scale=color_scale)
+        if dtype == np.dtype("uint8"):
+            return colormap
+
         if valid_range is not None:
             if set_range:
                 colormap.set_range(
                     *(np.array(valid_range) * scale_factor
                       + add_offset))
-        else:
-            if dtype != np.dtype("uint8"):
-                raise AttributeError("Data need to have either a valid_range or be of type uint8" +
-                                     " in order to be displayable with an attached color-palette!")
-        return colormap
+            return colormap
+
+        raise AttributeError("Data need to have either a valid_range or be of type uint8" +
+                             " in order to be displayable with an attached color-palette!")
 
 
 def _is_actually_a_csv_string(string):
@@ -883,7 +885,7 @@ sequential_colormaps = [blues, greens, greys, oranges, purples, reds,
 brbg = Colormap((0.0, (84 / 255.0, 48 / 255.0, 5 / 255.0)),
                 (0.1, (140 / 255.0, 81 / 255.0, 10 / 255.0)),
                 (0.2, (191 / 255.0, 129 / 255.0, 45 / 255.0)),
-                (0.3, (223 / 255.0, 129 / 255.0, 125 / 255.0)),
+                (0.3, (223 / 255.0, 194 / 255.0, 125 / 255.0)),
                 (0.4, (246 / 255.0, 232 / 255.0, 195 / 255.0)),
                 (0.5, (245 / 255.0, 245 / 255.0, 245 / 255.0)),
                 (0.6, (199 / 255.0, 234 / 255.0, 229 / 255.0)),

@@ -719,10 +719,22 @@ def test_cmap_from_sequence_of_colors():
 
 
 def test_build_colormap_with_int_data_and_without_meanings():
-    """Test colormap building."""
+    """Test colormap building from uint8 array with metadata."""
     palette = np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]])
     cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8)
     np.testing.assert_array_equal(cmap.values, [0, 1])
+
+    # test that values are respected even if valid_range is passed
+    # see https://github.com/pytroll/satpy/issues/2376
+    cmap = colormap.Colormap.from_array_with_metadata(
+            palette, np.uint8, valid_range=[0, 100])
+
+    np.testing.assert_array_equal(cmap.values, [0, 1])
+
+
+def test_build_colormap_with_float_data():
+    """Test colormap building for float data."""
+    palette = np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]])
 
     with pytest.raises(AttributeError):
         colormap.Colormap.from_array_with_metadata(palette/100, np.float32)

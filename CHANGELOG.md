@@ -1,3 +1,19 @@
+## Version 1.20.1 (2023/02/03)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 123](https://github.com/pytroll/trollimage/pull/123) - Don't scale colormap values if they're ints ([2376](https://github.com/pytroll/satpy/issues/2376))
+
+#### Features added
+
+* [PR 120](https://github.com/pytroll/trollimage/pull/120) - [Snyk] Security upgrade setuptools from 39.0.1 to 65.5.1
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.20.0 (2023/01/11)
 
 
