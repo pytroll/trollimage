@@ -20,7 +20,6 @@ np.import_array()
 
 def rgb2lch(
         object rgba_arr,
-        # bint allow_nans = True,
 ):
     """Convert numpy RGB[A] arrays to CIE LCh_ab (lch).
 
@@ -29,15 +28,6 @@ def rgb2lch(
             shape as long as the channel (band) dimension is the last (-1)
             dimension. If an Alpha (A) channel is provided it is ignored.
             Values should be between 0 and 1.
-        gamma: Correction factor (see related paper). In normal use this does
-            not need to be changed from the default of 3.0.
-        y_0: White reference luminance. In normal use this does not need to
-            be changed from the default of 100.0.
-        allow_nans: Boolean flag to specify that NaNs can be returned in
-            operations that would produce it. This is most useful when
-            grayscale colors (Chroma=0) are converted where Hue (H) has no
-            effect. This allows for more control when interpolating in the HCL
-            color space. Defaults to True.
 
     Returns: LCH_ab (l, c, h) numpy array where the last dimension represents Hue, Chroma,
         and Luminance. Hue is in radians from -pi to pi. Chroma is from 0 to
@@ -57,27 +47,18 @@ def rgb2lch(
 
 cdef np.ndarray[floating, ndim=2] _call_rgb_to_lch(
         np.ndarray[floating, ndim=2] rgb,
-        # bint allow_nans = True,
 ):
     cdef np.ndarray[floating, ndim=1] red = rgb[:, 0]
     cdef np.ndarray[floating, ndim=1] green = rgb[:, 1]
     cdef np.ndarray[floating, ndim=1] blue = rgb[:, 2]
-    cdef floating[:] red_view, green_view, blue_view
-    red_view = red
-    green_view = green
-    blue_view = blue
-    cdef np.ndarray[floating, ndim=2] lch = np.empty((red_view.shape[0], 3), dtype=rgb.dtype)
+    cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=rgb.dtype)
     cdef floating[:, ::1] lch_view = lch
     with nogil:
-        _rgb_to_lch(red_view, green_view, blue_view, lch_view)
+        _rgb_to_lch[floating](red, green, blue, lch_view)
     return lch
 
 
-def lch2rgb(
-        object lch_arr,
-        # float gamma = 3.0,
-        # float y_0 = 100.0
-):
+def lch2rgb(object lch_arr):
     """Convert an HCL (hue, chroma, luminance) array to RGB.
 
     Args:
@@ -85,10 +66,6 @@ def lch2rgb(
             shape as long as the channel (band) dimension is the last (-1)
             dimension. Hue must be between -pi to pi. Chroma and Luminance
             should be between 0 and 1.
-        gamma: Correction factor (see related paper). In normal use this does
-            not need to be changed from the default of 3.0.
-        y_0: White reference luminance. In normal use this does not need to
-            be changed from the default of 100.0.
 
     Returns: RGB array where each Red, Green, and Blue channel is between 0 and 1.
 
@@ -109,14 +86,10 @@ cdef np.ndarray[floating, ndim=2] _call_lch_to_rgb(
     cdef np.ndarray[floating, ndim=1] luminance = lch[:, 0]
     cdef np.ndarray[floating, ndim=1] chroma = lch[:, 1]
     cdef np.ndarray[floating, ndim=1] hue = lch[:, 2]  # in radians
-    cdef floating[:] hue_view, chroma_view, luminance_view
-    hue_view = hue
-    chroma_view = chroma
-    luminance_view = luminance
-    cdef np.ndarray[floating, ndim=2] rgb = np.empty((hue_view.shape[0], 3), dtype=lch.dtype)
+    cdef np.ndarray[floating, ndim=2] rgb = np.empty((lch.shape[0], 3), dtype=lch.dtype)
     cdef floating[:, ::1] rgb_view = rgb
     with nogil:
-        _lch_to_rgb(luminance_view, chroma_view, hue_view, rgb_view)
+        _lch_to_rgb[floating](luminance, chroma, hue, rgb_view)
     return rgb
 
 
@@ -130,13 +103,9 @@ cdef np.ndarray[floating, ndim=2] _call_lch_to_rgb(
 
 
 cdef void _rgb_to_lch(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lch_arr) nogil:
-    cdef floating[:] l, c, h
     _rgb_to_xyz(r_arr, g_arr, b_arr, lch_arr)
-    l, c, h = lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2]
-    _xyz_to_lab(l, c, h, lch_arr)
-    _lab_to_lch(l, c, h, lch_arr)
-    # _xyz_to_lab(lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
-    # _lab_to_lch(lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
+    _xyz_to_lab[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
+    _lab_to_lch[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
 
 
 # cdef void _rgb_to_luv(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] luv_arr) nogil:
@@ -165,13 +134,9 @@ cdef void _rgb_to_lch(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, f
 #
 #
 cdef void _lch_to_rgb(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] rgb_arr) nogil:
-    cdef floating[:] r, g, b
     _lch_to_lab(l_arr, c_arr, h_arr, rgb_arr)
-    r = rgb_arr[:, 0]
-    g = rgb_arr[:, 1]
-    b = rgb_arr[:, 2]
-    _lab_to_xyz(r, g, b, rgb_arr)
-    _xyz_to_rgb(r, g, b, rgb_arr)
+    _lab_to_xyz[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
+    _xyz_to_rgb[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
 
 
 # cdef void _lch_to_luv(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] luv_arr) nogil:
