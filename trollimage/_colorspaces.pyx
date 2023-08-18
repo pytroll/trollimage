@@ -39,23 +39,25 @@ def rgb2lch(
     cdef np.ndarray rgb_2d = rgb_arr.reshape((-1, 3))
     cdef np.ndarray lch
     if rgb_arr.dtype == np.float32:
-        lch = _call_rgb_to_lch(<np.ndarray[np.float32_t, ndim=2]> rgb_2d)
+        lch = _call_rgb_to_lch[np.float32_t](rgb_2d)
     else:
-        lch = _call_rgb_to_lch(<np.ndarray[np.float64_t, ndim=2]> rgb_2d)
+        lch = _call_rgb_to_lch[np.float64_t](rgb_2d)
     return lch.reshape(shape)
 
 
 cdef np.ndarray[floating, ndim=2] _call_rgb_to_lch(
-        np.ndarray[floating, ndim=2] rgb,
+        floating[:, :] rgb,
 ):
-    cdef np.ndarray[floating, ndim=1] red = rgb[:, 0]
-    cdef np.ndarray[floating, ndim=1] green = rgb[:, 1]
-    cdef np.ndarray[floating, ndim=1] blue = rgb[:, 2]
     cdef floating[:] red_view, green_view, blue_view
-    red_view = red
-    green_view = green
-    blue_view = blue
-    cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=rgb.dtype)
+    cdef object dtype
+    if floating is np.float32_t:
+        dtype = np.float32
+    else:
+        dtype = np.float64
+    red_view = rgb[:, 0]
+    green_view = rgb[:, 1]
+    blue_view = rgb[:, 2]
+    cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=dtype)
     cdef floating[:, ::1] lch_view = lch
     with nogil:
         _rgb_to_lch[floating](red_view, green_view, blue_view, lch_view)
