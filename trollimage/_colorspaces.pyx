@@ -48,7 +48,9 @@ cdef:
 def rgb2lch(
         object rgba_arr,
 ):
-    """Convert numpy RGB[A] arrays to CIE LCh_ab (lch).
+    """Convert numpy RGB[A] arrays to CIE LCh_ab (Luminance, Chroma, Hue).
+
+    See :func:`convert_colors` for more information  on the color spaces.
 
     Args:
         rgba_arr: Numpy array of RGB or RGBA colors. The array can be any
@@ -88,10 +90,25 @@ def convert_colors(object input_colors, str in_space, str out_space):
     * **rgb**: Red, Green, and Blue. Each channel should be in a 0 to 1
         normalized range.
     * **lch**: LCh_ab (LCH). The CIELAB Cylindrical Luminance, Chroma, and
-        Hue color space. TODO value ranges
-    * **lab**: TODO
-    * **luv**: TODO
-    * **xyz**: TODO
+        Hue color space. Luminance values range from about 0 to about 100.
+        Chroma values range from about 0 to 120. Hue is in radians and is
+        from -pi to pi.
+        See the
+        `wikipedia article <https://en.wikipedia.org/wiki/CIELAB_color_space#CIEHLC_cylindrical_model>`_
+        for more information.
+    * **lab**: CIELAB. The cartesian version of "lch". Luminance is the same
+        value as LCh. The ``a*`` and ``b*`` values range from about -120 to 120.
+        See the
+        `wikipedia article <https://en.wikipedia.org/wiki/CIELAB_color_space>`_
+        for more info.
+    * **luv**: CIELUV. Luminance and a ``u*`` and ``v*`` start component. The
+        luminance values range from 0 to 100. The u and v values range from
+        about -200 to 200. See the
+        `wikipedia article <https://en.wikipedia.org/wiki/CIELUV>`_ for more
+        info.
+    * **xyz**: CIE XYZ. Values range from about 0 to 1. See the
+        `wikipedia article <https://en.wikipedia.org/wiki/CIE_1931_color_space>`_
+        for more info.
 
     Args:
         input_colors: Numpy array of input colors in ``in_space`` color space.
