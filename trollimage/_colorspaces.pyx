@@ -17,7 +17,7 @@ np.import_array()
 #     bint npy_isnan(np.float64_t x) nogil
 #     bint npy_isnan(np.float32_t x) nogil
 
-ctypedef void (*FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3, floating[:, ::1] out) nogil
+ctypedef void (*CONVERT_FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3, floating[:, ::1] out) nogil
 
 
 def rgb2lch(
@@ -36,38 +36,11 @@ def rgb2lch(
         1. Luminance is also from 0 and 1 (usually a maximum of ~0.5).
 
     """
-    cdef object rgb_arr = rgba_arr[..., :3]
-    cdef tuple shape = rgb_arr.shape
-    cdef np.ndarray rgb_2d = rgb_arr.reshape((-1, 3))
-    cdef np.ndarray lch
-    if rgb_arr.dtype == np.float32:
-        lch = _call_convert_func[np.float32_t](rgb_2d, _rgb_to_lch[np.float32_t])
-    else:
-        lch = _call_convert_func[np.float64_t](rgb_2d, _rgb_to_lch[np.float64_t])
-    return lch.reshape(shape)
-
-
-cdef np.ndarray[floating, ndim=2] _call_convert_func(
-        floating[:, :] rgb, FUNC conv_func,
-):
-    cdef floating[:] red_view, green_view, blue_view
-    cdef object dtype
-    if floating is np.float32_t:
-        dtype = np.float32
-    else:
-        dtype = np.float64
-    red_view = rgb[:, 0]
-    green_view = rgb[:, 1]
-    blue_view = rgb[:, 2]
-    cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=dtype)
-    cdef floating[:, ::1] lch_view = lch
-    with nogil:
-        conv_func(red_view, green_view, blue_view, lch_view)
-    return lch
+    return convert_colors(rgba_arr, "rgb", "lch")
 
 
 def lch2rgb(object lch_arr):
-    """Convert an HCL (hue, chroma, luminance) array to RGB.
+    """Convert an LCH (luminance, chroma, hue) array to RGB.
 
     Args:
         lch_arr: Numpy array of HCL values. The array can be any
@@ -78,31 +51,87 @@ def lch2rgb(object lch_arr):
     Returns: RGB array where each Red, Green, and Blue channel is between 0 and 1.
 
     """
-    cdef tuple shape = lch_arr.shape
-    cdef np.ndarray lch_2d = lch_arr.reshape((-1, 3))
-    cdef np.ndarray rgb
-    if lch_arr.dtype == np.float32:
-        rgb = _call_convert_func[np.float32_t](lch_2d, _lch_to_rgb[np.float32_t])
+    return convert_colors(lch_arr, "lch", "rgb")
+
+
+def convert_colors(object input_colors, str in_space, str out_space):
+    """Convert from one color space to another.
+
+    Color Spaces
+    ^^^^^^^^^^^^
+
+    * **rgb**: Red, Green, and Blue. Each channel should be in a 0 to 1
+        normalized range.
+    * **lch**: LCh_ab (LCH). The CIELAB Cylindrical Luminance, Chroma, and
+        Hue color space. TODO value ranges
+    * **lab**: TODO
+    * **luv**: TODO
+    * **xyz**: TODO
+
+    Args:
+        input_colors: Numpy array of input colors in ``in_space`` color space.
+            The array can be of any shape, but the color dimension must be the
+            last dimension. Only the first three elements in the color
+            dimension will be used. So if an Alpha (A) channel is provided it
+            is ignored.
+        in_space: String name of the color space of the input data. Can be one
+            of "rgb", "lch", "lab", "luv", or "xyz".
+        out_space: String name of the color space to convert to. Available
+            options are the same as for ``in_space``.
+
+    Returns:
+        Numpy array with equal shape to the input, but the last dimension is
+        always length 3 to match the ``out_space`` color space.
+
+    Notes:
+        This function is called by all the individual ``<space>2<space>``
+        functions. It and all of the color conversion code is heavily based
+        on or taken from the
+        `rio-color <https://github.com/mapbox/rio-color>`_ project which is
+        under an MIT license. A copy of this license is available in the
+        ``trollimage`` package and root of the git repository. The majority
+        of changes made to the ``rio-color`` code were to support memory views
+        in a "no GIL" way and allow for 32-bit and 64-bit floating point data.
+
+    """
+    cdef object rgb_arr = input_colors[..., :3]
+    cdef tuple shape = rgb_arr.shape
+    cdef np.ndarray rgb_2d = rgb_arr.reshape((-1, 3))
+    cdef np.ndarray lch
+    if rgb_arr.dtype == np.float32:
+        lch = _call_convert_func[np.float32_t](rgb_2d, in_space, out_space)
     else:
-        rgb = _call_convert_func[np.float64_t](lch_2d, _lch_to_rgb[np.float64_t])
-    return rgb.reshape(shape)
+        lch = _call_convert_func[np.float64_t](rgb_2d, in_space, out_space)
+    return lch.reshape(shape)
 
 
-# cdef np.ndarray[floating, ndim=2] _call_lch_to_rgb(
-#         np.ndarray[floating, ndim=2] lch,
-# ):
-#     cdef np.ndarray[floating, ndim=1] luminance = lch[:, 0]
-#     cdef np.ndarray[floating, ndim=1] chroma = lch[:, 1]
-#     cdef np.ndarray[floating, ndim=1] hue = lch[:, 2]  # in radians
-#     cdef floating[:] hue_view, chroma_view, luminance_view
-#     hue_view = hue
-#     chroma_view = chroma
-#     luminance_view = luminance
-#     cdef np.ndarray[floating, ndim=2] rgb = np.empty((lch.shape[0], 3), dtype=lch.dtype)
-#     cdef floating[:, ::1] rgb_view = rgb
-#     with nogil:
-#         _lch_to_rgb[floating](luminance_view, chroma_view, hue_view, rgb_view)
-#     return rgb
+cdef np.ndarray[floating, ndim=2] _call_convert_func(
+        floating[:, :] rgb, str in_space, str out_space,
+):
+    cdef floating[:] red_view, green_view, blue_view
+    cdef CONVERT_FUNC conv_func
+    if in_space == "rgb" and out_space == "lch":
+        conv_func = _rgb_to_lch[floating]
+    elif in_space == "lch" and out_space == "rgb":
+        conv_func = _lch_to_rgb[floating]
+    else:
+        raise ValueError("Unknown colorspace combination")
+
+    cdef object dtype
+    if floating is np.float32_t:
+        dtype = np.float32
+    else:
+        dtype = np.float64
+
+    red_view = rgb[:, 0]
+    green_view = rgb[:, 1]
+    blue_view = rgb[:, 2]
+    cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=dtype)
+    cdef floating[:, ::1] lch_view = lch
+    with nogil:
+        conv_func(red_view, green_view, blue_view, lch_view)
+    return lch
+
 
 
 # cdef void _rgb_to_lab(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lab_arr) nogil:
