@@ -13,10 +13,8 @@ Contents:
    :maxdepth: 2
 
    installation
-   image
-   xrimage
-   colorspaces
    colormap
+   API <api/modules>
 
 
 Indices and tables
