@@ -17,7 +17,32 @@ np.import_array()
 #     bint npy_isnan(np.float64_t x) nogil
 #     bint npy_isnan(np.float32_t x) nogil
 
+# Function pointer type to allow for generic high-level functions
 ctypedef void (*CONVERT_FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3, floating[:, ::1] out) nogil
+
+
+cdef:
+    np.float32_t bintercept = 4.0 / 29  # 0.137931
+    np.float32_t delta = 6.0 / 29  # 0.206896
+    np.float32_t t0 = delta ** 3  # 0.008856
+    np.float32_t alpha = (delta ** -2) / 3  # 7.787037
+    np.float32_t third = 1.0 / 3
+    np.float32_t kappa = (29.0 / 3) ** 3  # 903.3
+    np.float32_t gamma = 2.2
+    np.float32_t xn = 0.95047
+    np.float32_t yn = 1.0
+    np.float32_t zn = 1.08883
+    np.float32_t denom_n = xn + (15 * yn) + (3 * zn)
+    np.float32_t uprime_n = (4 * xn) / denom_n
+    np.float32_t vprime_n = (9 * yn) / denom_n
+
+
+    # Compile time option to use
+    # sRGB companding (default, True) or simplified gamma (False)
+    # sRGB companding is slightly slower but is more accurate at
+    # the extreme ends of scale
+    # Unit tests tuned to sRGB companding, change with caution
+    bint SRGB_COMPAND = True
 
 
 def rgb2lch(
@@ -85,8 +110,8 @@ def convert_colors(object input_colors, str in_space, str out_space):
 
     Notes:
         This function is called by all the individual ``<space>2<space>``
-        functions. It and all of the color conversion code is heavily based
-        on or taken from the
+        functions. This function and all color conversion functions are
+        heavily based on or taken from the
         `rio-color <https://github.com/mapbox/rio-color>`_ project which is
         under an MIT license. A copy of this license is available in the
         ``trollimage`` package and root of the git repository. The majority
@@ -109,12 +134,54 @@ cdef np.ndarray[floating, ndim=2] _call_convert_func(
         floating[:, :] rgb, str in_space, str out_space,
 ):
     cdef floating[:] red_view, green_view, blue_view
-    cdef CONVERT_FUNC conv_func
-    if in_space == "rgb" and out_space == "lch":
-        conv_func = _rgb_to_lch[floating]
-    elif in_space == "lch" and out_space == "rgb":
-        conv_func = _lch_to_rgb[floating]
-    else:
+    cdef CONVERT_FUNC conv_func = NULL
+    if in_space == "rgb":
+        if out_space == "lch":
+            conv_func = _rgb_to_lch[floating]
+        elif out_space == "lab":
+            conv_func = _rgb_to_lab[floating]
+        elif out_space == "luv":
+            conv_func = _rgb_to_luv[floating]
+        elif out_space == "xyz":
+            conv_func = _rgb_to_xyz[floating]
+    elif in_space == "lch":
+        if out_space == "rgb":
+            conv_func = _lch_to_rgb[floating]
+        elif out_space == "lab":
+            conv_func = _lch_to_lab[floating]
+        elif out_space == "luv":
+            conv_func = _lch_to_luv[floating]
+        elif out_space == "xyz":
+            conv_func = _lch_to_xyz[floating]
+    elif in_space == "lab":
+        if out_space == "rgb":
+            conv_func = _lab_to_rgb[floating]
+        elif out_space == "lch":
+            conv_func = _lab_to_lch[floating]
+        elif out_space == "luv":
+            conv_func = _lab_to_luv[floating]
+        elif out_space == "xyz":
+            conv_func = _lab_to_xyz[floating]
+    elif in_space == "luv":
+        if out_space == "rgb":
+            conv_func = _luv_to_rgb[floating]
+        elif out_space == "lch":
+            conv_func = _luv_to_lch[floating]
+        elif out_space == "lab":
+            conv_func = _luv_to_lab[floating]
+        elif out_space == "xyz":
+            conv_func = _luv_to_xyz[floating]
+    elif in_space == "xyz":
+        if out_space == "rgb":
+            conv_func = _xyz_to_rgb[floating]
+        elif out_space == "lch":
+            conv_func = _xyz_to_lch[floating]
+        elif out_space == "lab":
+            conv_func = _xyz_to_lab[floating]
+        elif out_space == "luv":
+            conv_func = _xyz_to_luv[floating]
+
+    if conv_func is NULL:
         raise ValueError("Unknown colorspace combination")
 
     cdef object dtype
@@ -134,13 +201,9 @@ cdef np.ndarray[floating, ndim=2] _call_convert_func(
 
 
 
-# cdef void _rgb_to_lab(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lab_arr) nogil:
-#     cdef floating[:] l, a, b
-#     _rgb_to_xyz(r_arr, g_arr, b_arr, lab_arr)
-#     l = lab_arr[:, 0]
-#     a = lab_arr[:, 1]
-#     b = lab_arr[:, 2]
-#     _xyz_to_lab(l, a, b, lab_arr)
+cdef void _rgb_to_lab(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lab_arr) nogil:
+    _rgb_to_xyz[floating](r_arr, g_arr, b_arr, lab_arr)
+    _xyz_to_lab[floating](lab_arr[:, 0], lab_arr[:, 1], lab_arr[:, 2], lab_arr)
 
 
 cdef void _rgb_to_lch(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lch_arr) nogil:
@@ -149,82 +212,57 @@ cdef void _rgb_to_lch(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, f
     _lab_to_lch[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
 
 
-# cdef void _rgb_to_luv(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] luv_arr) nogil:
-#     _rgb_to_xyz(r_arr, g_arr, b_arr, luv_arr)
-#     _xyz_to_luv(luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
-#
-#
-# cdef void _xyz_to_lch(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] lch_arr) nogil:
-#     _xyz_to_lab(x_arr, y_arr, z_arr, lch_arr)
-#     _lab_to_lch(lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
-#
-#
-# cdef void _lab_to_rgb(floating[:] l_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] rgb_arr) nogil:
-#     _lab_to_xyz(l_arr, a_arr, b_arr, rgb_arr)
-#     _xyz_to_rgb(rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
-#
-#
-# cdef void _lab_to_luv(floating[:] l_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] luv_arr) nogil:
-#     _lab_to_xyz(l_arr, a_arr, b_arr, luv_arr)
-#     _xyz_to_luv(luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
-#
-#
-# cdef void _lch_to_xyz(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] xyz_arr) nogil:
-#     _lch_to_lab(l_arr, c_arr, h_arr, xyz_arr)
-#     _lab_to_xyz(xyz_arr[:, 0], xyz_arr[:, 1], xyz_arr[:, 2], xyz_arr)
-#
-#
+cdef void _rgb_to_luv(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] luv_arr) nogil:
+    _rgb_to_xyz(r_arr, g_arr, b_arr, luv_arr)
+    _xyz_to_luv[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
+
+
+cdef void _xyz_to_lch(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] lch_arr) nogil:
+    _xyz_to_lab(x_arr, y_arr, z_arr, lch_arr)
+    _lab_to_lch[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
+
+
+cdef void _lab_to_rgb(floating[:] l_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] rgb_arr) nogil:
+    _lab_to_xyz(l_arr, a_arr, b_arr, rgb_arr)
+    _xyz_to_rgb[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
+
+
+cdef void _lab_to_luv(floating[:] l_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] luv_arr) nogil:
+    _lab_to_xyz(l_arr, a_arr, b_arr, luv_arr)
+    _xyz_to_luv[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
+
+
+cdef void _lch_to_xyz(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] xyz_arr) nogil:
+    _lch_to_lab(l_arr, c_arr, h_arr, xyz_arr)
+    _lab_to_xyz[floating](xyz_arr[:, 0], xyz_arr[:, 1], xyz_arr[:, 2], xyz_arr)
+
+
 cdef void _lch_to_rgb(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] rgb_arr) nogil:
     _lch_to_lab(l_arr, c_arr, h_arr, rgb_arr)
     _lab_to_xyz[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
     _xyz_to_rgb[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
 
 
-# cdef void _lch_to_luv(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] luv_arr) nogil:
-#     _lch_to_lab(l_arr, c_arr, h_arr, luv_arr)
-#     _lab_to_xyz(luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
-#     _xyz_to_rgb(luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
-#
-#
-# cdef void _luv_to_lab(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] lab_arr) nogil:
-#     _luv_to_xyz(l_arr, u_arr, v_arr, lab_arr)
-#     _xyz_to_lab(lab_arr[:, 0], lab_arr[:, 1], lab_arr[:, 2], lab_arr)
-#
-#
-# cdef void _luv_to_rgb(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] rgb_arr) nogil:
-#     _luv_to_xyz(l_arr, u_arr, v_arr, rgb_arr)
-#     _xyz_to_rgb(rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
-#
-#
-# cdef void _luv_to_lch(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] lch_arr) nogil:
-#     _luv_to_xyz(l_arr, u_arr, v_arr, lch_arr)
-#     _xyz_to_lab(lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
-#     _lab_to_lch(lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
+cdef void _lch_to_luv(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] luv_arr) nogil:
+    _lch_to_lab(l_arr, c_arr, h_arr, luv_arr)
+    _lab_to_xyz[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
+    _xyz_to_rgb[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
 
 
-# Constants
-cdef:
-    np.float32_t bintercept = 4.0 / 29  # 0.137931
-    np.float32_t delta = 6.0 / 29  # 0.206896
-    np.float32_t t0 = delta ** 3  # 0.008856
-    np.float32_t alpha = (delta ** -2) / 3  # 7.787037
-    np.float32_t third = 1.0 / 3
-    np.float32_t kappa = (29.0 / 3) ** 3  # 903.3
-    np.float32_t gamma = 2.2
-    np.float32_t xn = 0.95047
-    np.float32_t yn = 1.0
-    np.float32_t zn = 1.08883
-    np.float32_t denom_n = xn + (15 * yn) + (3 * zn)
-    np.float32_t uprime_n = (4 * xn) / denom_n
-    np.float32_t vprime_n = (9 * yn) / denom_n
+cdef void _luv_to_lab(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] lab_arr) nogil:
+    _luv_to_xyz(l_arr, u_arr, v_arr, lab_arr)
+    _xyz_to_lab[floating](lab_arr[:, 0], lab_arr[:, 1], lab_arr[:, 2], lab_arr)
 
 
-    # Compile time option to use
-    # sRGB companding (default, True) or simplified gamma (False)
-    # sRGB companding is slightly slower but is more accurate at
-    # the extreme ends of scale
-    # Unit tests tuned to sRGB companding, change with caution
-    bint SRGB_COMPAND = True
+cdef void _luv_to_rgb(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] rgb_arr) nogil:
+    _luv_to_xyz(l_arr, u_arr, v_arr, rgb_arr)
+    _xyz_to_rgb[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
+
+
+cdef void _luv_to_lch(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] lch_arr) nogil:
+    _luv_to_xyz(l_arr, u_arr, v_arr, lch_arr)
+    _xyz_to_lab[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
+    _lab_to_lch[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
 
 
 # Direct colorspace conversions
