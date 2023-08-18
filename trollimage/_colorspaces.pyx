@@ -119,21 +119,21 @@ def convert_colors(object input_colors, str in_space, str out_space):
         in a "no GIL" way and allow for 32-bit and 64-bit floating point data.
 
     """
-    cdef object rgb_arr = input_colors[..., :3]
-    cdef tuple shape = rgb_arr.shape
-    cdef np.ndarray rgb_2d = rgb_arr.reshape((-1, 3))
-    cdef np.ndarray lch
-    if rgb_arr.dtype == np.float32:
-        lch = _call_convert_func[np.float32_t](rgb_2d, in_space, out_space)
+    cdef object in123_arr = input_colors[..., :3]
+    cdef tuple shape = in123_arr.shape
+    cdef np.ndarray in123_2d = in123_arr.reshape((-1, 3))
+    cdef np.ndarray out123
+    if in123_arr.dtype == np.float32:
+        out123 = _call_convert_func[np.float32_t](in123_2d, in_space, out_space)
     else:
-        lch = _call_convert_func[np.float64_t](rgb_2d, in_space, out_space)
-    return lch.reshape(shape)
+        out123 = _call_convert_func[np.float64_t](in123_2d, in_space, out_space)
+    return out123.reshape(shape)
 
 
 cdef np.ndarray[floating, ndim=2] _call_convert_func(
-        floating[:, :] rgb, str in_space, str out_space,
+        floating[:, :] in_colors, str in_space, str out_space,
 ):
-    cdef floating[:] red_view, green_view, blue_view
+    cdef floating[:] in1_view, in2_view, in3_view
     cdef CONVERT_FUNC conv_func = NULL
     if in_space == "rgb":
         if out_space == "lch":
@@ -190,14 +190,14 @@ cdef np.ndarray[floating, ndim=2] _call_convert_func(
     else:
         dtype = np.float64
 
-    red_view = rgb[:, 0]
-    green_view = rgb[:, 1]
-    blue_view = rgb[:, 2]
-    cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=dtype)
-    cdef floating[:, ::1] lch_view = lch
+    in1_view = in_colors[:, 0]
+    in2_view = in_colors[:, 1]
+    in3_view = in_colors[:, 2]
+    cdef np.ndarray[floating, ndim=2] out_colors = np.empty((in_colors.shape[0], 3), dtype=dtype)
+    cdef floating[:, ::1] out_view = out_colors
     with nogil:
-        conv_func(red_view, green_view, blue_view, lch_view)
-    return lch
+        conv_func(in1_view, in2_view, in3_view, out_view)
+    return out_colors
 
 
 
