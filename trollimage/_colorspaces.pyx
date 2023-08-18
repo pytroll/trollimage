@@ -17,6 +17,8 @@ np.import_array()
 #     bint npy_isnan(np.float64_t x) nogil
 #     bint npy_isnan(np.float32_t x) nogil
 
+ctypedef void (*FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3, floating[:, ::1] out) nogil
+
 
 def rgb2lch(
         object rgba_arr,
@@ -39,14 +41,14 @@ def rgb2lch(
     cdef np.ndarray rgb_2d = rgb_arr.reshape((-1, 3))
     cdef np.ndarray lch
     if rgb_arr.dtype == np.float32:
-        lch = _call_rgb_to_lch[np.float32_t](rgb_2d)
+        lch = _call_convert_func[np.float32_t](rgb_2d, _rgb_to_lch[np.float32_t])
     else:
-        lch = _call_rgb_to_lch[np.float64_t](rgb_2d)
+        lch = _call_convert_func[np.float64_t](rgb_2d, _rgb_to_lch[np.float64_t])
     return lch.reshape(shape)
 
 
-cdef np.ndarray[floating, ndim=2] _call_rgb_to_lch(
-        floating[:, :] rgb,
+cdef np.ndarray[floating, ndim=2] _call_convert_func(
+        floating[:, :] rgb, FUNC conv_func,
 ):
     cdef floating[:] red_view, green_view, blue_view
     cdef object dtype
@@ -60,7 +62,7 @@ cdef np.ndarray[floating, ndim=2] _call_rgb_to_lch(
     cdef np.ndarray[floating, ndim=2] lch = np.empty((rgb.shape[0], 3), dtype=dtype)
     cdef floating[:, ::1] lch_view = lch
     with nogil:
-        _rgb_to_lch[floating](red_view, green_view, blue_view, lch_view)
+        conv_func(red_view, green_view, blue_view, lch_view)
     return lch
 
 
@@ -80,27 +82,27 @@ def lch2rgb(object lch_arr):
     cdef np.ndarray lch_2d = lch_arr.reshape((-1, 3))
     cdef np.ndarray rgb
     if lch_arr.dtype == np.float32:
-        rgb = _call_lch_to_rgb(<np.ndarray[np.float32_t, ndim=2]> lch_2d)
+        rgb = _call_convert_func[np.float32_t](lch_2d, _lch_to_rgb[np.float32_t])
     else:
-        rgb = _call_lch_to_rgb(<np.ndarray[np.float64_t, ndim=2]> lch_2d)
+        rgb = _call_convert_func[np.float64_t](lch_2d, _lch_to_rgb[np.float64_t])
     return rgb.reshape(shape)
 
 
-cdef np.ndarray[floating, ndim=2] _call_lch_to_rgb(
-        np.ndarray[floating, ndim=2] lch,
-):
-    cdef np.ndarray[floating, ndim=1] luminance = lch[:, 0]
-    cdef np.ndarray[floating, ndim=1] chroma = lch[:, 1]
-    cdef np.ndarray[floating, ndim=1] hue = lch[:, 2]  # in radians
-    cdef floating[:] hue_view, chroma_view, luminance_view
-    hue_view = hue
-    chroma_view = chroma
-    luminance_view = luminance
-    cdef np.ndarray[floating, ndim=2] rgb = np.empty((lch.shape[0], 3), dtype=lch.dtype)
-    cdef floating[:, ::1] rgb_view = rgb
-    with nogil:
-        _lch_to_rgb[floating](luminance_view, chroma_view, hue_view, rgb_view)
-    return rgb
+# cdef np.ndarray[floating, ndim=2] _call_lch_to_rgb(
+#         np.ndarray[floating, ndim=2] lch,
+# ):
+#     cdef np.ndarray[floating, ndim=1] luminance = lch[:, 0]
+#     cdef np.ndarray[floating, ndim=1] chroma = lch[:, 1]
+#     cdef np.ndarray[floating, ndim=1] hue = lch[:, 2]  # in radians
+#     cdef floating[:] hue_view, chroma_view, luminance_view
+#     hue_view = hue
+#     chroma_view = chroma
+#     luminance_view = luminance
+#     cdef np.ndarray[floating, ndim=2] rgb = np.empty((lch.shape[0], 3), dtype=lch.dtype)
+#     cdef floating[:, ::1] rgb_view = rgb
+#     with nogil:
+#         _lch_to_rgb[floating](luminance_view, chroma_view, hue_view, rgb_view)
+#     return rgb
 
 
 # cdef void _rgb_to_lab(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lab_arr) nogil:
