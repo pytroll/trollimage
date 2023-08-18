@@ -50,7 +50,7 @@ def rgb2lch(
 ):
     """Convert numpy RGB[A] arrays to CIE LCh_ab (Luminance, Chroma, Hue).
 
-    See :func:`convert_colors` for more information  on the color spaces.
+    See :func:`convert_colors` for more information on color spaces.
 
     Args:
         rgba_arr: Numpy array of RGB or RGBA colors. The array can be any
@@ -68,6 +68,8 @@ def rgb2lch(
 
 def lch2rgb(object lch_arr):
     """Convert an LCH (luminance, chroma, hue) array to RGB.
+
+    See :func:`convert_colors` for more information on color spaces.
 
     Args:
         lch_arr: Numpy array of HCL values. The array can be any
