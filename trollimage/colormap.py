@@ -32,7 +32,7 @@ import pathlib
 import sys
 
 import numpy as np
-from trollimage._colorspaces import rgb2lch, lch2rgb
+from trollimage.colorspaces import rgb2lch, lch2rgb
 
 
 @contextlib.contextmanager
