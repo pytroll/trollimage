@@ -296,24 +296,9 @@ cdef void _rgb_to_xyz(floating[:] red_arr, floating[:] green_arr, floating[:] bl
         b = blue_arr[idx]
 
         # convert RGB to linear scale
-        if SRGB_COMPAND:
-            if r <= 0.04045:
-                rl = r / 12.92
-            else:
-                rl = ((r + 0.055) / 1.055) ** 2.4
-            if g <= 0.04045:
-                gl = g / 12.92
-            else:
-                gl = ((g + 0.055) / 1.055) ** 2.4
-            if b <= 0.04045:
-                bl = b / 12.92
-            else:
-                bl = ((b + 0.055) / 1.055) ** 2.4
-        else:
-            # Use "simplified sRGB"
-            rl = r ** gamma
-            gl = g ** gamma
-            bl = b ** gamma
+        rl = _to_linear_rgb(r)
+        gl = _to_linear_rgb(g)
+        bl = _to_linear_rgb(b)
 
         # matrix mult for srgb->xyz,
         # includes adjustment for reference white
@@ -324,6 +309,19 @@ cdef void _rgb_to_xyz(floating[:] red_arr, floating[:] green_arr, floating[:] bl
         xyz_arr[idx, 0] = x
         xyz_arr[idx, 1] = y
         xyz_arr[idx, 2] = z
+
+
+cdef inline floating _to_linear_rgb(floating rgb_component) nogil:
+    if SRGB_COMPAND:
+        return _to_linear_srgb_expand(rgb_component)
+    # Use "simplified sRGB"
+    return rgb_component ** gamma
+
+
+cdef inline floating _to_linear_srgb_expand(floating rgb_component) nogil:
+    if rgb_component <= 0.04045:
+        return rgb_component / 12.92
+    return ((rgb_component + 0.055) / 1.055) ** 2.4
 
 
 cdef void _xyz_to_lab(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] lab) nogil:
@@ -438,24 +436,9 @@ cdef void _xyz_to_rgb(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, f
         glin = (x * -0.9692660) + (y * 1.8760108) + (z * 0.0415560)
         blin = (x * 0.0556434) + (y * -0.2040259) + (z * 1.0572252)
 
-        if SRGB_COMPAND:
-            if rlin <= 0.0031308:
-                r = 12.92 * rlin
-            else:
-                r = (1.055 * (rlin ** (1 / 2.4))) - 0.055
-            if glin <= 0.0031308:
-                g = 12.92 * glin
-            else:
-                g = (1.055 * (glin ** (1 / 2.4))) - 0.055
-            if blin <= 0.0031308:
-                b = 12.92 * blin
-            else:
-                b = (1.055 * (blin ** (1 / 2.4))) - 0.055
-        else:
-            # Use simplified sRGB
-            r = rlin ** (1 / gamma)
-            g = glin ** (1 / gamma)
-            b = blin ** (1 / gamma)
+        r  = _to_nonlinear_rgb(rlin)
+        g  = _to_nonlinear_rgb(glin)
+        b  = _to_nonlinear_rgb(blin)
 
         # constrain to 0..1 to deal with any float drift
         if r > 1.0:
@@ -474,6 +457,19 @@ cdef void _xyz_to_rgb(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, f
         rgb_arr[idx, 0] = r
         rgb_arr[idx, 1] = g
         rgb_arr[idx, 2] = b
+
+
+cdef inline floating _to_nonlinear_rgb(floating rgb_component) nogil:
+    if SRGB_COMPAND:
+        return _to_nonlinear_srgb_compand(rgb_component)
+    # Use "simplified sRGB"
+    return rgb_component ** (1 / gamma)
+
+
+cdef inline floating _to_nonlinear_srgb_compand(floating rgb_component) nogil:
+    if rgb_component <= 0.0031308:
+        return 12.92 * rgb_component
+    return (1.055 * (rgb_component ** (1 / 2.4))) - 0.055
 
 
 cdef void _xyz_to_luv(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] luv_arr) nogil:
