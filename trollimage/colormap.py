@@ -106,19 +106,11 @@ def _interpolate_rgb_colors(arr, colors, values):
         # monotonically decreasing
         interp_xp_coords = interp_xp_coords[::-1]
         interp_y_coords = interp_y_coords[::-1]
-    # handling NaN Hue values for interpolation
-    new_hues = interp_y_coords[..., 2]
-    if np.isnan(new_hues).all():
-        new_hues[..., :] = 0
-    else:
-        if np.isnan(new_hues[..., 0]):
-            new_hues[..., 0] = new_hues[~np.isnan(new_hues)][0]
-        while np.isnan(new_hues).any():
-            new_hues[..., 1:] = np.where(np.isnan(new_hues[..., 1:]), new_hues[..., :-1], new_hues[..., 1:])
-    interp_y_coords[..., 2] = np.unwrap(new_hues)
+    # Make sure hue (radians) are consistently increasing or decreasing
     interp_lch = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
     interp_lch[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
     interp_lch[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
+    interp_y_coords[..., 2] = np.unwrap(interp_y_coords[..., 2])
     interp_lch[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
     interp_lch[..., 2] = _ununwrap(interp_lch[..., 2])
     new_rgb = lch2rgb(interp_lch)
