@@ -6,6 +6,7 @@ build:
     python: "3.10"
   jobs:
     post_install:
+      - cd doc
       - python -c "import trollimage.tests"
       - python -c "import trollimage.tests.test_colormap"
 sphinx:
