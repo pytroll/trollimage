@@ -4,6 +4,10 @@ build:
   os: "ubuntu-20.04"
   tools:
     python: "3.10"
+  jobs:
+    post_install:
+      - python -c "import trollimage.tests"
+      - python -c "import trollimage.tests.test_colormap"
 sphinx:
   configuration: doc/conf.py
   fail_on_warning: true
