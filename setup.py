@@ -25,7 +25,7 @@
 import sys
 from typing import Any
 
-from setuptools import setup
+from setuptools import setup, find_packages
 import versioneer
 import numpy as np
 from Cython.Build import build_ext
@@ -106,7 +106,7 @@ setup(name="trollimage",
                    "Programming Language :: Python",
                    "Topic :: Scientific/Engineering"],
       url="https://github.com/pytroll/trollimage",
-      packages=['trollimage'],
+      packages=find_packages(),
       zip_safe=False,
       install_requires=['numpy>=1.20', 'pillow'],
       python_requires='>=3.9',

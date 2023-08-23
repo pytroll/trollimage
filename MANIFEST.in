@@ -3,3 +3,5 @@ include LICENSE_RIO_COLOR.txt
 include README.rst
 include versioneer.py
 include trollimage/version.py
+recursive-include doc *
+recursive-include trollimage *.pyx
