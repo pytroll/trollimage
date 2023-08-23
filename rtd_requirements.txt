@@ -6,5 +6,6 @@ docutils
 sphinx>=7,<8
 sphinx-rtd-theme>=1.2.0,<2.0
 sphinxcontrib-apidoc
+pytest
 
 setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
