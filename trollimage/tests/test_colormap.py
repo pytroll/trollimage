@@ -437,15 +437,15 @@ class TestColormap:
         [
             (_mono_inc_colormap,
              np.array([
-                 [0.22178232, 1.08365532, 0.49104964],
-                 [0.61069262, 0.94644083, 1.20509947],
-                 [0.50011605, 0.50000605, 0.49989589],
+                 [0.43301, 1.0, 0.639861],
+                 [0.738804, 1.0, 0.926142],
+                 [0.466327, 0.466327, 0.466327],
                  [0.0, 0.0, 0.0]])),
             (_mono_dec_colormap,
              np.array([
-                 [0.50011605, 0.50000605, 0.49989589],
-                 [0.61069262, 0.94644083, 1.20509947],
-                 [0.22178232, 1.08365532, 0.49104964],
+                 [0.466327, 0.466327, 0.466327],
+                 [0.738804, 1.0, 0.926142],
+                 [0.43301, 1.0, 0.639861],
                  [1.0, 1.0, 0.0]])),
         ]
     )
@@ -455,34 +455,69 @@ class TestColormap:
         cm = input_cmap_func()
         channels = cm.colorize(data)
         output_colors = [channels[:, i] for i in range(data.size)]
-        for output_color, expected_color in zip(output_colors, expected_result):
-            np.testing.assert_allclose(output_color, expected_color, atol=0.001)
+        # test each resulting value (each one is an RGB color)
+        np.testing.assert_allclose(output_colors[0], expected_result[0], atol=0.001)
+        np.testing.assert_allclose(output_colors[1], expected_result[1], atol=0.001)
+        np.testing.assert_allclose(output_colors[2], expected_result[2], atol=0.001)
+        np.testing.assert_allclose(output_colors[3], expected_result[3], atol=0.001)
 
     def test_colorize_dask_with_interpolation(self):
         """Test colorize dask arrays."""
         import dask.array as da
         data = da.from_array(np.array([[1.5, 2.5, 3.5, 4],
                                        [1.5, 2.5, 3.5, 4],
-                                       [1.5, 2.5, 3.5, 4]]), chunks=2)
+                                       [1.5, 2.5, 3.5, 4]]), chunks=-1)
 
-        expected_channels = [np.array([[0.22178232, 0.61069262, 0.50011605, 0.],
-                                       [0.22178232, 0.61069262, 0.50011605, 0.],
-                                       [0.22178232, 0.61069262, 0.50011605, 0.]]),
-                             np.array([[1.08365532, 0.94644083, 0.50000605, 0.],
-                                       [1.08365532, 0.94644083, 0.50000605, 0.],
-                                       [1.08365532, 0.94644083, 0.50000605, 0.]]),
-                             np.array([[0.49104964, 1.20509947, 0.49989589, 0.],
-                                       [0.49104964, 1.20509947, 0.49989589, 0.],
-                                       [0.49104964, 1.20509947, 0.49989589, 0.]])]
+        expected_channels = [np.array([[0.43301012, 0.73880362, 0.46632665, 0.],
+                                       [0.43301012, 0.73880362, 0.46632665, 0.],
+                                       [0.43301012, 0.73880362, 0.46632665, 0.]]),
+                             np.array([[1., 1., 0.46632662, 0.],
+                                       [1., 1., 0.46632662, 0.],
+                                       [1., 1., 0.46632662, 0.]]),
+                             np.array([[0.63986057, 0.92614193, 0.46632658, 0.],
+                                       [0.63986057, 0.92614193, 0.46632658, 0.],
+                                       [0.63986057, 0.92614193, 0.46632658, 0.]])]
 
         cm = _mono_inc_colormap()
-        channels = cm.colorize(data)
-        for i, expected_channel in enumerate(expected_channels):
-            current_channel = channels[i, :, :]
-            assert isinstance(current_channel, da.Array)
-            np.testing.assert_allclose(current_channel.compute(),
-                                       expected_channel,
-                                       atol=0.001)
+        import dask
+        with dask.config.set(scheduler='sync'):
+            channels = cm.colorize(data)
+            assert isinstance(channels, da.Array)
+            channels_np = channels.compute()
+        np.testing.assert_allclose(channels_np[0], expected_channels[0], atol=0.001)
+        np.testing.assert_allclose(channels_np[1], expected_channels[1], atol=0.001)
+        np.testing.assert_allclose(channels_np[2], expected_channels[2], atol=0.001)
+
+    @pytest.mark.parametrize("reverse", [False, True])
+    def test_colorize_with_large_hue_jumps(self, reverse):
+        """Test colorize with a colormap that has large hue transitions."""
+        spectral = colormap.Colormap(
+            (0.0, (158 / 255.0, 1 / 255.0, 66 / 255.0)),
+            (0.1, (213 / 255.0, 62 / 255.0, 79 / 255.0)),
+            (0.2, (244 / 255.0, 109 / 255.0, 67 / 255.0)),
+            (0.3, (253 / 255.0, 174 / 255.0, 97 / 255.0)),
+            (0.4, (254 / 255.0, 224 / 255.0, 139 / 255.0)),
+            (0.5, (255 / 255.0, 255 / 255.0, 191 / 255.0)),
+            (0.6, (230 / 255.0, 245 / 255.0, 152 / 255.0)),
+            (0.7, (171 / 255.0, 221 / 255.0, 164 / 255.0)),
+            (0.8, (102 / 255.0, 194 / 255.0, 165 / 255.0)),
+            (0.9, (50 / 255.0, 136 / 255.0, 189 / 255.0)),
+            (1.0, (94 / 255.0, 79 / 255.0, 162 / 255.0)))
+        data = np.linspace(0.75, 0.95, 10)
+        expected = np.array([[0.53504425, 0.47514295, 0.41509147, 0.28825797, 0.12078193,
+                              0., 0.06763011, 0.19413283, 0.20869236, 0.24952029],
+                             [0.8154807, 0.79158862, 0.7670261, 0.73066567, 0.6855056,
+                              0.63483774, 0.57879493, 0.52270084, 0.47846375, 0.43116887],
+                             [0.64195795, 0.6437378, 0.64633243, 0.67815406, 0.71676881,
+                              0.74382618, 0.75153729, 0.73985524, 0.73037312, 0.71271801]])
+
+        if reverse:
+            spectral = spectral.reverse(inplace=False)
+            data = data - 0.7
+            expected = expected[..., ::-1]
+
+        channels = spectral.colorize(data)
+        np.testing.assert_allclose(channels, expected, atol=0.001)
 
 
 @contextlib.contextmanager
@@ -698,7 +733,7 @@ def test_build_colormap_with_int_data_and_without_meanings():
 
 
 def test_build_colormap_with_float_data():
-    """Test colormap building for float data"""
+    """Test colormap building for float data."""
     palette = np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]])
 
     with pytest.raises(AttributeError):

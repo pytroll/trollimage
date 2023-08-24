@@ -6,6 +6,7 @@ build:
     python: "3.10"
 sphinx:
   configuration: doc/conf.py
+  fail_on_warning: true
 python:
   install:
     - requirements: rtd_requirements.txt

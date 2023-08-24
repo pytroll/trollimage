@@ -11,40 +11,12 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 from trollimage import __version__
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
-
-
-class Mock(object):
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def __call__(self, *args, **kwargs):
-        return Mock()
-
-    @classmethod
-    def __getattr__(cls, name):
-        if name in ('__file__', '__path__'):
-            return '/dev/null'
-        elif name[0] == name[0].upper():
-            mockType = type(name, (), {})
-            mockType.__module__ = __name__
-            return mockType
-        elif name == "inf":
-            return 0
-        else:
-            return Mock()
-
-
-MOCK_MODULES = ['Image']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = Mock()
-
 
 # -- General configuration -----------------------------------------------------
 
@@ -54,7 +26,11 @@ for mod_name in MOCK_MODULES:
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx',
-              'sphinx.ext.napoleon']
+              'sphinx.ext.napoleon', 'sphinxcontrib.apidoc']
+# API docs
+apidoc_module_dir = "../trollimage"
+apidoc_output_dir = "api"
+apidoc_excluded_paths = []
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -247,9 +223,9 @@ man_pages = [
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference', None),
-    'xarray': ('https://xarray.pydata.org/en/stable', None),
+    'numpy': ('https://numpy.org/doc/stable', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+    'xarray': ('https://docs.xarray.dev/en/stable', None),
     'dask': ('https://dask.pydata.org/en/latest', None),
     'rasterio': ('https://rasterio.readthedocs.io/en/latest', None),
 }

@@ -32,7 +32,7 @@ import pathlib
 import sys
 
 import numpy as np
-from trollimage.colorspaces import rgb2hcl, hcl2rgb
+from trollimage.colorspaces import rgb2lch, lch2rgb
 
 
 @contextlib.contextmanager
@@ -47,15 +47,28 @@ def _file_or_stringio(filename_or_none):
 def colorize(arr, colors, values):
     """Colorize a monochromatic array *arr*, based *colors* given for *values*.
 
-    Interpolation is used. *values* must be in ascending order.
-
     Args:
-        arr (numpy array, numpy masked array, dask array)
-            data to be colorized.
+        arr (numpy array, numpy masked array, dask array):
+            Data to be mapped to the colors in the colors array using values
+            as control points. Data can be any shape, but must represent a
+            single (luminance) band of data (not RGB or any other colorspace).
         colors (numpy array):
-            the colors to use (R, G, B)
+            Colors to map the data to. Colors can be RGB or RGBA in the
+            0 to 1 range. The array should be in the shape (N, 3 or 4) where
+            N is the size of the colormap (the number of colors) and the last
+            dimension is the band dimension where each element represents
+            Red (R), Green (G), Blue (B), and optionally Alpha (A).
         values (numpy array):
-            the values corresponding to the colors in the array
+            Control points mapping input data values to the colors to be
+            mapped to. Should be one dimension and the same number of elements
+            as the ``colors`` array has colors (N).
+
+    Returns: Resulting RGB/A array with the shape (3 or 4, ...) where the
+        first dimension is 3 if the colors array was RGB and 4 if the colors
+        array was RGBA. The remaining shape of the result matches the provided
+        ``data`` input shape. Like ``colors`` the color values will be between
+        0 and 1.
+
     """
     if can_be_block_mapped(arr):
         return _colorize_dask(arr, colors, values)
@@ -88,28 +101,29 @@ def _colorize(arr, colors, values):
 
 def _interpolate_rgb_colors(arr, colors, values):
     interp_xp_coords = np.array(values)
-    hcl_colors = _convert_rgb_list_to_hcl(colors)
-    interp_y_coords = np.array(hcl_colors)
+    interp_y_coords = rgb2lch(colors)
     if values[0] > values[-1]:
         # monotonically decreasing
         interp_xp_coords = interp_xp_coords[::-1]
         interp_y_coords = interp_y_coords[::-1]
-    channels = [np.interp(arr,
-                          interp_xp_coords,
-                          interp_y_coords[:, i])
-                for i in range(3)]
-    channels = list(hcl2rgb(*channels))
-    return channels
+    # Make sure hue (radians) are consistently increasing or decreasing
+    interp_lch = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
+    interp_lch[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
+    interp_lch[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
+    interp_y_coords[..., 2] = np.unwrap(interp_y_coords[..., 2])
+    interp_lch[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
+    interp_lch[..., 2] = _ununwrap(interp_lch[..., 2])
+    new_rgb = lch2rgb(interp_lch)
+    return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
 
 
-def _convert_rgb_list_to_hcl(colors):
-    hcl_colors = np.array([rgb2hcl(*i[:3]) for i in colors])
-    _unwrap_colors_in_hcl_space(hcl_colors)
-    return hcl_colors
+def _ununwrap(input_radians):
+    """Undo the operations performed by numpy unwrap.
 
+    Taken from https://stackoverflow.com/a/15927914/433202
 
-def _unwrap_colors_in_hcl_space(hcl_colors):
-    hcl_colors[:, 0] = np.rad2deg(np.unwrap(np.deg2rad(np.array(hcl_colors)[:, 0])))
+    """
+    return (input_radians + np.pi) % (2 * np.pi) - np.pi
 
 
 def _interpolate_alpha(arr, colors, values):
@@ -229,7 +243,7 @@ class Colormap(object):
         if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
             raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
         if not np.issubdtype(colors.dtype, np.floating):
-            warnings.warn("Colormap 'colors' should be flotaing point numbers between 0 and 1.")
+            warnings.warn("Colormap 'colors' should be flotaing point numbers between 0 and 1.", stacklevel=3)
             colors = colors.astype(np.float64)
         return colors
 
@@ -465,7 +479,9 @@ class Colormap(object):
             warnings.warn(
                 "Passing a data string to Colormap.from_file is deprecated. "
                 "Please use Colormap.from_string.",
-                category=DeprecationWarning)
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
             return cls.from_string(filename, colormap_mode, color_scale)
         values, colors = _get_values_colors_from_file(filename, colormap_mode, color_scale)
         return cls(values=values, colors=colors)
@@ -838,6 +854,7 @@ ylgn = Colormap((0.000, (1.0, 1.0, 229 / 255.0)),
 # YlGnBu
 
 ylgnbu = Colormap((0.000, (1.0, 1.0, 217 / 255.0)),
+                  (0.500, (65 / 255.0, 182 / 255.0, 196 / 255.0)),
                   (1.000, (8 / 255.0, 29 / 255.0, 88 / 255.0)))
 
 # YlOrBr
