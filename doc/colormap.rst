@@ -277,8 +277,5 @@ Don't use this one ! See here_ and there_ why
 .. _here: https://www.nature.com/articles/s41467-020-19160-7
 .. _there: https://doi.org/10.1109/MCG.2007.323435
 
-rainbow
-
-|pict30|
-
-.. |pict30| image:: _static/rainbow.png
+.. trollimage_colormap::
+   :colormap: trollimage.colormap.rainbow

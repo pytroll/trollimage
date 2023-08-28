@@ -44,3 +44,4 @@ nosetests.xml
 # sphinx
 doc/_build
 doc/api/*.rst
+doc/_static/colormaps/*.png
