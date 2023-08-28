@@ -67,50 +67,19 @@ Colors from www.ColorBrewer.org by Cynthia A. Brewer, Geography, Pennsylvania St
 Sequential Colormaps
 ~~~~~~~~~~~~~~~~~~~~
 
-.. trollimage_colormap::
-   :colormap: trollimage.colormap.sequential_colormaps
+.. trollimage_colormap:: trollimage.colormap.sequential_colormaps
 
 Diverging Colormaps
 ~~~~~~~~~~~~~~~~~~~
 
-.. trollimage_colormap::
-   :colormap: trollimage.colormap.diverging_colormaps
+.. trollimage_colormap:: trollimage.colormap.diverging_colormaps
 
 Qualitative Colormaps
 ~~~~~~~~~~~~~~~~~~~~~
 
-set1
 
-.. image:: _static/palette0.png
-
-set2
-
-.. image:: _static/palette1.png
-
-set3
-
-.. image:: _static/palette2.png
-
-paired
-
-.. image:: _static/palette3.png
-
-accent
-
-.. image:: _static/palette4.png
-
-dark2
-
-.. image:: _static/palette5.png
-
-pastel1
-
-.. image:: _static/palette6.png
-
-pastel2
-
-.. image:: _static/palette7.png
-
+.. trollimage_colormap:: trollimage.colormap.qualitative_colormaps
+   :category:
 
 Rainbow Colormap
 ~~~~~~~~~~~~~~~~
@@ -120,5 +89,4 @@ Don't use this one ! See here_ and there_ why
 .. _here: https://www.nature.com/articles/s41467-020-19160-7
 .. _there: https://doi.org/10.1109/MCG.2007.323435
 
-.. trollimage_colormap::
-   :colormap: trollimage.colormap.rainbow
+.. trollimage_colormap:: trollimage.colormap.rainbow

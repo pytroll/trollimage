@@ -9,6 +9,7 @@ import importlib
 from typing import Any
 
 from docutils import nodes
+from docutils.parsers.rst.directives import flag
 from sphinx.util.docutils import SphinxDirective
 
 from trollimage import colormap
@@ -29,14 +30,16 @@ def setup(app):
 class SingleColormap(SphinxDirective):
     """Custom sphinx directive for generating one or more colormap images."""
 
-    has_content: bool = True
+    required_arguments: int = 1
     option_spec: dict[str, Any] = {
         "colormap": str,
+        "category": flag,
     }
 
     def run(self) -> list[nodes.Node]:
         """Import and generate colormap images to be inserted into the document."""
-        cmap_name = self.options["colormap"]
+        cmap_name = self.arguments[0]
+        is_category = "category" in self.options
         cmap_module_name, cmap_var = cmap_name.rsplit(".", 1)
         cmap_module = importlib.import_module(cmap_module_name)
         cmap_objects = getattr(cmap_module, cmap_var)
@@ -52,7 +55,7 @@ class SingleColormap(SphinxDirective):
 
         image_nodes = []
         for cmap_name, cmap_obj in sorted(cmap_objects.items()):
-            cb = colormap.colorbar(25, 500, cmap_obj)
+            cb = colormap.colorbar(25, 500, cmap_obj, category=is_category)
             channels = [cb[i, :, :] for i in range(3)]
             im = Image(channels=channels, mode="RGB")
             cmap_fn = os.path.join("_static", "colormaps", f"{cmap_name}.png")
