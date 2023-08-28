@@ -65,11 +65,12 @@ class TrollimageColormapDirective(SphinxDirective):
 
     @staticmethod
     def _create_colormap_nodes(cmap_name: str, cmap_obj: colormap.Colormap, is_category: bool) -> list[nodes.Node]:
-        cb = colormap.colorbar(25, 500, cmap_obj, category=is_category)
-        channels = [cb[i, :, :] for i in range(3)]
-        im = Image(channels=channels, mode="RGB")
         cmap_fn = os.path.join("_static", "colormaps", f"{cmap_name}.png")
-        im.save(cmap_fn)
+        if not os.path.exists(cmap_fn):
+            cb = colormap.colorbar(25, 500, cmap_obj, category=is_category)
+            channels = [cb[i, :, :] for i in range(3)]
+            im = Image(channels=channels, mode="RGB")
+            im.save(cmap_fn)
 
         paragraph = nodes.paragraph(text=cmap_name)
         image = nodes.image(f".. image:: {cmap_fn}", **{"uri": cmap_fn, "alt": cmap_name})
