@@ -23,117 +23,12 @@
 
 import os
 import contextlib
-import unittest
 from trollimage import colormap
 import numpy as np
 from tempfile import NamedTemporaryFile
 import xarray
 
 import pytest
-
-
-class TestColormapClass(unittest.TestCase):
-    """Test case for the colormap object."""
-
-    def setUp(self):
-        """Set up the test case."""
-        self.colormap = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                          (2, (0.0, 1.0, 1.0)),
-                                          (3, (1, 1, 1)),
-                                          (4, (0, 0, 0)))
-
-    def test_set_range(self):
-        """Test set_range."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
-
-        cm_.set_range(0, 8)
-        self.assertTrue(cm_.values[0] == 0)
-        self.assertTrue(cm_.values[-1] == 8)
-
-    def test_invert_set_range(self):
-        """Test inverted set_range."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
-
-        cm_.set_range(8, 0)
-        assert cm_.values[0] == 8
-        assert cm_.values[-1] == 0
-        _assert_monotonic_values(cm_, increasing=False)
-        np.testing.assert_allclose(cm_.colors[0], (1.0, 1.0, 0.0))
-        np.testing.assert_allclose(cm_.colors[-1], (0.0, 0.0, 0.0))
-
-    def test_reverse(self):
-        """Test reverse."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
-        colors = cm_.colors
-        cm_.reverse()
-        self.assertTrue(np.allclose(np.flipud(colors), cm_.colors))
-
-    def test_add(self):
-        """Test adding colormaps."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
-
-        cm1 = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)))
-        cm2 = colormap.Colormap((3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
-
-        cm3 = cm1 + cm2
-
-        self.assertTrue(np.allclose(cm3.colors, cm_.colors))
-        self.assertTrue(np.allclose(cm3.values, cm_.values))
-
-    def test_colorbar(self):
-        """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
-
-        channels = colormap.colorbar(1, 4, cm_)
-        for i in range(3):
-            self.assertTrue(np.allclose(channels[i],
-                                        cm_.colors[:, i],
-                                        atol=0.001))
-
-    def test_palettebar(self):
-        """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
-
-        channel, palette = colormap.palettebar(1, 4, cm_)
-
-        self.assertTrue(np.allclose(channel, np.arange(4)))
-        self.assertTrue(np.allclose(palette, cm_.colors))
-
-    def test_to_rio(self):
-        """Test conversion to rasterio colormap."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
-        orig_colors = cm_.colors.copy()
-
-        d = cm_.to_rio()
-        exp = {1: (255, 255, 0), 2: (0, 255, 255),
-               3: (255, 255, 255), 4: (0, 0, 0)}
-
-        self.assertEqual(d, exp)
-        # assert original colormap information hasn't changed
-        np.testing.assert_allclose(orig_colors, cm_.colors)
 
 
 COLORS_RGB1 = np.array([
@@ -175,6 +70,76 @@ def _four_rgb_colors():
 
 class TestColormap:
     """Pytest tests for colormap objects."""
+
+    def test_invert_set_range(self):
+        """Test inverted set_range."""
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        cm_.set_range(8, 0)
+        assert cm_.values[0] == 8
+        assert cm_.values[-1] == 0
+        _assert_monotonic_values(cm_, increasing=False)
+        np.testing.assert_allclose(cm_.colors[0], (1.0, 1.0, 0.0))
+        np.testing.assert_allclose(cm_.colors[-1], (0.0, 0.0, 0.0))
+
+    def test_add(self):
+        """Test adding colormaps."""
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1, 1, 1)),
+                                (4, (0, 0, 0)))
+
+        cm1 = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)))
+        cm2 = colormap.Colormap((3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
+
+        cm3 = cm1 + cm2
+
+        np.testing.assert_allclose(cm3.colors, cm_.colors)
+        np.testing.assert_allclose(cm3.values, cm_.values)
+
+    def test_colorbar(self):
+        """Test colorbar."""
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
+
+        channels = colormap.colorbar(1, 4, cm_)
+        for i in range(3):
+            np.testing.assert_allclose(channels[i].ravel(), cm_.colors[:, i], atol=0.001)
+
+    def test_palettebar(self):
+        """Test colorbar."""
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
+
+        channel, palette = colormap.palettebar(1, 4, cm_)
+
+        np.testing.assert_allclose(channel.ravel(), np.arange(4))
+        np.testing.assert_allclose(palette, cm_.colors)
+
+    def test_to_rio(self):
+        """Test conversion to rasterio colormap."""
+        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
+                                (2, (0.0, 1.0, 1.0)),
+                                (3, (1.0, 1.0, 1.0)),
+                                (4, (0.0, 0.0, 0.0)))
+        orig_colors = cm_.colors.copy()
+
+        d = cm_.to_rio()
+        exp = {1: (255, 255, 0), 2: (0, 255, 255),
+               3: (255, 255, 255), 4: (0, 0, 0)}
+
+        assert d == exp
+        # assert original colormap information hasn't changed
+        np.testing.assert_allclose(orig_colors, cm_.colors)
 
     def test_bad_color_dims(self):
         """Test passing colors that aren't RGB or RGBA."""
