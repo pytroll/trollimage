@@ -32,7 +32,6 @@ class TrollimageColormapDirective(SphinxDirective):
 
     required_arguments: int = 1
     option_spec: dict[str, Any] = {
-        "colormap": str,
         "category": flag,
     }
 
@@ -73,5 +72,5 @@ class TrollimageColormapDirective(SphinxDirective):
             im.save(cmap_fn)
 
         paragraph = nodes.paragraph(text=cmap_name)
-        image = nodes.image(f".. image:: {cmap_fn}", **{"uri": cmap_fn, "alt": cmap_name})
+        image = nodes.image("", **{"uri": cmap_fn, "alt": cmap_name})
         return [paragraph, image]
