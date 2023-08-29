@@ -1078,14 +1078,15 @@ qualitative_colormaps = [set1, set2, set3,
 def colorbar(height, length, colormap, category=False):
     """Return the channels of a colorbar."""
     cbar = np.tile(np.arange(length) * 1.0 / (length - 1), (height, 1))
+    cmin = colormap.values.min()
+    cmax = colormap.values.max()
+    crange = (cmax - cmin)
     if category:
         # add an extra buffer around colormap limits to show full category
-        cbar = (cbar * (colormap.values.max() - colormap.values.min() + 1)
-                + colormap.values.min())
-        cbar = np.round(cbar - 0.5)
+        cbar = cbar * (crange + 1) + (cmin - 0.5)
+        cbar = np.round(cbar)
     else:
-        cbar = (cbar * (colormap.values.max() - colormap.values.min())
-                + colormap.values.min())
+        cbar = (cbar * crange) + colormap.values.min()
 
     return colormap.colorize(cbar)
 

@@ -102,16 +102,23 @@ class TestColormap:
         np.testing.assert_allclose(cm3.colors, cm_.colors)
         np.testing.assert_allclose(cm3.values, cm_.values)
 
-    def test_colorbar(self):
+    @pytest.mark.parametrize("category", [False, True])
+    def test_colorbar(self, category):
         """Test colorbar."""
         cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
                                 (2, (0.0, 1.0, 1.0)),
-                                (3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
+                                (3, (1.0, 0.0, 1.0)),
+                                (4, (1.0, 1.0, 1.0)),
+                                (5, (0.0, 0.0, 0.0)))
 
-        channels = colormap.colorbar(1, 4, cm_)
-        for i in range(3):
-            np.testing.assert_allclose(channels[i].ravel(), cm_.colors[:, i], atol=0.001)
+        channels = colormap.colorbar(1, 9, cm_, category=category)
+        channels = np.array(channels)[:, 0, :]
+        # number of colors and size of colorbar specifically chosen to have exact
+        # colors of the colormap show in the colorbar
+        assert np.unique(channels, axis=1).shape[1] == (5 if category else 9)
+        for exp_color in cm_.colors:
+            # check that the colormaps colors are actually showing up
+            assert np.isclose(channels, exp_color[:, None], atol=0.01).all(axis=0).any()
 
     def test_palettebar(self):
         """Test colorbar."""
