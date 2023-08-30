@@ -36,6 +36,7 @@ help:
 clean:
 	-rm -rf $(BUILDDIR)/*
 	-rm -rf api/*.rst
+	-rm -rf _static/colormaps/*.png
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
