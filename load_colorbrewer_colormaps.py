@@ -13,7 +13,7 @@ JSON_URL = "https://raw.githubusercontent.com/axismaps/colorbrewer/master/export
 
 def main():
     """Print python code version of trollimage Colormap objects for each colorbrewer colormap."""
-    with urllib.request.urlopen(JSON_URL) as json_file:
+    with urllib.request.urlopen(JSON_URL) as json_file:  # nosec: B310
         colorbrewer_dict = json.load(json_file)
         cmap_groups = {"div": {}, "seq": {}, "qual": {}}
         for cmap_name, cmap_info in colorbrewer_dict.items():
@@ -31,11 +31,11 @@ def main():
                 cmap_values = [str(color_idx) for color_idx in range(num_colors)]
                 if group_name != "qual":
                     # 0 - 1 normalized values for non-qualitative colormaps
-                    cmap_values = [f"{cval} / {num_colors}" for cval in cmap_values]
+                    cmap_values = [f"{cval} / {num_colors - 1}" for cval in cmap_values]
                 cmap_pairs = [(cval, rgb_color) for cval, rgb_color in zip(cmap_values, norm_colors)]
                 print(f"{cmap_name} = Colormap(")
                 for cmap_value_str, cmap_color_tuple in cmap_pairs:
-                    print(f"    ({cmap_value_str},"
+                    print(f"    ({cmap_value_str}, "
                           f"({cmap_color_tuple[0]}, {cmap_color_tuple[1]}, {cmap_color_tuple[2]})),")
                 print(")\n")
 
