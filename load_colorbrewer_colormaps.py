@@ -17,7 +17,8 @@ def main():
         colorbrewer_dict = json.load(json_file)
         cmap_groups = {"div": {}, "seq": {}, "qual": {}}
         for cmap_name, cmap_info in colorbrewer_dict.items():
-            max_colors = max(num_colors_str for num_colors_str in cmap_info.keys() if num_colors_str != "type")
+            max_colors = max((num_colors_str for num_colors_str in cmap_info.keys() if num_colors_str != "type"),
+                             key=lambda num_color_str: int(num_color_str))
             cmap_groups[cmap_info["type"]][cmap_name.lower()] = cmap_info[max_colors]
         for group_name in ("seq", "div", "qual"):
             human_group_name = {"seq": "Sequential", "div": "Diverging", "qual": "Qualitative"}[group_name]
