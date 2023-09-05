@@ -1,5 +1,30 @@
-## Version 1.20.1 (2023/02/03)
+## Version 1.21.0 (2023/09/04)
 
+### Issues Closed
+
+* [Issue 106](https://github.com/pytroll/trollimage/issues/106) - Colorspace conversions are invalid or out of date
+* [Issue 79](https://github.com/pytroll/trollimage/issues/79) - hcl2rgb bottleneck  in colorize methods ([PR 122](https://github.com/pytroll/trollimage/pull/122) by [@djhoese](https://github.com/djhoese))
+
+In this release 3 issues were closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 124](https://github.com/pytroll/trollimage/pull/124) - Fix the brbg colormap
+
+#### Features added
+
+* [PR 122](https://github.com/pytroll/trollimage/pull/122) - Switch to new Cython-based RGB to CIE LCH_ab conversion for colorizing ([79](https://github.com/pytroll/trollimage/issues/79), [121](https://github.com/pytroll/trollimage/issues/121))
+
+#### Documentation changes
+
+* [PR 137](https://github.com/pytroll/trollimage/pull/137) - Add dynamic colormap generation to docs
+
+In this release 3 pull requests were closed.
+
+
+## Version 1.20.1 (2023/02/03)
 
 ### Pull Requests Merged
 
