@@ -1,5 +1,12 @@
 [build-system]
-requires = ["setuptools", "wheel", "oldest-supported-numpy", "Cython>=3", "versioneer"]
+requires = [
+    "wheel",
+    'numpy; python_full_version<"3.12.0rc1"',
+    'numpy>=1.26.0rc1; python_full_version>="3.12.0rc1"',
+    "setuptools>=42",
+    "versioneer",
+    "Cython>=3.0.0"
+]
 build-backend = "setuptools.build_meta"
 
 [tool.coverage.run]
