@@ -7,7 +7,6 @@ requires = [
     "versioneer",
     "Cython>=3.0.0"
 ]
-requires = ["setuptools", "wheel", "oldest-supported-numpy", "Cython>=3", "versioneer"]
 build-backend = "setuptools.build_meta"
 
 [tool.coverage.run]
