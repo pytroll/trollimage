@@ -441,22 +441,18 @@ cdef void _xyz_to_rgb(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, f
         b  = _to_nonlinear_rgb(blin)
 
         # constrain to 0..1 to deal with any float drift
-        if r > 1.0:
-            r = 1.0
-        elif r < 0.0:
-            r = 0.0
-        if g > 1.0:
-            g = 1.0
-        elif g < 0.0:
-            g = 0.0
-        if b > 1.0:
-            b = 1.0
-        elif b < 0.0:
-            b = 0.0
+        r = _clamp_0_1(r)
+        g = _clamp_0_1(g)
+        b = _clamp_0_1(b)
 
         rgb_arr[idx, 0] = r
         rgb_arr[idx, 1] = g
         rgb_arr[idx, 2] = b
+
+
+cdef inline floating _clamp_0_1(floating val) noexcept nogil:
+    val = <floating>0.0 if val < <floating>0.0 else val
+    return <floating>1.0 if val > <floating>1.0 else val
 
 
 cdef inline floating _to_nonlinear_rgb(floating rgb_component) noexcept nogil:
