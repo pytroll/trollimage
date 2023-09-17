@@ -18,7 +18,7 @@ np.import_array()
 #     bint npy_isnan(np.float32_t x) nogil
 
 # Function pointer type to allow for generic high-level functions
-ctypedef void (*CONVERT_FUNC)(floating[:, ::1] in_arr, floating[:, ::1] out_arr) nogil
+ctypedef void (*CONVERT_FUNC)(floating[:, ::1] in_out_arr) nogil
 
 
 cdef:
@@ -140,7 +140,7 @@ def convert_colors(object input_colors, str in_space, str out_space):
     """
     cdef object in123_arr = input_colors[..., :3]
     cdef tuple shape = in123_arr.shape
-    cdef np.ndarray in123_2d = np.ascontiguousarray(in123_arr.reshape((-1, 3)))
+    cdef np.ndarray in123_2d = in123_arr.reshape((-1, 3))
     cdef np.ndarray out123
     if in123_arr.dtype == np.float32:
         out123 = _call_convert_func[np.float32_t](in123_2d, in_space, out_space)
@@ -150,7 +150,7 @@ def convert_colors(object input_colors, str in_space, str out_space):
 
 
 cdef np.ndarray[floating, ndim=2] _call_convert_func(
-        floating[:, ::1] in_colors, str in_space, str out_space,
+        floating[:, :] in_colors, str in_space, str out_space,
 ):
     cdef CONVERT_FUNC conv_func = NULL
     if in_space == "rgb":
@@ -208,88 +208,87 @@ cdef np.ndarray[floating, ndim=2] _call_convert_func(
     else:
         dtype = np.float64
 
-    cdef np.ndarray[floating, ndim=2] out_colors = np.empty((in_colors.shape[0], 3), dtype=dtype)
-    cdef floating[:, ::1] out_view = out_colors
+    cdef floating[:, ::1] in_out_view = in_colors.copy()
     with nogil:
-        conv_func(in_colors, out_view)
-    return out_colors
+        conv_func(in_out_view)
+    return np.asarray(in_out_view)
 
 
 
-cdef void _rgb_to_lab(floating[:, ::1] rgb_arr, floating[:, ::1] lab_arr) noexcept nogil:
-    _rgb_to_xyz[floating](rgb_arr, lab_arr)
-    _xyz_to_lab[floating](lab_arr, lab_arr)
+cdef void _rgb_to_lab(floating[:, ::1] rgb_to_lab_arr) noexcept nogil:
+    _rgb_to_xyz[floating](rgb_to_lab_arr)
+    _xyz_to_lab[floating](rgb_to_lab_arr)
 
 
-cdef void _rgb_to_lch(floating[:, ::1] rgb_arr, floating[:, ::1] lch_arr) noexcept nogil:
-    _rgb_to_xyz(rgb_arr, lch_arr)
-    _xyz_to_lab[floating](lch_arr, lch_arr)
-    _lab_to_lch[floating](lch_arr, lch_arr)
+cdef void _rgb_to_lch(floating[:, ::1] rgb_to_lch_arr) noexcept nogil:
+    _rgb_to_xyz(rgb_to_lch_arr)
+    _xyz_to_lab[floating](rgb_to_lch_arr)
+    _lab_to_lch[floating](rgb_to_lch_arr)
 
 
-cdef void _rgb_to_luv(floating[:, ::1] rgb_arr, floating[:, ::1] luv_arr) noexcept nogil:
-    _rgb_to_xyz(rgb_arr, luv_arr)
-    _xyz_to_luv[floating](luv_arr, luv_arr)
+cdef void _rgb_to_luv(floating[:, ::1] rgb_to_luv_arr) noexcept nogil:
+    _rgb_to_xyz(rgb_to_luv_arr)
+    _xyz_to_luv[floating](rgb_to_luv_arr)
 
 
-cdef void _xyz_to_lch(floating[:, ::1] xyz_arr, floating[:, ::1] lch_arr) noexcept nogil:
-    _xyz_to_lab(xyz_arr, lch_arr)
-    _lab_to_lch[floating](lch_arr, lch_arr)
+cdef void _xyz_to_lch(floating[:, ::1] xyz_to_lch_arr) noexcept nogil:
+    _xyz_to_lab(xyz_to_lch_arr)
+    _lab_to_lch[floating](xyz_to_lch_arr)
 
 
-cdef void _lab_to_rgb(floating[:, ::1] lab_arr, floating[:, ::1] rgb_arr) noexcept nogil:
-    _lab_to_xyz(lab_arr, rgb_arr)
-    _xyz_to_rgb[floating](rgb_arr, rgb_arr)
+cdef void _lab_to_rgb(floating[:, ::1] lab_to_rgb_arr) noexcept nogil:
+    _lab_to_xyz(lab_to_rgb_arr)
+    _xyz_to_rgb[floating](lab_to_rgb_arr)
 
 
-cdef void _lab_to_luv(floating[:, ::1] lab_arr, floating[:, ::1] luv_arr) noexcept nogil:
-    _lab_to_xyz(lab_arr, luv_arr)
-    _xyz_to_luv[floating](luv_arr, luv_arr)
+cdef void _lab_to_luv(floating[:, ::1] lab_to_luv_arr) noexcept nogil:
+    _lab_to_xyz(lab_to_luv_arr)
+    _xyz_to_luv[floating](lab_to_luv_arr)
 
 
-cdef void _lch_to_xyz(floating[:, ::1] lch_arr, floating[:, ::1] xyz_arr) noexcept nogil:
-    _lch_to_lab(lch_arr, xyz_arr)
-    _lab_to_xyz[floating](xyz_arr, xyz_arr)
+cdef void _lch_to_xyz(floating[:, ::1] lch_to_xyz_arr) noexcept nogil:
+    _lch_to_lab(lch_to_xyz_arr)
+    _lab_to_xyz[floating](lch_to_xyz_arr)
 
 
-cdef void _lch_to_rgb(floating[:, ::1] lch_arr, floating[:, ::1] rgb_arr) noexcept nogil:
-    _lch_to_lab(lch_arr, rgb_arr)
-    _lab_to_xyz[floating](rgb_arr, rgb_arr)
-    _xyz_to_rgb[floating](rgb_arr, rgb_arr)
+cdef void _lch_to_rgb(floating[:, ::1] lch_to_rgb_arr) noexcept nogil:
+    _lch_to_lab(lch_to_rgb_arr)
+    _lab_to_xyz[floating](lch_to_rgb_arr)
+    _xyz_to_rgb[floating](lch_to_rgb_arr)
 
 
-cdef void _lch_to_luv(floating[:, ::1] lch_arr, floating[:, ::1] luv_arr) noexcept nogil:
-    _lch_to_lab(lch_arr, luv_arr)
-    _lab_to_xyz[floating](luv_arr, luv_arr)
-    _xyz_to_rgb[floating](luv_arr, luv_arr)
+cdef void _lch_to_luv(floating[:, ::1] lch_to_luv_arr) noexcept nogil:
+    _lch_to_lab(lch_to_luv_arr)
+    _lab_to_xyz[floating](lch_to_luv_arr)
+    _xyz_to_rgb[floating](lch_to_luv_arr)
 
 
-cdef void _luv_to_lab(floating[:, ::1] luv_arr, floating[:, ::1] lab_arr) noexcept nogil:
-    _luv_to_xyz(luv_arr, lab_arr)
-    _xyz_to_lab[floating](lab_arr, lab_arr)
+cdef void _luv_to_lab(floating[:, ::1] luv_to_lab_arr) noexcept nogil:
+    _luv_to_xyz(luv_to_lab_arr)
+    _xyz_to_lab[floating](luv_to_lab_arr)
 
 
-cdef void _luv_to_rgb(floating[:, ::1] luv_arr, floating[:, ::1] rgb_arr) noexcept nogil:
-    _luv_to_xyz(luv_arr, rgb_arr)
-    _xyz_to_rgb[floating](rgb_arr, rgb_arr)
+cdef void _luv_to_rgb(floating[:, ::1] luv_to_rgb_arr) noexcept nogil:
+    _luv_to_xyz(luv_to_rgb_arr)
+    _xyz_to_rgb[floating](luv_to_rgb_arr)
 
 
-cdef void _luv_to_lch(floating[:, ::1] luv_arr, floating[:, ::1] lch_arr) noexcept nogil:
-    _luv_to_xyz(luv_arr, lch_arr)
-    _xyz_to_lab[floating](lch_arr, lch_arr)
-    _lab_to_lch[floating](lch_arr, lch_arr)
+cdef void _luv_to_lch(floating[:, ::1] luv_to_lch_arr) noexcept nogil:
+    _luv_to_xyz(luv_to_lch_arr)
+    _xyz_to_lab[floating](luv_to_lch_arr)
+    _lab_to_lch[floating](luv_to_lch_arr)
 
 
 # Direct colorspace conversions
 
-cdef void _rgb_to_xyz(floating[:, ::1] rgb_arr, floating[:, ::1] xyz_arr) noexcept nogil:
+cdef void _rgb_to_xyz(floating[:, ::1] rgb_to_xyz_arr) noexcept nogil:
     cdef floating r, g, b, rl, gl, bl, x, y, z
     cdef Py_ssize_t idx
 
-    for idx in range(rgb_arr.shape[0]):
-        r = rgb_arr[idx, 0]
-        g = rgb_arr[idx, 1]
-        b = rgb_arr[idx, 2]
+    for idx in range(rgb_to_xyz_arr.shape[0]):
+        r = rgb_to_xyz_arr[idx, 0]
+        g = rgb_to_xyz_arr[idx, 1]
+        b = rgb_to_xyz_arr[idx, 2]
 
         # convert RGB to linear scale
         rl = _to_linear_rgb(r)
@@ -302,9 +301,9 @@ cdef void _rgb_to_xyz(floating[:, ::1] rgb_arr, floating[:, ::1] xyz_arr) noexce
         y = ((rl * 0.2126729) + (gl * 0.7151522) + (bl * 0.0721750))
         z = ((rl * 0.0193339) + (gl * 0.1191920) + (bl * 0.9503041)) / zn
 
-        xyz_arr[idx, 0] = x
-        xyz_arr[idx, 1] = y
-        xyz_arr[idx, 2] = z
+        rgb_to_xyz_arr[idx, 0] = x
+        rgb_to_xyz_arr[idx, 1] = y
+        rgb_to_xyz_arr[idx, 2] = z
 
 
 cdef inline floating _to_linear_rgb(floating rgb_component) noexcept nogil:
@@ -320,15 +319,15 @@ cdef inline floating _to_linear_srgb_expand(floating rgb_component) noexcept nog
     return ((rgb_component + 0.055) / 1.055) ** 2.4
 
 
-cdef void _xyz_to_lab(floating[:, ::1] xyz_arr, floating[:, ::1] lab) noexcept nogil:
+cdef void _xyz_to_lab(floating[:, ::1] xyz_to_lab_arr) noexcept nogil:
     cdef floating x, y, z, fx, fy, fz
     cdef floating L, a, b
     cdef Py_ssize_t idx
 
-    for idx in range(xyz_arr.shape[0]):
-        x = xyz_arr[idx, 0]
-        y = xyz_arr[idx, 1]
-        z = xyz_arr[idx, 2]
+    for idx in range(xyz_to_lab_arr.shape[0]):
+        x = xyz_to_lab_arr[idx, 0]
+        y = xyz_to_lab_arr[idx, 1]
+        z = xyz_to_lab_arr[idx, 2]
 
         # convert XYZ to LAB colorspace
         if x > t0:
@@ -350,45 +349,45 @@ cdef void _xyz_to_lab(floating[:, ::1] xyz_arr, floating[:, ::1] lab) noexcept n
         a = 500 * (fx - fy)
         b = 200 * (fy - fz)
 
-        lab[idx, 0] = L
-        lab[idx, 1] = a
-        lab[idx, 2] = b
+        xyz_to_lab_arr[idx, 0] = L
+        xyz_to_lab_arr[idx, 1] = a
+        xyz_to_lab_arr[idx, 2] = b
 
 
-cdef void _lab_to_lch(floating[:, ::1] Lab_arr, floating[:, ::1] lch) noexcept nogil:
+cdef void _lab_to_lch(floating[:, ::1] lab_to_lch_arr) noexcept nogil:
     cdef Py_ssize_t idx
     cdef floating c, h
 
-    for idx in range(Lab_arr.shape[0]):
-        lch[idx, 0] = Lab_arr[idx, 0]
+    for idx in range(lab_to_lch_arr.shape[0]):
+        # lab_to_lch_arr[idx, 0] = lab_to_lch_arr[idx, 0]
         # store temporary results then write output to avoid corruption
         # if the output array is the same as the input arrays
-        c = ((Lab_arr[idx, 1] * Lab_arr[idx, 1]) + (Lab_arr[idx, 2] * Lab_arr[idx, 2])) ** 0.5
-        h = atan2(Lab_arr[idx, 2], Lab_arr[idx, 1])
-        lch[idx, 1] = c
-        lch[idx, 2] = h
+        c = ((lab_to_lch_arr[idx, 1] * lab_to_lch_arr[idx, 1]) + (lab_to_lch_arr[idx, 2] * lab_to_lch_arr[idx, 2])) ** 0.5
+        h = atan2(lab_to_lch_arr[idx, 2], lab_to_lch_arr[idx, 1])
+        lab_to_lch_arr[idx, 1] = c
+        lab_to_lch_arr[idx, 2] = h
 
 
-cdef void _lch_to_lab(floating[:, ::1] lch_arr, floating[:, ::1] lab_arr) noexcept nogil:
+cdef void _lch_to_lab(floating[:, ::1] lch_to_lab_arr) noexcept nogil:
     cdef floating a, b
     cdef Py_ssize_t idx
 
-    for idx in range(lch_arr.shape[0]):
-        a = lch_arr[idx, 1] * cos(lch_arr[idx, 2])
-        b = lch_arr[idx, 1] * sin(lch_arr[idx, 2])
-        lab_arr[idx, 0] = lch_arr[idx, 0]
-        lab_arr[idx, 1] = a
-        lab_arr[idx, 2] = b
+    for idx in range(lch_to_lab_arr.shape[0]):
+        a = lch_to_lab_arr[idx, 1] * cos(lch_to_lab_arr[idx, 2])
+        b = lch_to_lab_arr[idx, 1] * sin(lch_to_lab_arr[idx, 2])
+        lch_to_lab_arr[idx, 0] = lch_to_lab_arr[idx, 0]
+        lch_to_lab_arr[idx, 1] = a
+        lch_to_lab_arr[idx, 2] = b
 
 
-cdef void _lab_to_xyz(floating[:, ::1] lab_arr, floating[:, ::1] xyz_arr) noexcept nogil:
+cdef void _lab_to_xyz(floating[:, ::1] lab_to_xyz_arr) noexcept nogil:
     cdef floating x, y, z, L, a, b, tx, ty, tz
     cdef Py_ssize_t idx
 
-    for idx in range(lab_arr.shape[0]):
-        L = lab_arr[idx, 0]
-        a = lab_arr[idx, 1]
-        b = lab_arr[idx, 2]
+    for idx in range(lab_to_xyz_arr.shape[0]):
+        L = lab_to_xyz_arr[idx, 0]
+        a = lab_to_xyz_arr[idx, 1]
+        b = lab_to_xyz_arr[idx, 2]
 
         tx = ((L + 16) / 116.0) + (a / 500.0)
         if tx > delta:
@@ -408,19 +407,19 @@ cdef void _lab_to_xyz(floating[:, ::1] lab_arr, floating[:, ::1] xyz_arr) noexce
         else:
             z = 3 * delta * delta * (tz - bintercept)
 
-        xyz_arr[idx, 0] = x
-        xyz_arr[idx, 1] = y
-        xyz_arr[idx, 2] = z
+        lab_to_xyz_arr[idx, 0] = x
+        lab_to_xyz_arr[idx, 1] = y
+        lab_to_xyz_arr[idx, 2] = z
 
 
-cdef void _xyz_to_rgb(floating[:, ::1] xyz_arr, floating[:, ::1] rgb_arr) noexcept nogil:
+cdef void _xyz_to_rgb(floating[:, ::1] xyz_to_rgb_arr) noexcept nogil:
     cdef floating rlin, glin, blin, r, g, b, x, y, z
     cdef Py_ssize_t idx
 
-    for idx in range(xyz_arr.shape[0]):
-        x = xyz_arr[idx, 0]
-        y = xyz_arr[idx, 1]
-        z = xyz_arr[idx, 2]
+    for idx in range(xyz_to_rgb_arr.shape[0]):
+        x = xyz_to_rgb_arr[idx, 0]
+        y = xyz_to_rgb_arr[idx, 1]
+        z = xyz_to_rgb_arr[idx, 2]
 
         # uses reference white d65
         x = x * xn
@@ -441,9 +440,9 @@ cdef void _xyz_to_rgb(floating[:, ::1] xyz_arr, floating[:, ::1] rgb_arr) noexce
         g = _clamp_0_1(g)
         b = _clamp_0_1(b)
 
-        rgb_arr[idx, 0] = r
-        rgb_arr[idx, 1] = g
-        rgb_arr[idx, 2] = b
+        xyz_to_rgb_arr[idx, 0] = r
+        xyz_to_rgb_arr[idx, 1] = g
+        xyz_to_rgb_arr[idx, 2] = b
 
 
 cdef inline floating _clamp_0_1(floating val) noexcept nogil:
@@ -464,14 +463,14 @@ cdef inline floating _to_nonlinear_srgb_compand(floating rgb_component) noexcept
     return (1.055 * (rgb_component ** (1 / 2.4))) - 0.055
 
 
-cdef void _xyz_to_luv(floating[:, ::1] xyz_arr, floating[:, ::1] luv_arr) noexcept nogil:
+cdef void _xyz_to_luv(floating[:, ::1] xyz_to_luv_arr) noexcept nogil:
     cdef floating L, u, v, uprime, vprime, denom, x, y, z
     cdef Py_ssize_t idx
 
-    for idx in range(xyz_arr.shape[0]):
-        x = xyz_arr[idx, 0]
-        y = xyz_arr[idx, 1]
-        z = xyz_arr[idx, 2]
+    for idx in range(xyz_to_luv_arr.shape[0]):
+        x = xyz_to_luv_arr[idx, 0]
+        y = xyz_to_luv_arr[idx, 1]
+        z = xyz_to_luv_arr[idx, 2]
 
         denom = x + (15 * y) + (3 * z)
         uprime = (4 * x) / denom
@@ -487,24 +486,24 @@ cdef void _xyz_to_luv(floating[:, ::1] xyz_arr, floating[:, ::1] luv_arr) noexce
         u = 13 * L * (uprime - uprime_n)
         v = 13 * L * (vprime - vprime_n)
 
-        luv_arr[idx, 0] = L
-        luv_arr[idx, 1] = u
-        luv_arr[idx, 2] = v
+        xyz_to_luv_arr[idx, 0] = L
+        xyz_to_luv_arr[idx, 1] = u
+        xyz_to_luv_arr[idx, 2] = v
 
 
-cdef void _luv_to_xyz(floating[:, ::1] luv_arr, floating[:, ::1] xyz_arr) noexcept nogil:
+cdef void _luv_to_xyz(floating[:, ::1] luv_to_xyz_arr) noexcept nogil:
     cdef floating x, y, z, uprime, vprime, L, u, v
     cdef Py_ssize_t idx
 
-    for idx in range(luv_arr.shape[0]):
-        L = luv_arr[idx, 0]
-        u = luv_arr[idx, 1]
-        v = luv_arr[idx, 2]
+    for idx in range(luv_to_xyz_arr.shape[0]):
+        L = luv_to_xyz_arr[idx, 0]
+        u = luv_to_xyz_arr[idx, 1]
+        v = luv_to_xyz_arr[idx, 2]
 
         if L == 0.0:
-            xyz_arr[idx, 0] = 0.0
-            xyz_arr[idx, 1] = 0.0
-            xyz_arr[idx, 2] = 0.0
+            luv_to_xyz_arr[idx, 0] = 0.0
+            luv_to_xyz_arr[idx, 1] = 0.0
+            luv_to_xyz_arr[idx, 2] = 0.0
             continue
 
         uprime = (u / (13 * L)) + uprime_n
@@ -518,6 +517,6 @@ cdef void _luv_to_xyz(floating[:, ::1] luv_arr, floating[:, ::1] xyz_arr) noexce
         x = y * ((9 * uprime) / (4 * vprime))
         z = y * ((12 - (3 * uprime) - (20 * vprime)) / (4 * vprime))
 
-        xyz_arr[idx, 0] = x
-        xyz_arr[idx, 1] = y
-        xyz_arr[idx, 2] = z
+        luv_to_xyz_arr[idx, 0] = x
+        luv_to_xyz_arr[idx, 1] = y
+        luv_to_xyz_arr[idx, 2] = z
