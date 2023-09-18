@@ -410,13 +410,13 @@ class TestColormap:
             (_mono_inc_colormap,
              np.array([
                  [0.43301, 1.0, 0.639861],
-                 [0.738804, 1.0, 0.926142],
+                 [0.730304, 1.0, 0.937484],
                  [0.466327, 0.466327, 0.466327],
                  [0.0, 0.0, 0.0]])),
             (_mono_dec_colormap,
              np.array([
                  [0.466327, 0.466327, 0.466327],
-                 [0.738804, 1.0, 0.926142],
+                 [0.730304, 1.0, 0.937484],
                  [0.43301, 1.0, 0.639861],
                  [1.0, 1.0, 0.0]])),
         ]
@@ -433,22 +433,27 @@ class TestColormap:
         np.testing.assert_allclose(output_colors[2], expected_result[2], atol=0.001)
         np.testing.assert_allclose(output_colors[3], expected_result[3], atol=0.001)
 
-    def test_colorize_dask_with_interpolation(self):
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+    def test_colorize_dask_with_interpolation(self, dtype):
         """Test colorize dask arrays."""
         import dask.array as da
         data = da.from_array(np.array([[1.5, 2.5, 3.5, 4],
                                        [1.5, 2.5, 3.5, 4],
-                                       [1.5, 2.5, 3.5, 4]]), chunks=-1)
+                                       [1.5, 2.5, 3.5, 4]], dtype=dtype), chunks=-1)
 
-        expected_channels = [np.array([[0.43301012, 0.73880362, 0.46632665, 0.],
-                                       [0.43301012, 0.73880362, 0.46632665, 0.],
-                                       [0.43301012, 0.73880362, 0.46632665, 0.]]),
+        expected_channels = [np.array([[0.43301012, 0.730304, 0.46632665, 0.],
+                                       [0.43301012, 0.730304, 0.46632665, 0.],
+                                       [0.43301012, 0.730304, 0.46632665, 0.]], dtype=dtype),
                              np.array([[1., 1., 0.46632662, 0.],
                                        [1., 1., 0.46632662, 0.],
-                                       [1., 1., 0.46632662, 0.]]),
-                             np.array([[0.63986057, 0.92614193, 0.46632658, 0.],
-                                       [0.63986057, 0.92614193, 0.46632658, 0.],
-                                       [0.63986057, 0.92614193, 0.46632658, 0.]])]
+                                       [1., 1., 0.46632662, 0.]], dtype=dtype),
+                             np.array([[0.639861, 0.937484, 0.466327, 0.],
+                                       [0.639861, 0.937484, 0.466327, 0.],
+                                       [0.639861, 0.937484, 0.466327, 0.]], dtype=dtype)]
+        if dtype is np.float32:
+            expected_channels[0][:, 1] = 0.875065
+            expected_channels[1][:, 1] = 0.949392
+            expected_channels[2][:, 1] = 1.0
 
         cm = _mono_inc_colormap()
         import dask
@@ -456,6 +461,8 @@ class TestColormap:
             channels = cm.colorize(data)
             assert isinstance(channels, da.Array)
             channels_np = channels.compute()
+        assert channels_np.dtype == channels.dtype
+        assert channels_np.dtype == dtype
         np.testing.assert_allclose(channels_np[0], expected_channels[0], atol=0.001)
         np.testing.assert_allclose(channels_np[1], expected_channels[1], atol=0.001)
         np.testing.assert_allclose(channels_np[2], expected_channels[2], atol=0.001)

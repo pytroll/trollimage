@@ -21,28 +21,43 @@ np.import_array()
 ctypedef void (*CONVERT_FUNC)(floating[:, ::1] in_out_arr) nogil
 
 
-cdef:
-    np.float32_t bintercept = 4.0 / 29  # 0.137931
-    np.float32_t delta = 6.0 / 29  # 0.206896
-    np.float32_t t0 = delta ** 3  # 0.008856
-    np.float32_t alpha = (delta ** -2) / 3  # 7.787037
-    np.float32_t third = 1.0 / 3
-    np.float32_t kappa = (29.0 / 3) ** 3  # 903.3
-    np.float32_t gamma = 2.2
-    np.float32_t xn = 0.95047
-    np.float32_t yn = 1.0
-    np.float32_t zn = 1.08883
-    np.float32_t denom_n = xn + (15 * yn) + (3 * zn)
-    np.float32_t uprime_n = (4 * xn) / denom_n
-    np.float32_t vprime_n = (9 * yn) / denom_n
+cdef extern from *:
+    """
+    #define bintercept (4.0 / 29.0)
+    #define delta (6.0 / 29.0)
+    #define t0 pow(delta, 3.0)
+    #define alpha (pow(delta, -2.0) / 3)
+    #define third (1.0 / 3.0)
+    #define kappa pow(29.0 / 3.0, 3.0)
+    #define gamma 2.2
+    #define xn 0.95047
+    #define yn 1.0
+    #define zn 1.08883
+    #define denom_n (xn + (15 * yn) + (3 * zn))
+    #define uprime_n ((4 * xn) / denom_n)
+    #define vprime_n ((9 * yn) / denom_n)
 
-
-    # Compile time option to use
-    # sRGB companding (default, True) or simplified gamma (False)
-    # sRGB companding is slightly slower but is more accurate at
-    # the extreme ends of scale
-    # Unit tests tuned to sRGB companding, change with caution
-    bint SRGB_COMPAND = True
+    // Compile time option to use
+    // sRGB companding (default, 1 - True) or simplified gamma (False)
+    // sRGB companding is slightly slower but is more accurate at
+    // the extreme ends of scale
+    // Unit tests tuned to sRGB companding, change with caution
+    #define SRGB_COMPAND 1
+    """
+    np.float32_t bintercept
+    np.float32_t delta
+    np.float32_t t0
+    np.float32_t alpha
+    np.float32_t third
+    np.float32_t kappa
+    np.float32_t gamma
+    np.float32_t xn
+    np.float32_t yn
+    np.float32_t zn
+    np.float32_t denom_n
+    np.float32_t uprime_n
+    np.float32_t vprime_n
+    bint SRGB_COMPAND
 
 
 def rgb2lch(
