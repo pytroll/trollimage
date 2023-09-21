@@ -86,7 +86,7 @@ def _colorize_dask(dask_array, colors, values):
 
     The channels are stacked on the first dimension.
     """
-    return dask_array.map_blocks(_colorize, colors, values, dtype=colors.dtype, new_axis=0,
+    return dask_array.map_blocks(_colorize, colors, values, dtype=dask_array.dtype, new_axis=0,
                                  chunks=[colors.shape[1]] + list(dask_array.chunks))
 
 
@@ -100,14 +100,18 @@ def _colorize(arr, colors, values):
 
 
 def _interpolate_rgb_colors(arr, colors, values):
-    interp_xp_coords = np.array(values)
+    if not np.issubdtype(arr.dtype, np.floating):
+        # force data to floating point for Cython code
+        arr = arr.astype(np.float32)
+    interp_xp_coords = np.asarray(values, dtype=arr.dtype)
+    colors = np.asarray(colors, dtype=arr.dtype)
     interp_y_coords = rgb2lch(colors)
     if values[0] > values[-1]:
         # monotonically decreasing
         interp_xp_coords = interp_xp_coords[::-1]
         interp_y_coords = interp_y_coords[::-1]
     # Make sure hue (radians) are consistently increasing or decreasing
-    interp_lch = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
+    interp_lch = np.empty(arr.shape + (3,), dtype=arr.dtype)
     interp_lch[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
     interp_lch[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
     interp_y_coords[..., 2] = np.unwrap(interp_y_coords[..., 2])
