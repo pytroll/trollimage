@@ -28,19 +28,38 @@ jobs:
           path: dist/*.tar.gz
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: "Build wheels on ${{ matrix.os }} ${{ matrix.cibw_archs }}"
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macOS-11]
+        include:
+          - os: windows-2019
+            cibw_archs: "AMD64 ARM64"
+          - os: macos-11
+            cibw_archs: "x86_64 arm64"
+          - os: "ubuntu-20.04"
+            cibw_archs: "aarch64"
+          - os: "ubuntu-20.04"
+            cibw_archs: "x86_64"
 
     steps:
       - uses: actions/checkout@v4
+      - run: |
+          git fetch --prune --unshallow
+
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.15.0
+        uses: pypa/cibuildwheel@v2.16.0
         env:
-            CIBW_SKIP: "cp36-* cp37-* cp38-* pp*-win* *-manylinux_i686 *-musllinux_i686 *-win32"
+          CIBW_SKIP: "cp36-* cp37-* cp38-* pp* *-manylinux_i686 *-musllinux_i686 *-musllinux_aarch64 *-win32"
+          CIBW_ARCHS: "${{ matrix.cibw_archs }}"
+          CIBW_TEST_SKIP: "*_arm64 *_universal2:arm64"
 
       - uses: actions/upload-artifact@v3
         with:
