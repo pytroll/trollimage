@@ -344,7 +344,7 @@ class XRImage:
             warnings.warn(
                 "include_scale_offset_tags is deprecated, please use "
                 "scale_offset_tags to indicate tag labels",
-                DeprecationWarning)
+                DeprecationWarning, stacklevel=2)
             scale_offset_tags = scale_offset_tags or ("scale", "offset")
 
         if tags is None:
@@ -659,7 +659,7 @@ class XRImage:
                     "Specified fill value will overlap with valid "
                     "data. To avoid this warning specify a fill_value "
                     "that is the minimum or maximum for the data type "
-                    "being saved to.")
+                    "being saved to.", stacklevel=3)
         return scale, offset
 
     def _scale_to_dtype(self, data, dtype, fill_value=None):
@@ -1019,29 +1019,45 @@ class XRImage:
         """
         logger.debug("Perform a linear contrast stretch.")
 
+        left, right = self._get_left_and_right_quantiles_for_linear_stretch(cutoffs)
+
+        self.crude_stretch(left, right)
+
+    def _get_left_and_right_quantiles_for_linear_stretch(self, cutoffs):
         logger.debug("Calculate the histogram quantiles: ")
         logger.debug("Left and right quantiles: " +
                      str(cutoffs[0]) + " " + str(cutoffs[1]))
-
         cutoff_type = np.float64
         # numpy percentile (which quantile calls) returns 64-bit floats
         # unless the value is a higher order float
         if np.issubdtype(self.data.dtype, np.floating) and \
                 np.dtype(self.data.dtype).itemsize > 8:
             cutoff_type = self.data.dtype
-        left, right = dask.delayed(self._compute_quantile, nout=2)(self.data.data, self.data.dims, cutoffs)
-        left_data = da.from_delayed(left,
-                                    shape=(self.data.sizes['bands'],),
-                                    dtype=cutoff_type)
+
+        data = self.data
+        if 'A' in self.data.coords['bands'].values:
+            data = self.data.sel(bands=self.data.coords['bands'].values[:-1])
+
+        left_data, right_data = self._get_left_and_right_quantiles_without_alpha(data, cutoffs, cutoff_type)
+
+        if 'A' in self.data.coords['bands'].values:
+            left_data = np.hstack([left_data, np.array([0])])
+            right_data = np.hstack([right_data, np.array([1])])
         left = xr.DataArray(left_data, dims=('bands',),
                             coords={'bands': self.data['bands']})
-        right_data = da.from_delayed(right,
-                                     shape=(self.data.sizes['bands'],),
-                                     dtype=cutoff_type)
         right = xr.DataArray(right_data, dims=('bands',),
                              coords={'bands': self.data['bands']})
+        return left, right
 
-        self.crude_stretch(left, right)
+    def _get_left_and_right_quantiles_without_alpha(self, data, cutoffs, cutoff_type):
+        left, right = dask.delayed(self._compute_quantile, nout=2)(data.data, data.dims, cutoffs)
+        left_data = da.from_delayed(left,
+                                    shape=(data.sizes['bands'],),
+                                    dtype=cutoff_type)
+        right_data = da.from_delayed(right,
+                                     shape=(data.sizes['bands'],),
+                                     dtype=cutoff_type)
+        return left_data, right_data
 
     def crude_stretch(self, min_stretch=None, max_stretch=None):
         """Perform simple linear stretching.
