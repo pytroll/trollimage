@@ -1086,8 +1086,8 @@ class XRImage:
             scale_factor = 1.0 / delta
         attrs = self.data.attrs
         offset = -min_stretch * scale_factor
-        self.data *= scale_factor
-        self.data += offset
+        self.data *= scale_factor.astype(self.data.dtype)
+        self.data += offset.astype(self.data.dtype)
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
                                                                       'offset': offset})
