@@ -1081,13 +1081,13 @@ class XRImage:
         delta = (max_stretch - min_stretch)
         if isinstance(delta, xr.DataArray):
             # fillna if delta is NaN
-            scale_factor = (1.0 / delta).fillna(0)
+            scale_factor = (1.0 / delta).fillna(0).astype(self.data.dtype)
         else:
-            scale_factor = 1.0 / delta
+            scale_factor = self.data.dtype.type(1.0 / delta)
         attrs = self.data.attrs
         offset = -min_stretch * scale_factor
-        self.data *= scale_factor.astype(self.data.dtype)
-        self.data += offset.astype(self.data.dtype)
+        self.data *= scale_factor
+        self.data += offset
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
                                                                       'offset': offset})
