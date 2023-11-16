@@ -2329,10 +2329,10 @@ class TestXRImageSaveScaleOffset:
     def setup_method(self) -> None:
         """Set up the test case."""
         from trollimage import xrimage
-        data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
+        data = xr.DataArray(np.arange(25, dtype=np.float32).reshape(5, 5, 1), dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
         self.img = xrimage.XRImage(data)
-        rgb_data = xr.DataArray(np.arange(3 * 25).reshape(5, 5, 3), dims=[
+        rgb_data = xr.DataArray(np.arange(3 * 25, dtype=np.float32).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         self.rgb_img = xrimage.XRImage(rgb_data)
 
