@@ -1078,6 +1078,9 @@ class XRImage:
         if isinstance(max_stretch, (list, tuple)):
             max_stretch = self.xrify_tuples(max_stretch)
 
+        min_stretch = min_stretch.astype(self.data.dtype)
+        max_stretch = max_stretch.astype(self.data.dtype)
+
         delta = (max_stretch - min_stretch)
         if isinstance(delta, xr.DataArray):
             # fillna if delta is NaN
