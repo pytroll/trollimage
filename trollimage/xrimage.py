@@ -1078,8 +1078,12 @@ class XRImage:
         if isinstance(max_stretch, (list, tuple)):
             max_stretch = self.xrify_tuples(max_stretch)
 
-        min_stretch = min_stretch.astype(self.data.dtype)
-        max_stretch = max_stretch.astype(self.data.dtype)
+        try:
+            min_stretch = min_stretch.astype(self.data.dtype)
+            max_stretch = max_stretch.astype(self.data.dtype)
+        except AttributeError:
+            min_stretch = self.data.dtype.type(min_stretch)
+            max_stretch = self.data.dtype.type(max_stretch)
 
         delta = (max_stretch - min_stretch)
         if isinstance(delta, xr.DataArray):
