@@ -1905,19 +1905,19 @@ class TestXRImage:
         from trollimage import xrimage
 
         # background image
-        arr1 = np.zeros((2, 2))
+        arr1 = np.zeros((2, 2), dtype=np.float32)
         data1 = xr.DataArray(arr1, dims=['y', 'x'])
         bkg = xrimage.XRImage(data1)
 
         # image to be stacked
-        arr2 = np.full((2, 2), np.nan)
+        arr2 = np.full((2, 2), np.nan, dtype=np.float32)
         arr2[0] = 1
         data2 = xr.DataArray(arr2, dims=['y', 'x'])
         img = xrimage.XRImage(data2)
 
         # expected result
         arr3 = arr1.copy()
-        arr3[0] = 1
+        arr3[0] = 1.0
         data3 = xr.DataArray(arr3, dims=['y', 'x'])
         res = xrimage.XRImage(data3)
 
