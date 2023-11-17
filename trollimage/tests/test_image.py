@@ -1587,13 +1587,14 @@ class TestXRImage:
 
     def test_histogram_stretch(self):
         """Test histogram stretching."""
-        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch('histogram')
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'hist_equalize': True}
+        assert img.data.dtype == np.float32
         res = np.array([[[0., 0., 0.],
                          [0.04166667, 0.04166667, 0.04166667],
                          [0.08333333, 0.08333333, 0.08333333],
@@ -1622,7 +1623,7 @@ class TestXRImage:
                          [0.875, 0.875, 0.875],
                          [0.91666667, 0.91666667, 0.91666667],
                          [0.95833333, 0.95833333, 0.95833333],
-                         [0.99951172, 0.99951172, 0.99951172]]])
+                         [0.99951172, 0.99951172, 0.99951172]]], dtype=np.float32)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
