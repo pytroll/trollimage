@@ -1440,19 +1440,27 @@ class TestXRImage:
             with rio.open(tmp.name) as f:
                 assert f.tags() == tags
 
-    def test_gamma(self):
-        """Test gamma correction."""
-        arr = np.arange(75).reshape(5, 5, 3) / 75.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+    def test_gamma_single(self):
+        """Test gamma correction for one value for all channels."""
+        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.gamma(.5)
-        assert np.allclose(img.data.values, arr ** 2)
+        assert img.data.dtype == np.float32
+        np.testing.assert_allclose(img.data.values, arr ** 2)
         assert img.data.attrs['enhancement_history'][0] == {'gamma': 0.5}
 
+    def test_gamma_per_channel(self):
+        """Test gamma correction with a value for each channel."""
+        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
         img.gamma([2., 2., 2.])
-        assert len(img.data.attrs['enhancement_history']) == 2
-        assert np.allclose(img.data.values, arr)
+        assert img.data.dtype == np.float32
+        assert img.data.attrs['enhancement_history'][0] == {'gamma': [2.0, 2.0, 2.0]}
+        np.testing.assert_allclose(img.data.values, arr ** 0.5)
 
     def test_crude_stretch(self):
         """Check crude stretching."""

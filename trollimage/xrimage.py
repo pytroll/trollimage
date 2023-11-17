@@ -940,17 +940,23 @@ class XRImage:
         the normal [0,1] range of the channels.
 
         """
-        if isinstance(gamma, (list, tuple)):
-            gamma = self.xrify_tuples(gamma)
-        elif gamma is None or gamma == 1.0:
+        if gamma is None or gamma == 1.0:
             return
 
+        inverse_gamma = self._get_inverse_gamma(gamma)
         logger.debug("Applying gamma %s", str(gamma))
         attrs = self.data.attrs
         self.data = self.data.clip(min=0)
-        self.data **= 1.0 / gamma
+        self.data **= inverse_gamma
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'gamma': gamma})
+
+    def _get_inverse_gamma(self, gamma):
+        if isinstance(gamma, (list, tuple)):
+            gamma = self.xrify_tuples(gamma).astype(np.float32)
+        else:
+            gamma = np.float32(gamma)
+        return 1.0 / gamma
 
     def stretch(self, stretch="crude", **kwargs):
         """Apply stretching to the current image.
