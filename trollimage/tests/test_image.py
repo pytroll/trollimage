@@ -2339,6 +2339,7 @@ class TestXRImagePalettize:
             expected2[:, :38] = flat_expected[:, ::2]
             expected2[:, 38:] = flat_expected[:, -1:]
             expected = expected2.reshape((1, 5, 15))
+        assert np.issubdtype(values.dtype, np.integer)
         np.testing.assert_allclose(values, expected)
         assert "enhancement_history" in img.data.attrs
         assert img.data.attrs["enhancement_history"][-1]["scale"] == expected_scale
