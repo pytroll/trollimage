@@ -1490,7 +1490,7 @@ class TestXRImage:
 
     def test_invert(self):
         """Check inversion of the image."""
-        arr = np.arange(75).reshape(5, 5, 3) / 75.
+        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
@@ -1498,6 +1498,7 @@ class TestXRImage:
         img.invert(True)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'scale': -1, 'offset': 1}
+        assert img.data.dtype == np.float32
         assert np.allclose(img.data.values, 1 - arr)
 
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
