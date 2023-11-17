@@ -1306,6 +1306,7 @@ class XRImage:
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
 
+        colormap = self._adjust_colormap_dtype(colormap)
         l_data = self._get_masked_floating_luminance_data()
         alpha = self.data.sel(bands=['A']) if self.mode == "LA" else None
         new_data = colormap.colorize(l_data.data)
@@ -1330,6 +1331,12 @@ class XRImage:
             'offset': offset,
             'colormap': colormap,
         })
+
+    def _adjust_colormap_dtype(self, colormap):
+        dtype = colormap.colors.dtype if np.issubdtype(self.data.dtype, np.integer) else self.data.dtype
+        colormap.colors = colormap.colors.astype(dtype)
+        colormap.values = colormap.values.astype(dtype)
+        return colormap
 
     def _get_masked_floating_luminance_data(self):
         l_data = self.data.sel(bands='L')

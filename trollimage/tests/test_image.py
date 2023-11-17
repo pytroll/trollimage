@@ -2128,7 +2128,7 @@ class TestXRImageColorize:
         [5.39262087e-01, 5.12603461e-01, 4.86221750e-01, 4.60123396e-01,
          4.34315297e-01, 4.08804859e-01, 3.83600057e-01, 3.58016749e-01,
          3.31909003e-01, 3.06406088e-01, 2.81515756e-01, 2.57245695e-01,
-         2.33603632e-01, 2.10597439e-01, 1.88235281e-01]]])
+         2.33603632e-01, 2.10597439e-01, 1.88235281e-01]]], dtype=np.float32)
 
     @pytest.mark.parametrize("colormap_tag", [None, "colormap"])
     def test_colorize_geotiff_tag(self, tmp_path, colormap_tag):
@@ -2162,12 +2162,13 @@ class TestXRImageColorize:
     )
     def test_colorize_l_rgb(self, new_range, input_scale, input_offset, expected_scale, expected_offset):
         """Test colorize with an RGB colormap."""
-        arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
+        arr = np.arange(75, dtype=np.float32).reshape(5, 15) / 74. * input_scale + input_offset
         data = xr.DataArray(arr.copy(), dims=['y', 'x'])
         new_brbg = brbg.set_range(*new_range, inplace=False)
         img = xrimage.XRImage(data)
         img.colorize(new_brbg)
         values = img.data.compute()
+        assert values.dtype == np.float32
 
         if new_range[1] == 0.5:
             expected2 = self._expected.copy().reshape((3, 75))
@@ -2193,6 +2194,8 @@ class TestXRImageColorize:
         img = xrimage.XRImage(data)
         img.colorize(new_brbg)
         values = img.data.compute()
+        # Integer data inherits dtype from the colormap when colorized
+        assert values.dtype == new_brbg.colors.dtype
         assert values.shape == (3,) + arr.shape  # RGB
         np.testing.assert_allclose(values[:, 1, :], np.nan)
         assert np.count_nonzero(np.isnan(values)) == arr.shape[1] * 3
