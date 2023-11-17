@@ -1072,8 +1072,7 @@ class XRImage:
 
         attrs = self.data.attrs
         offset = -min_stretch * scale_factor
-        self.data *= scale_factor
-        self.data += offset
+        self.data = np.multiply(self.data, scale_factor, dtype=scale_factor.dtype) + offset
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
                                                                       'offset': offset})
@@ -1095,13 +1094,19 @@ class XRImage:
 
     def _get_scale_factor(self, min_stretch, max_stretch):
         delta = (max_stretch - min_stretch)
+        dtype = self._infer_scale_factor_dtype()
         if isinstance(delta, xr.DataArray):
             # fillna if delta is NaN
-            scale_factor = (1.0 / delta).fillna(0).astype(self.data.dtype)
+            scale_factor = (1.0 / delta).fillna(0).astype(dtype)
         else:
-            scale_factor = self.data.dtype.type(1.0 / delta)
+            scale_factor = np.array(1.0 / delta, dtype=dtype)
 
         return scale_factor
+
+    def _infer_scale_factor_dtype(self):
+        if np.issubdtype(self.data.dtype, np.integer):
+            return np.float32
+        return self.data.dtype
 
     def stretch_hist_equalize(self, approximate=False):
         """Stretch the current image's colors through histogram equalization.

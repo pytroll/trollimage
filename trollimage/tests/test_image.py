@@ -1477,12 +1477,23 @@ class TestXRImage:
         expected_blue = (arr[:, :, 2] - 2.) / (74. - 2.)
         np.testing.assert_allclose(blue, expected_blue.astype(np.float32), rtol=1e-6)
 
+    def test_crude_stretch_with_limits(self):
         arr = np.arange(75).reshape(5, 5, 3).astype(float)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.crude_stretch(0, 74)
+        assert img.data.dtype == float
         np.testing.assert_allclose(img.data.values, arr / 74.)
+
+    def test_crude_stretch_integer_data(self):
+        arr = np.arange(75, dtype=int).reshape(5, 5, 3)
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.crude_stretch(0, 74)
+        assert img.data.dtype == np.float32
+        np.testing.assert_allclose(img.data.values, arr.astype(np.float32) / 74., rtol=1e-6)
 
     def test_invert(self):
         """Check inversion of the image."""
