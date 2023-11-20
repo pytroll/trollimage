@@ -1333,9 +1333,9 @@ class XRImage:
         })
 
     def _adjust_colormap_dtype(self, colormap):
-        dtype = colormap.colors.dtype if np.issubdtype(self.data.dtype, np.integer) else self.data.dtype
-        colormap.colors = colormap.colors.astype(dtype)
-        colormap.values = colormap.values.astype(dtype)
+        if np.issubdtype(self.data.dtype, np.floating) and colormap.colors.dtype != self.data.dtype:
+            colormap.colors = colormap.colors.astype(self.data.dtype)
+            colormap.values = colormap.values.astype(self.data.dtype)
         return colormap
 
     def _get_masked_floating_luminance_data(self):
