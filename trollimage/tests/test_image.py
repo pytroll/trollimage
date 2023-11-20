@@ -1451,6 +1451,26 @@ class TestXRImage:
         np.testing.assert_allclose(img.data.values, arr ** 2)
         assert img.data.attrs['enhancement_history'][0] == {'gamma': 0.5}
 
+    @pytest.mark.parametrize(
+        ("gamma_val"),
+        [
+            (None),
+            (1.0),
+            ([1.0, 1.0, 1.0]),
+            ([None, None, None]),
+        ]
+    )
+    def test_gamma_noop(self, gamma_val):
+        """Test variety of unity gamma corrections."""
+        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.gamma(gamma_val)
+        assert img.data.dtype == np.float32
+        np.testing.assert_equal(img.data.values, arr)
+        assert 'enhancement_history' not in img.data.attrs
+
     def test_gamma_per_channel(self):
         """Test gamma correction with a value for each channel."""
         arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.

@@ -940,7 +940,7 @@ class XRImage:
         the normal [0,1] range of the channels.
 
         """
-        if gamma is None or gamma == 1.0:
+        if _is_unity_or_none(gamma):
             return
 
         inverse_gamma = self._get_inverse_gamma(gamma)
@@ -1501,3 +1501,12 @@ class XRImage:
         b = io.BytesIO()
         self.pil_image().save(b, format='png')
         return b.getvalue()
+
+
+def _is_unity_or_none(gamma):
+    if gamma is None or gamma == 1.0:
+        return True
+    if hasattr(gamma, "__iter__"):
+        if all(g == 1.0 for g in gamma) or all(g is None for g in gamma):
+            return True
+    return False
