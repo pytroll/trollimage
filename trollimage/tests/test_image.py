@@ -1456,7 +1456,7 @@ class TestXRImage:
 
     def test_crude_stretch(self):
         """Check crude stretching."""
-        arr = np.arange(75).reshape(5, 5, 3)
+        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
@@ -1467,18 +1467,33 @@ class TestXRImage:
         enhs = img.data.attrs['enhancement_history'][0]
         scale_expected = np.array([0.01388889, 0.01388889, 0.01388889])
         offset_expected = np.array([0., -0.01388889, -0.02777778])
+        assert img.data.dtype == np.float32
         np.testing.assert_allclose(enhs['scale'].values, scale_expected)
         np.testing.assert_allclose(enhs['offset'].values, offset_expected)
-        np.testing.assert_allclose(red, arr[:, :, 0] / 72.)
-        np.testing.assert_allclose(green, (arr[:, :, 1] - 1.) / (73. - 1.))
-        np.testing.assert_allclose(blue, (arr[:, :, 2] - 2.) / (74. - 2.))
+        expected_red = arr[:, :, 0] / 72.
+        np.testing.assert_allclose(red, expected_red.astype(np.float32), rtol=1e-6)
+        expected_green = (arr[:, :, 1] - 1.) / (73. - 1.)
+        np.testing.assert_allclose(green, expected_green.astype(np.float32), rtol=1e-6)
+        expected_blue = (arr[:, :, 2] - 2.) / (74. - 2.)
+        np.testing.assert_allclose(blue, expected_blue.astype(np.float32), rtol=1e-6)
 
+    def test_crude_stretch_with_limits(self):
         arr = np.arange(75).reshape(5, 5, 3).astype(float)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.crude_stretch(0, 74)
+        assert img.data.dtype == float
         np.testing.assert_allclose(img.data.values, arr / 74.)
+
+    def test_crude_stretch_integer_data(self):
+        arr = np.arange(75, dtype=int).reshape(5, 5, 3)
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.crude_stretch(0, 74)
+        assert img.data.dtype == np.float32
+        np.testing.assert_allclose(img.data.values, arr.astype(np.float32) / 74., rtol=1e-6)
 
     def test_invert(self):
         """Check inversion of the image."""
@@ -2325,10 +2340,10 @@ class TestXRImageSaveScaleOffset:
     def setup_method(self) -> None:
         """Set up the test case."""
         from trollimage import xrimage
-        data = xr.DataArray(np.arange(25).reshape(5, 5, 1), dims=[
+        data = xr.DataArray(np.arange(25, dtype=np.float32).reshape(5, 5, 1), dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
         self.img = xrimage.XRImage(data)
-        rgb_data = xr.DataArray(np.arange(3 * 25).reshape(5, 5, 3), dims=[
+        rgb_data = xr.DataArray(np.arange(3 * 25, dtype=np.float32).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         self.rgb_img = xrimage.XRImage(rgb_data)
 

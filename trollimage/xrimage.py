@@ -1066,31 +1066,47 @@ class XRImage:
         normalizes to the [0,1] range.
 
         """
-        if min_stretch is None:
-            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
-            min_stretch = self.data.min(dim=non_band_dims)
-        if max_stretch is None:
-            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
-            max_stretch = self.data.max(dim=non_band_dims)
+        min_stretch = self._check_stretch_value(min_stretch, kind='min')
+        max_stretch = self._check_stretch_value(max_stretch, kind='max')
+        scale_factor = self._get_scale_factor(min_stretch, max_stretch)
 
-        if isinstance(min_stretch, (list, tuple)):
-            min_stretch = self.xrify_tuples(min_stretch)
-        if isinstance(max_stretch, (list, tuple)):
-            max_stretch = self.xrify_tuples(max_stretch)
-
-        delta = (max_stretch - min_stretch)
-        if isinstance(delta, xr.DataArray):
-            # fillna if delta is NaN
-            scale_factor = (1.0 / delta).fillna(0)
-        else:
-            scale_factor = 1.0 / delta
         attrs = self.data.attrs
         offset = -min_stretch * scale_factor
-        self.data *= scale_factor
-        self.data += offset
+        self.data = np.multiply(self.data, scale_factor, dtype=scale_factor.dtype) + offset
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
                                                                       'offset': offset})
+
+    def _check_stretch_value(self, val, kind='min'):
+        if val is None:
+            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
+            val = getattr(self.data, kind)(dim=non_band_dims)
+
+        if isinstance(val, (list, tuple)):
+            val = self.xrify_tuples(val)
+
+        try:
+            val = val.astype(self.data.dtype)
+        except AttributeError:
+            val = self.data.dtype.type(val)
+
+        return val
+
+    def _get_scale_factor(self, min_stretch, max_stretch):
+        delta = (max_stretch - min_stretch)
+        dtype = self._infer_scale_factor_dtype()
+        if isinstance(delta, xr.DataArray):
+            # fillna if delta is NaN
+            scale_factor = (1.0 / delta).fillna(0).astype(dtype)
+        else:
+            scale_factor = np.array(1.0 / delta, dtype=dtype)
+
+        return scale_factor
+
+    def _infer_scale_factor_dtype(self):
+        if np.issubdtype(self.data.dtype, np.integer):
+            return np.float32
+        return self.data.dtype
 
     def stretch_hist_equalize(self, approximate=False):
         """Stretch the current image's colors through histogram equalization.
