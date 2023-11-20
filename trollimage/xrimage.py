@@ -952,10 +952,14 @@ class XRImage:
         self.data.attrs.setdefault('enhancement_history', []).append({'gamma': gamma})
 
     def _get_inverse_gamma(self, gamma):
-        if isinstance(gamma, (list, tuple)):
-            gamma = self.xrify_tuples(gamma).astype(np.float32)
+        if np.issubdtype(self.data.dtype, np.floating):
+            dtype = self.data.dtype
         else:
-            gamma = np.float32(gamma)
+            dtype = np.float32
+        if isinstance(gamma, (list, tuple)):
+            gamma = self.xrify_tuples(gamma).astype(dtype)
+        else:
+            gamma = np.array(gamma, dtype=dtype)
         return 1.0 / gamma
 
     def stretch(self, stretch="crude", **kwargs):
