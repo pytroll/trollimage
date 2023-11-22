@@ -940,17 +940,27 @@ class XRImage:
         the normal [0,1] range of the channels.
 
         """
-        if isinstance(gamma, (list, tuple)):
-            gamma = self.xrify_tuples(gamma)
-        elif gamma is None or gamma == 1.0:
+        if _is_unity_or_none(gamma):
             return
 
+        inverse_gamma = self._get_inverse_gamma(gamma)
         logger.debug("Applying gamma %s", str(gamma))
         attrs = self.data.attrs
         self.data = self.data.clip(min=0)
-        self.data **= 1.0 / gamma
+        self.data **= inverse_gamma
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'gamma': gamma})
+
+    def _get_inverse_gamma(self, gamma):
+        if np.issubdtype(self.data.dtype, np.floating):
+            dtype = self.data.dtype
+        else:
+            dtype = np.float32
+        if isinstance(gamma, (list, tuple)):
+            gamma = self.xrify_tuples(gamma).astype(dtype)
+        else:
+            gamma = np.array(gamma, dtype=dtype)
+        return 1.0 / gamma
 
     def stretch(self, stretch="crude", **kwargs):
         """Apply stretching to the current image.
@@ -1316,6 +1326,7 @@ class XRImage:
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
 
+        colormap = self._adjust_colormap_dtype(colormap)
         l_data = self._get_masked_floating_luminance_data()
         alpha = self.data.sel(bands=['A']) if self.mode == "LA" else None
         new_data = colormap.colorize(l_data.data)
@@ -1340,6 +1351,12 @@ class XRImage:
             'offset': offset,
             'colormap': colormap,
         })
+
+    def _adjust_colormap_dtype(self, colormap):
+        if np.issubdtype(self.data.dtype, np.floating) and colormap.colors.dtype != self.data.dtype:
+            colormap.colors = colormap.colors.astype(self.data.dtype)
+            colormap.values = colormap.values.astype(self.data.dtype)
+        return colormap
 
     def _get_masked_floating_luminance_data(self):
         l_data = self.data.sel(bands='L')
@@ -1500,3 +1517,11 @@ class XRImage:
         b = io.BytesIO()
         self.pil_image().save(b, format='png')
         return b.getvalue()
+
+
+def _is_unity_or_none(gamma):
+    if gamma is None or gamma == 1.0:
+        return True
+    if not hasattr(gamma, "__iter__"):
+        return False
+    return all(g == 1.0 for g in gamma) or all(g is None for g in gamma)

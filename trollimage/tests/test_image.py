@@ -1440,23 +1440,55 @@ class TestXRImage:
             with rio.open(tmp.name) as f:
                 assert f.tags() == tags
 
-    def test_gamma(self):
-        """Test gamma correction."""
-        arr = np.arange(75).reshape(5, 5, 3) / 75.
-        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_gamma_single_value(self, dtype):
+        """Test gamma correction for one value for all channels."""
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.gamma(.5)
-        assert np.allclose(img.data.values, arr ** 2)
+        assert img.data.dtype == dtype
+        np.testing.assert_allclose(img.data.values, arr ** 2)
         assert img.data.attrs['enhancement_history'][0] == {'gamma': 0.5}
 
-        img.gamma([2., 2., 2.])
-        assert len(img.data.attrs['enhancement_history']) == 2
-        assert np.allclose(img.data.values, arr)
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize(
+        ("gamma_val"),
+        [
+            (None),
+            (1.0),
+            ([1.0, 1.0, 1.0]),
+            ([None, None, None]),
+        ]
+    )
+    def test_gamma_noop(self, gamma_val, dtype):
+        """Test variety of unity gamma corrections."""
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.gamma(gamma_val)
+        assert img.data.dtype == dtype
+        np.testing.assert_equal(img.data.values, arr)
+        assert 'enhancement_history' not in img.data.attrs
 
-    def test_crude_stretch(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_gamma_per_channel(self, dtype):
+        """Test gamma correction with a value for each channel."""
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.gamma([2., 2., 2.])
+        assert img.data.dtype == dtype
+        assert img.data.attrs['enhancement_history'][0] == {'gamma': [2.0, 2.0, 2.0]}
+        np.testing.assert_allclose(img.data.values, arr ** 0.5)
+
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_crude_stretch(self, dtype):
         """Check crude stretching."""
-        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3)
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
@@ -1467,24 +1499,25 @@ class TestXRImage:
         enhs = img.data.attrs['enhancement_history'][0]
         scale_expected = np.array([0.01388889, 0.01388889, 0.01388889])
         offset_expected = np.array([0., -0.01388889, -0.02777778])
-        assert img.data.dtype == np.float32
+        assert img.data.dtype == dtype
         np.testing.assert_allclose(enhs['scale'].values, scale_expected)
         np.testing.assert_allclose(enhs['offset'].values, offset_expected)
         expected_red = arr[:, :, 0] / 72.
-        np.testing.assert_allclose(red, expected_red.astype(np.float32), rtol=1e-6)
+        np.testing.assert_allclose(red, expected_red.astype(dtype), rtol=1e-6)
         expected_green = (arr[:, :, 1] - 1.) / (73. - 1.)
-        np.testing.assert_allclose(green, expected_green.astype(np.float32), rtol=1e-6)
+        np.testing.assert_allclose(green, expected_green.astype(dtype), rtol=1e-6)
         expected_blue = (arr[:, :, 2] - 2.) / (74. - 2.)
-        np.testing.assert_allclose(blue, expected_blue.astype(np.float32), rtol=1e-6)
+        np.testing.assert_allclose(blue, expected_blue.astype(dtype), rtol=1e-6)
 
-    def test_crude_stretch_with_limits(self):
-        arr = np.arange(75).reshape(5, 5, 3).astype(float)
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_crude_stretch_with_limits(self, dtype):
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.crude_stretch(0, 74)
-        assert img.data.dtype == float
-        np.testing.assert_allclose(img.data.values, arr / 74.)
+        assert img.data.dtype == dtype
+        np.testing.assert_allclose(img.data.values, arr / 74., rtol=1e-6)
 
     def test_crude_stretch_integer_data(self):
         arr = np.arange(75, dtype=int).reshape(5, 5, 3)
@@ -1495,9 +1528,10 @@ class TestXRImage:
         assert img.data.dtype == np.float32
         np.testing.assert_allclose(img.data.values, arr.astype(np.float32) / 74., rtol=1e-6)
 
-    def test_invert(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_invert(self, dtype):
         """Check inversion of the image."""
-        arr = np.arange(75).reshape(5, 5, 3) / 75.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
@@ -1505,6 +1539,7 @@ class TestXRImage:
         img.invert(True)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'scale': -1, 'offset': 1}
+        assert img.data.dtype == dtype
         assert np.allclose(img.data.values, 1 - arr)
 
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
@@ -1518,13 +1553,15 @@ class TestXRImage:
                              coords={'bands': ['R', 'G', 'B']})
         np.testing.assert_allclose(img.data.values, (data * scale + offset).values)
 
-    def test_linear_stretch(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_linear_stretch(self, dtype):
         """Test linear stretching with cutoffs."""
-        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch_linear()
+        assert img.data.dtype == dtype
         enhs = img.data.attrs['enhancement_history'][0]
         np.testing.assert_allclose(enhs['scale'].values, np.array([1.03815937, 1.03815937, 1.03815937]))
         np.testing.assert_allclose(enhs['offset'].values, np.array([-0.00505051, -0.01907969, -0.03310887]), atol=1e-8)
@@ -1552,18 +1589,20 @@ class TestXRImage:
                          [0.878788, 0.878788, 0.878788],
                          [0.920875, 0.920875, 0.920875],
                          [0.962963, 0.962963, 0.962963],
-                         [1.005051, 1.005051, 1.005051]]])
+                         [1.005051, 1.005051, 1.005051]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    def test_linear_stretch_does_not_affect_alpha(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_linear_stretch_does_not_affect_alpha(self, dtype):
         """Test linear stretching with cutoffs."""
-        arr = np.arange(100).reshape(5, 5, 4) / 74.
+        arr = np.arange(100, dtype=dtype).reshape(5, 5, 4) / 74.
         arr[:, :, -1] = 1  # alpha channel, fully opaque
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B', 'A']})
         img = xrimage.XRImage(data)
         img.stretch_linear((0.005, 0.005))
+        assert img.data.dtype == dtype
         res = np.array([[[-0.005051, -0.005051, -0.005051, 1.],
                          [0.037037, 0.037037, 0.037037, 1.],
                          [0.079125, 0.079125, 0.079125, 1.],
@@ -1588,19 +1627,21 @@ class TestXRImage:
                          [0.878788, 0.878788, 0.878788, 1.],
                          [0.920875, 0.920875, 0.920875, 1.],
                          [0.962963, 0.962963, 0.962963, 1.],
-                         [1.005051, 1.005051, 1.005051, 1.]]])
+                         [1.005051, 1.005051, 1.005051, 1.]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    def test_histogram_stretch(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_histogram_stretch(self, dtype):
         """Test histogram stretching."""
-        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch('histogram')
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'hist_equalize': True}
+        assert img.data.dtype == dtype
         res = np.array([[[0., 0., 0.],
                          [0.04166667, 0.04166667, 0.04166667],
                          [0.08333333, 0.08333333, 0.08333333],
@@ -1629,10 +1670,11 @@ class TestXRImage:
                          [0.875, 0.875, 0.875],
                          [0.91666667, 0.91666667, 0.91666667],
                          [0.95833333, 0.95833333, 0.95833333],
-                         [0.99951172, 0.99951172, 0.99951172]]])
+                         [0.99951172, 0.99951172, 0.99951172]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     @pytest.mark.parametrize(
         ("min_stretch", "max_stretch"),
         [
@@ -1641,9 +1683,9 @@ class TestXRImage:
         ]
     )
     @pytest.mark.parametrize("base", ["e", "10", "2"])
-    def test_logarithmic_stretch(self, min_stretch, max_stretch, base):
+    def test_logarithmic_stretch(self, min_stretch, max_stretch, base, dtype):
         """Test logarithmic strecthing."""
-        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         with assert_maximum_dask_computes(0):
@@ -1654,6 +1696,7 @@ class TestXRImage:
                         base=base)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'log_factor': 100.0}
+        assert img.data.dtype == dtype
         res = np.array([[[0., 0., 0.],
                          [0.35484693, 0.35484693, 0.35484693],
                          [0.48307087, 0.48307087, 0.48307087],
@@ -1682,21 +1725,23 @@ class TestXRImage:
                          [0.97131402, 0.97131402, 0.97131402],
                          [0.98130304, 0.98130304, 0.98130304],
                          [0.99085269, 0.99085269, 0.99085269],
-                         [1., 1., 1.]]])
+                         [1., 1., 1.]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    def test_weber_fechner_stretch(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_weber_fechner_stretch(self, dtype):
         """Test applying S=2.3klog10I+C to the data."""
         from trollimage import xrimage
 
-        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        arr = np.arange(75., dtype=dtype).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch_weber_fechner(2.5, 0.2)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'weber_fechner': (2.5, 0.2)}
+        assert img.data.dtype == dtype
         res = np.array([[[-np.inf, -6.73656795, -5.0037],
                          [-3.99003723, -3.27083205, -2.71297317],
                          [-2.25716928, -1.87179258, -1.5379641],
@@ -1725,7 +1770,7 @@ class TestXRImage:
                          [3.62126886, 3.66063976, 3.69940022],
                          [3.7375689, 3.7751636, 3.81220131],
                          [3.84869831, 3.88467015, 3.92013174],
-                         [3.95509735, 3.98958065, 4.02359478]]])
+                         [3.95509735, 3.98958065, 4.02359478]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
@@ -1912,19 +1957,19 @@ class TestXRImage:
         from trollimage import xrimage
 
         # background image
-        arr1 = np.zeros((2, 2))
+        arr1 = np.zeros((2, 2), dtype=np.float32)
         data1 = xr.DataArray(arr1, dims=['y', 'x'])
         bkg = xrimage.XRImage(data1)
 
         # image to be stacked
-        arr2 = np.full((2, 2), np.nan)
+        arr2 = np.full((2, 2), np.nan, dtype=np.float32)
         arr2[0] = 1
         data2 = xr.DataArray(arr2, dims=['y', 'x'])
         img = xrimage.XRImage(data2)
 
         # expected result
         arr3 = arr1.copy()
-        arr3[0] = 1
+        arr3[0] = 1.0
         data3 = xr.DataArray(arr3, dims=['y', 'x'])
         res = xrimage.XRImage(data3)
 
@@ -1938,26 +1983,27 @@ class TestXRImage:
         """Test merge."""
         pass
 
-    def test_blend(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_blend(self, dtype):
         """Test blend."""
         from trollimage import xrimage
 
-        core1 = np.arange(75).reshape(5, 5, 3) / 75.0
-        alpha1 = np.linspace(0, 1, 25).reshape(5, 5, 1)
+        core1 = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.0
+        alpha1 = np.linspace(0, 1, 25, dtype=dtype).reshape(5, 5, 1)
         arr1 = np.concatenate([core1, alpha1], 2)
         data1 = xr.DataArray(arr1, dims=['y', 'x', 'bands'],
                              coords={'bands': ['R', 'G', 'B', 'A']})
         img1 = xrimage.XRImage(data1)
 
-        core2 = np.arange(75, 0, -1).reshape(5, 5, 3) / 75.0
-        alpha2 = np.linspace(1, 0, 25).reshape(5, 5, 1)
+        core2 = np.arange(75, 0, -1, dtype=dtype).reshape(5, 5, 3) / 75.0
+        alpha2 = np.linspace(1, 0, 25, dtype=dtype).reshape(5, 5, 1)
         arr2 = np.concatenate([core2, alpha2], 2)
         data2 = xr.DataArray(arr2, dims=['y', 'x', 'bands'],
                              coords={'bands': ['R', 'G', 'B', 'A']})
         img2 = xrimage.XRImage(data2)
-
         img3 = img1.blend(img2)
 
+        assert img3.data.dtype == dtype
         np.testing.assert_allclose(
                 (alpha1 + alpha2 * (1 - alpha1)).squeeze(),
                 img3.data.sel(bands="A"))
@@ -1969,7 +2015,8 @@ class TestXRImage:
                  [0.768815,     0.72,       0.6728228,  0.62857145, 0.5885714],
                  [0.55412847,   0.5264665,  0.50666666, 0.495612,   0.49394494],
                  [0.5020408,    0.52,       0.5476586,  0.5846154,  0.63027024],
-                 [0.683871,     0.7445614,  0.81142855, 0.8835443,  0.96]]))
+                 [0.683871,     0.7445614,  0.81142855, 0.8835443,  0.96]], dtype=dtype),
+                 rtol=2e-6)
 
         with pytest.raises(TypeError):
             img1.blend("Salekhard")
@@ -2065,7 +2112,7 @@ class TestImageColorize:
         img = image.Image(channels=[arr.copy(), alpha], mode="LA")
         img.colorize(brbg)
 
-        expected = list(TestXRImageColorize._expected)
+        expected = list(TestXRImageColorize._expected[np.float64])
         np.testing.assert_allclose(img.channels[0], expected[0])
         np.testing.assert_allclose(img.channels[1], expected[1])
         np.testing.assert_allclose(img.channels[2], expected[2])
@@ -2075,67 +2122,114 @@ class TestImageColorize:
 class TestXRImageColorize:
     """Test the colorize method of the XRImage class."""
 
-    _expected = np.array([[
-        [3.29411723e-01, 3.57655082e-01, 3.86434110e-01, 4.15693606e-01,
-         4.45354600e-01, 4.75400861e-01, 5.05821366e-01, 5.36605929e-01,
-         5.65154978e-01, 5.92088497e-01, 6.19067971e-01, 6.46087246e-01,
-         6.73140324e-01, 7.00221360e-01, 7.27324645e-01],
-        [7.52329770e-01, 7.68885184e-01, 7.85480717e-01, 8.02165033e-01,
-         8.18991652e-01, 8.36019205e-01, 8.53311577e-01, 8.70937939e-01,
-         8.84215464e-01, 8.96340860e-01, 9.08470028e-01, 9.20615990e-01,
-         9.32792728e-01, 9.45015153e-01, 9.57299069e-01],
-        [9.57098327e-01, 9.40960114e-01, 9.29584947e-01, 9.23677290e-01,
-         9.23753761e-01, 9.30068208e-01, 9.42551542e-01, 9.60784273e-01,
-         9.41109213e-01, 9.19647970e-01, 8.96571901e-01, 8.72056790e-01,
-         8.46282229e-01, 8.19431622e-01, 7.91692975e-01],
-        [7.58448192e-01, 7.21741664e-01, 6.84822731e-01, 6.47626513e-01,
-         6.10070647e-01, 5.72048960e-01, 5.33421992e-01, 4.94570855e-01,
-         4.57464094e-01, 4.20002632e-01, 3.82018455e-01, 3.43266518e-01,
-         3.03372572e-01, 2.61727458e-01, 2.17242854e-01],
-        [1.89905753e-01, 1.67063022e-01, 1.43524406e-01, 1.18889110e-01,
-         9.24115112e-02, 6.24348956e-02, 2.53761173e-02, 4.08181032e-03,
-         4.27986478e-03, 4.17929690e-03, 3.78662146e-03, 3.12692318e-03,
-         2.24023940e-03, 1.17807264e-03, 3.21825881e-08]],
-       [[1.88235327e-01, 2.05148705e-01, 2.22246533e-01, 2.39526068e-01,
-         2.56989487e-01, 2.74629823e-01, 2.92439994e-01, 3.10413422e-01,
-         3.32343814e-01, 3.57065419e-01, 3.82068278e-01, 4.07348961e-01,
-         4.32903760e-01, 4.58728817e-01, 4.84820203e-01],
-        [5.12920806e-01, 5.47946930e-01, 5.82732545e-01, 6.17314757e-01,
-         6.51719365e-01, 6.85963748e-01, 7.20058900e-01, 7.54010901e-01,
-         7.76938576e-01, 7.97119666e-01, 8.17286145e-01, 8.37436050e-01,
-         8.57567245e-01, 8.77677444e-01, 8.97764221e-01],
-        [9.14974807e-01, 9.26634684e-01, 9.36490370e-01, 9.44572058e-01,
-         9.50936890e-01, 9.55671974e-01, 9.58899694e-01, 9.60784377e-01,
-         9.54533524e-01, 9.48563492e-01, 9.42789228e-01, 9.37126769e-01,
-         9.31494725e-01, 9.25815456e-01, 9.20015949e-01],
-        [9.08501736e-01, 8.93232137e-01, 8.77927046e-01, 8.62584949e-01,
-         8.47204357e-01, 8.31783811e-01, 8.16321878e-01, 7.98071154e-01,
-         7.68921238e-01, 7.39943765e-01, 7.11141597e-01, 6.82517728e-01,
-         6.54075286e-01, 6.25817541e-01, 5.97747906e-01],
-        [5.70776450e-01, 5.44247780e-01, 5.17943011e-01, 4.91867999e-01,
-         4.66028940e-01, 4.40432405e-01, 4.15085375e-01, 3.90762603e-01,
-         3.67819656e-01, 3.45100714e-01, 3.22617398e-01, 3.00381887e-01,
-         2.78406993e-01, 2.56706267e-01, 2.35294109e-01]],
-       [[1.96078164e-02, 2.42548791e-02, 2.74972980e-02, 2.96227786e-02,
-         3.17156285e-02, 3.38568546e-02, 3.60498743e-02, 3.82990372e-02,
-         5.17340107e-02, 7.13424499e-02, 9.00791380e-02, 1.08349520e-01,
-         1.26372958e-01, 1.44280386e-01, 1.62155431e-01],
-        [1.84723724e-01, 2.25766583e-01, 2.66872651e-01, 3.08395883e-01,
-         3.50522786e-01, 3.93349758e-01, 4.36919863e-01, 4.81242202e-01,
-         5.19495725e-01, 5.56210021e-01, 5.93054317e-01, 6.30051817e-01,
-         6.67218407e-01, 7.04564489e-01, 7.42096284e-01],
-        [7.75703258e-01, 8.04590533e-01, 8.34519408e-01, 8.64314044e-01,
-         8.92841230e-01, 9.19042335e-01, 9.41963593e-01, 9.60784303e-01,
-         9.45735072e-01, 9.32649658e-01, 9.21608884e-01, 9.12665692e-01,
-         9.05844317e-01, 9.01139812e-01, 8.98517976e-01],
-        [8.86846758e-01, 8.68087757e-01, 8.49200397e-01, 8.30188000e-01,
-         8.11054008e-01, 7.91801982e-01, 7.72435606e-01, 7.51368872e-01,
-         7.24059052e-01, 6.97016433e-01, 6.70243011e-01, 6.43740898e-01,
-         6.17512331e-01, 5.91559687e-01, 5.65885492e-01],
-        [5.39262087e-01, 5.12603461e-01, 4.86221750e-01, 4.60123396e-01,
-         4.34315297e-01, 4.08804859e-01, 3.83600057e-01, 3.58016749e-01,
-         3.31909003e-01, 3.06406088e-01, 2.81515756e-01, 2.57245695e-01,
-         2.33603632e-01, 2.10597439e-01, 1.88235281e-01]]])
+    _expected = {
+        np.float64: np.array([[
+            [3.29411723e-01, 3.57655082e-01, 3.86434110e-01, 4.15693606e-01,
+             4.45354600e-01, 4.75400861e-01, 5.05821366e-01, 5.36605929e-01,
+             5.65154978e-01, 5.92088497e-01, 6.19067971e-01, 6.46087246e-01,
+             6.73140324e-01, 7.00221360e-01, 7.27324645e-01],
+            [7.52329770e-01, 7.68885184e-01, 7.85480717e-01, 8.02165033e-01,
+             8.18991652e-01, 8.36019205e-01, 8.53311577e-01, 8.70937939e-01,
+             8.84215464e-01, 8.96340860e-01, 9.08470028e-01, 9.20615990e-01,
+             9.32792728e-01, 9.45015153e-01, 9.57299069e-01],
+            [9.57098327e-01, 9.40960114e-01, 9.29584947e-01, 9.23677290e-01,
+             9.23753761e-01, 9.30068208e-01, 9.42551542e-01, 9.60784273e-01,
+             9.41109213e-01, 9.19647970e-01, 8.96571901e-01, 8.72056790e-01,
+             8.46282229e-01, 8.19431622e-01, 7.91692975e-01],
+            [7.58448192e-01, 7.21741664e-01, 6.84822731e-01, 6.47626513e-01,
+             6.10070647e-01, 5.72048960e-01, 5.33421992e-01, 4.94570855e-01,
+             4.57464094e-01, 4.20002632e-01, 3.82018455e-01, 3.43266518e-01,
+             3.03372572e-01, 2.61727458e-01, 2.17242854e-01],
+            [1.89905753e-01, 1.67063022e-01, 1.43524406e-01, 1.18889110e-01,
+             9.24115112e-02, 6.24348956e-02, 2.53761173e-02, 4.08181032e-03,
+             4.27986478e-03, 4.17929690e-03, 3.78662146e-03, 3.12692318e-03,
+             2.24023940e-03, 1.17807264e-03, 3.21825881e-08]],
+           [[1.88235327e-01, 2.05148705e-01, 2.22246533e-01, 2.39526068e-01,
+             2.56989487e-01, 2.74629823e-01, 2.92439994e-01, 3.10413422e-01,
+             3.32343814e-01, 3.57065419e-01, 3.82068278e-01, 4.07348961e-01,
+             4.32903760e-01, 4.58728817e-01, 4.84820203e-01],
+            [5.12920806e-01, 5.47946930e-01, 5.82732545e-01, 6.17314757e-01,
+             6.51719365e-01, 6.85963748e-01, 7.20058900e-01, 7.54010901e-01,
+             7.76938576e-01, 7.97119666e-01, 8.17286145e-01, 8.37436050e-01,
+             8.57567245e-01, 8.77677444e-01, 8.97764221e-01],
+            [9.14974807e-01, 9.26634684e-01, 9.36490370e-01, 9.44572058e-01,
+             9.50936890e-01, 9.55671974e-01, 9.58899694e-01, 9.60784377e-01,
+             9.54533524e-01, 9.48563492e-01, 9.42789228e-01, 9.37126769e-01,
+             9.31494725e-01, 9.25815456e-01, 9.20015949e-01],
+            [9.08501736e-01, 8.93232137e-01, 8.77927046e-01, 8.62584949e-01,
+             8.47204357e-01, 8.31783811e-01, 8.16321878e-01, 7.98071154e-01,
+             7.68921238e-01, 7.39943765e-01, 7.11141597e-01, 6.82517728e-01,
+             6.54075286e-01, 6.25817541e-01, 5.97747906e-01],
+            [5.70776450e-01, 5.44247780e-01, 5.17943011e-01, 4.91867999e-01,
+             4.66028940e-01, 4.40432405e-01, 4.15085375e-01, 3.90762603e-01,
+             3.67819656e-01, 3.45100714e-01, 3.22617398e-01, 3.00381887e-01,
+             2.78406993e-01, 2.56706267e-01, 2.35294109e-01]],
+           [[1.96078164e-02, 2.42548791e-02, 2.74972980e-02, 2.96227786e-02,
+             3.17156285e-02, 3.38568546e-02, 3.60498743e-02, 3.82990372e-02,
+             5.17340107e-02, 7.13424499e-02, 9.00791380e-02, 1.08349520e-01,
+             1.26372958e-01, 1.44280386e-01, 1.62155431e-01],
+            [1.84723724e-01, 2.25766583e-01, 2.66872651e-01, 3.08395883e-01,
+             3.50522786e-01, 3.93349758e-01, 4.36919863e-01, 4.81242202e-01,
+             5.19495725e-01, 5.56210021e-01, 5.93054317e-01, 6.30051817e-01,
+             6.67218407e-01, 7.04564489e-01, 7.42096284e-01],
+            [7.75703258e-01, 8.04590533e-01, 8.34519408e-01, 8.64314044e-01,
+             8.92841230e-01, 9.19042335e-01, 9.41963593e-01, 9.60784303e-01,
+             9.45735072e-01, 9.32649658e-01, 9.21608884e-01, 9.12665692e-01,
+             9.05844317e-01, 9.01139812e-01, 8.98517976e-01],
+            [8.86846758e-01, 8.68087757e-01, 8.49200397e-01, 8.30188000e-01,
+             8.11054008e-01, 7.91801982e-01, 7.72435606e-01, 7.51368872e-01,
+             7.24059052e-01, 6.97016433e-01, 6.70243011e-01, 6.43740898e-01,
+             6.17512331e-01, 5.91559687e-01, 5.65885492e-01],
+            [5.39262087e-01, 5.12603461e-01, 4.86221750e-01, 4.60123396e-01,
+             4.34315297e-01, 4.08804859e-01, 3.83600057e-01, 3.58016749e-01,
+             3.31909003e-01, 3.06406088e-01, 2.81515756e-01, 2.57245695e-01,
+             2.33603632e-01, 2.10597439e-01, 1.88235281e-01]]], dtype=np.float64),
+        np.float32: np.array([[
+            [0.32941175, 0.35765505, 0.38643414, 0.4156936 , 0.44535455,
+             0.47540084, 0.5058213 , 0.53660583, 0.56515497, 0.5920884 ,
+             0.61906797, 0.64608735, 0.67314035, 0.7002214 , 0.72732455],
+            [0.7523298 , 0.76888514, 0.7854807 , 0.8021649 , 0.8189918 ,
+             0.8360192 , 0.8533116 , 0.8709379 , 0.88421535, 0.8963408 ,
+             0.90846986, 0.9206159 , 0.9327928 , 0.9450152 , 0.95729893],
+            [0.9561593 , 0.9379867 , 0.925193  , 0.9186452 , 0.9189398 ,
+             0.9262958 , 0.9404795 , 0.96078414, 0.9400202 , 0.9179358 ,
+             0.89463943, 0.8702369 , 0.84483355, 0.8185319 , 0.79143286],
+            [0.75844824, 0.7217417 , 0.6848227 , 0.64762676, 0.61007077,
+             0.57204896, 0.533422  , 0.49457097, 0.4574643 , 0.42000294,
+             0.38201877, 0.34326664, 0.30337277, 0.26172766, 0.21724297],
+            [0.18990554, 0.1670632 , 0.14352395, 0.11888929, 0.09241185,
+             0.06243531, 0.02537645, 0.00408208, 0.0042801 , 0.00417955,
+             0.00378686, 0.00312716, 0.00224016, 0.00117794, 0.        ]],
+           [[0.18823533, 0.20514871, 0.22224654, 0.23952611, 0.25698954,
+             0.27462983, 0.2924401 , 0.31041354, 0.33234388, 0.35706556,
+             0.38206834, 0.40734893, 0.4329038 , 0.45872888, 0.4848204 ],
+            [0.51292086, 0.54794705, 0.5827325 , 0.6173149 , 0.65171933,
+             0.6859637 , 0.720059  , 0.754011  , 0.7769386 , 0.7971198 ,
+             0.81728625, 0.8374362 , 0.8575672 , 0.87767744, 0.8977643 ],
+            [0.9152645 , 0.92748123, 0.93765223, 0.9458176 , 0.9520587 ,
+             0.95650315, 0.9593312 , 0.96078444, 0.9547297 , 0.9488435 ,
+             0.9430687 , 0.9373506 , 0.93163645, 0.9258765 , 0.92002386],
+            [0.9085018 , 0.89323217, 0.8779272 , 0.86258495, 0.84720427,
+             0.83178383, 0.81632185, 0.79807115, 0.7689212 , 0.73994386,
+             0.71114165, 0.68251765, 0.65407526, 0.62581754, 0.597748  ],
+            [0.5707766 , 0.5442478 , 0.51794314, 0.49186793, 0.46602884,
+             0.4404323 , 0.4150853 , 0.39076254, 0.3678196 , 0.34510067,
+             0.32261738, 0.3003818 , 0.27840695, 0.25670624, 0.23529409]],
+           [[0.01960781, 0.02425484, 0.02749731, 0.02962274, 0.03171561,
+             0.03385685, 0.03604981, 0.03829896, 0.05173399, 0.07134236,
+             0.0900792 , 0.10834952, 0.12637301, 0.14428039, 0.16215537],
+            [0.18472369, 0.22576652, 0.26687256, 0.30839586, 0.35052276,
+             0.39334968, 0.43691984, 0.48124215, 0.51949567, 0.55621   ,
+             0.59305423, 0.6300518 , 0.6672183 , 0.7045645 , 0.7420964 ],
+            [0.7757837 , 0.80522877, 0.83597785, 0.8665506 , 0.8955321 ,
+             0.9216227 , 0.9436848 , 0.96078426, 0.94695187, 0.93475634,
+             0.9242341 , 0.9154071 , 0.9082816 , 0.90284896, 0.8990856 ],
+            [0.8868469 , 0.8680878 , 0.8492005 , 0.83018804, 0.8110541 ,
+             0.791802  , 0.7724357 , 0.7513689 , 0.7240591 , 0.69701654,
+             0.67024314, 0.64374095, 0.6175124 , 0.59155977, 0.5658856 ],
+            [0.53926224, 0.5126035 , 0.48622182, 0.4601233 , 0.43431523,
+             0.40880483, 0.3836    , 0.35801673, 0.331909  , 0.30640608,
+             0.28151578, 0.25724563, 0.23360366, 0.21059746, 0.18823537]]], dtype=np.float32)}
 
     @pytest.mark.parametrize("colormap_tag", [None, "colormap"])
     def test_colorize_geotiff_tag(self, tmp_path, colormap_tag):
@@ -2160,35 +2254,47 @@ class TestXRImageColorize:
                 np.testing.assert_allclose(new_brbg.colors, loaded_brbg.colors)
 
     @pytest.mark.parametrize(
-        ("new_range", "input_scale", "input_offset", "expected_scale", "expected_offset"),
+        ("new_range", "input_scale", "input_offset", "expected_scale", "expected_offset", "dtype"),
         [
-            ((0.0, 1.0), 1.0, 0.0, 1.0, 0.0),
-            ((0.0, 0.5), 1.0, 0.0, 2.0, 0.0),
-            ((2.0, 4.0), 2.0, 2.0, 0.5, -1.0),
+            ((0.0, 1.0), 1.0, 0.0, 1.0, 0.0, np.float32),
+            ((0.0, 0.5), 1.0, 0.0, 2.0, 0.0, np.float32),
+            ((2.0, 4.0), 2.0, 2.0, 0.5, -1.0, np.float32),
+            ((0.0, 1.0), 1.0, 0.0, 1.0, 0.0, np.float64),
+            ((0.0, 0.5), 1.0, 0.0, 2.0, 0.0, np.float64),
+            ((2.0, 4.0), 2.0, 2.0, 0.5, -1.0, np.float64),
         ],
     )
-    def test_colorize_l_rgb(self, new_range, input_scale, input_offset, expected_scale, expected_offset):
-        """Test colorize with an RGB colormap."""
-        arr = np.arange(75).reshape(5, 15) / 74. * input_scale + input_offset
-        data = xr.DataArray(arr.copy(), dims=['y', 'x'])
+    def test_colorize_l_rgb(self, new_range, input_scale, input_offset, expected_scale, expected_offset, dtype):
+        """Test colorize with a RGB colormap."""
+        img = self._get_input_image(dtype, input_scale, input_offset)
         new_brbg = brbg.set_range(*new_range, inplace=False)
-        img = xrimage.XRImage(data)
         img.colorize(new_brbg)
         values = img.data.compute()
+        assert values.dtype == dtype
 
-        if new_range[1] == 0.5:
-            expected2 = self._expected.copy().reshape((3, 75))
-            flat_expected = self._expected.reshape((3, 75))
-            expected2[:, :38] = flat_expected[:, ::2]
-            expected2[:, 38:] = flat_expected[:, -1:]
-            expected = expected2.reshape((3, 5, 15))
-        else:
-            expected = self._expected
-        np.testing.assert_allclose(values, expected)
+        expected = self._get_expected_colorize_l_rgb(new_range, dtype)
+        np.testing.assert_allclose(values, expected, atol=1e-6)
         assert "enhancement_history" in img.data.attrs
         assert img.data.attrs["enhancement_history"][-1]["scale"] == expected_scale
         assert img.data.attrs["enhancement_history"][-1]["offset"] == expected_offset
         assert isinstance(img.data.attrs["enhancement_history"][-1]["colormap"], Colormap)
+
+    @staticmethod
+    def _get_input_image(dtype, input_scale, input_offset):
+        arr = np.arange(75, dtype=dtype).reshape(5, 15) / 74. * input_scale + input_offset
+        data = xr.DataArray(arr, dims=['y', 'x'])
+        return xrimage.XRImage(data)
+
+    def _get_expected_colorize_l_rgb(self, new_range, dtype):
+        if new_range[1] == 0.5:
+            expected2 = self._expected[dtype].copy().reshape((3, 75))
+            flat_expected = self._expected[dtype].reshape((3, 75))
+            expected2[:, :38] = flat_expected[:, ::2]
+            expected2[:, 38:] = flat_expected[:, -1:]
+            expected = expected2.reshape((3, 5, 15))
+        else:
+            expected = self._expected[dtype]
+        return expected
 
     def test_colorize_int_l_rgb_with_fills(self):
         """Test integer data with _FillValue is masked (NaN) when colorized."""
@@ -2200,6 +2306,8 @@ class TestXRImageColorize:
         img = xrimage.XRImage(data)
         img.colorize(new_brbg)
         values = img.data.compute()
+        # Integer data inherits dtype from the colormap when colorized
+        assert values.dtype == new_brbg.colors.dtype
         assert values.shape == (3,) + arr.shape  # RGB
         np.testing.assert_allclose(values[:, 1, :], np.nan)
         assert np.count_nonzero(np.isnan(values)) == arr.shape[1] * 3
@@ -2220,7 +2328,7 @@ class TestXRImageColorize:
         img.colorize(brbg)
 
         values = img.data.values
-        expected = np.concatenate((self._expected,
+        expected = np.concatenate((self._expected[np.float64],
                                    alpha.reshape((1,) + alpha.shape)))
         np.testing.assert_allclose(values, expected)
         assert "enhancement_history" in img.data.attrs
@@ -2285,6 +2393,7 @@ class TestXRImagePalettize:
             expected2[:, :38] = flat_expected[:, ::2]
             expected2[:, 38:] = flat_expected[:, -1:]
             expected = expected2.reshape((1, 5, 15))
+        assert np.issubdtype(values.dtype, np.integer)
         np.testing.assert_allclose(values, expected)
         assert "enhancement_history" in img.data.attrs
         assert img.data.attrs["enhancement_history"][-1]["scale"] == expected_scale
