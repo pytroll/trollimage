@@ -1989,7 +1989,7 @@ class TestXRImage:
         from trollimage import xrimage
 
         core1 = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.0
-        alpha1 = np.linspace(0, 1, 25, dtype=np.float32).reshape(5, 5, 1)
+        alpha1 = np.linspace(0, 1, 25, dtype=dtype).reshape(5, 5, 1)
         arr1 = np.concatenate([core1, alpha1], 2)
         data1 = xr.DataArray(arr1, dims=['y', 'x', 'bands'],
                              coords={'bands': ['R', 'G', 'B', 'A']})
