@@ -1674,6 +1674,7 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     @pytest.mark.parametrize(
         ("min_stretch", "max_stretch"),
         [
@@ -1682,9 +1683,9 @@ class TestXRImage:
         ]
     )
     @pytest.mark.parametrize("base", ["e", "10", "2"])
-    def test_logarithmic_stretch(self, min_stretch, max_stretch, base):
+    def test_logarithmic_stretch(self, min_stretch, max_stretch, base, dtype):
         """Test logarithmic strecthing."""
-        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 74.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         with assert_maximum_dask_computes(0):
@@ -1695,7 +1696,7 @@ class TestXRImage:
                         base=base)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'log_factor': 100.0}
-        assert img.data.dtype == np.float32
+        assert img.data.dtype == dtype
         res = np.array([[[0., 0., 0.],
                          [0.35484693, 0.35484693, 0.35484693],
                          [0.48307087, 0.48307087, 0.48307087],
@@ -1724,7 +1725,7 @@ class TestXRImage:
                          [0.97131402, 0.97131402, 0.97131402],
                          [0.98130304, 0.98130304, 0.98130304],
                          [0.99085269, 0.99085269, 0.99085269],
-                         [1., 1., 1.]]], dtype=np.float32)
+                         [1., 1., 1.]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
