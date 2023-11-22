@@ -1553,13 +1553,15 @@ class TestXRImage:
                              coords={'bands': ['R', 'G', 'B']})
         np.testing.assert_allclose(img.data.values, (data * scale + offset).values)
 
-    def test_linear_stretch(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_linear_stretch(self, dtype):
         """Test linear stretching with cutoffs."""
-        arr = np.arange(75).reshape(5, 5, 3) / 74.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch_linear()
+        assert img.data.dtype == dtype
         enhs = img.data.attrs['enhancement_history'][0]
         np.testing.assert_allclose(enhs['scale'].values, np.array([1.03815937, 1.03815937, 1.03815937]))
         np.testing.assert_allclose(enhs['offset'].values, np.array([-0.00505051, -0.01907969, -0.03310887]), atol=1e-8)
@@ -1587,18 +1589,20 @@ class TestXRImage:
                          [0.878788, 0.878788, 0.878788],
                          [0.920875, 0.920875, 0.920875],
                          [0.962963, 0.962963, 0.962963],
-                         [1.005051, 1.005051, 1.005051]]])
+                         [1.005051, 1.005051, 1.005051]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    def test_linear_stretch_does_not_affect_alpha(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_linear_stretch_does_not_affect_alpha(self, dtype):
         """Test linear stretching with cutoffs."""
-        arr = np.arange(100).reshape(5, 5, 4) / 74.
+        arr = np.arange(100, dtype=dtype).reshape(5, 5, 4) / 74.
         arr[:, :, -1] = 1  # alpha channel, fully opaque
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B', 'A']})
         img = xrimage.XRImage(data)
         img.stretch_linear((0.005, 0.005))
+        assert img.data.dtype == dtype
         res = np.array([[[-0.005051, -0.005051, -0.005051, 1.],
                          [0.037037, 0.037037, 0.037037, 1.],
                          [0.079125, 0.079125, 0.079125, 1.],
@@ -1623,7 +1627,7 @@ class TestXRImage:
                          [0.878788, 0.878788, 0.878788, 1.],
                          [0.920875, 0.920875, 0.920875, 1.],
                          [0.962963, 0.962963, 0.962963, 1.],
-                         [1.005051, 1.005051, 1.005051, 1.]]])
+                         [1.005051, 1.005051, 1.005051, 1.]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
