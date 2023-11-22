@@ -1440,7 +1440,7 @@ class TestXRImage:
             with rio.open(tmp.name) as f:
                 assert f.tags() == tags
 
-    def test_gamma_single(self):
+    def test_gamma_single_value(self):
         """Test gamma correction for one value for all channels."""
         arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
