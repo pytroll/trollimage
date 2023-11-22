@@ -1485,9 +1485,10 @@ class TestXRImage:
         assert img.data.attrs['enhancement_history'][0] == {'gamma': [2.0, 2.0, 2.0]}
         np.testing.assert_allclose(img.data.values, arr ** 0.5)
 
-    def test_crude_stretch(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_crude_stretch(self, dtype):
         """Check crude stretching."""
-        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3)
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
@@ -1498,24 +1499,25 @@ class TestXRImage:
         enhs = img.data.attrs['enhancement_history'][0]
         scale_expected = np.array([0.01388889, 0.01388889, 0.01388889])
         offset_expected = np.array([0., -0.01388889, -0.02777778])
-        assert img.data.dtype == np.float32
+        assert img.data.dtype == dtype
         np.testing.assert_allclose(enhs['scale'].values, scale_expected)
         np.testing.assert_allclose(enhs['offset'].values, offset_expected)
         expected_red = arr[:, :, 0] / 72.
-        np.testing.assert_allclose(red, expected_red.astype(np.float32), rtol=1e-6)
+        np.testing.assert_allclose(red, expected_red.astype(dtype), rtol=1e-6)
         expected_green = (arr[:, :, 1] - 1.) / (73. - 1.)
-        np.testing.assert_allclose(green, expected_green.astype(np.float32), rtol=1e-6)
+        np.testing.assert_allclose(green, expected_green.astype(dtype), rtol=1e-6)
         expected_blue = (arr[:, :, 2] - 2.) / (74. - 2.)
-        np.testing.assert_allclose(blue, expected_blue.astype(np.float32), rtol=1e-6)
+        np.testing.assert_allclose(blue, expected_blue.astype(dtype), rtol=1e-6)
 
-    def test_crude_stretch_with_limits(self):
-        arr = np.arange(75).reshape(5, 5, 3).astype(float)
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_crude_stretch_with_limits(self, dtype):
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3)
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.crude_stretch(0, 74)
-        assert img.data.dtype == float
-        np.testing.assert_allclose(img.data.values, arr / 74.)
+        assert img.data.dtype == dtype
+        np.testing.assert_allclose(img.data.values, arr / 74., rtol=1e-6)
 
     def test_crude_stretch_integer_data(self):
         arr = np.arange(75, dtype=int).reshape(5, 5, 3)
