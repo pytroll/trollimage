@@ -1729,18 +1729,19 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    def test_weber_fechner_stretch(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_weber_fechner_stretch(self, dtype):
         """Test applying S=2.3klog10I+C to the data."""
         from trollimage import xrimage
 
-        arr = np.arange(75., dtype=np.float32).reshape(5, 5, 3) / 74.
+        arr = np.arange(75., dtype=dtype).reshape(5, 5, 3) / 74.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.stretch_weber_fechner(2.5, 0.2)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'weber_fechner': (2.5, 0.2)}
-        assert img.data.dtype == np.float32
+        assert img.data.dtype == dtype
         res = np.array([[[-np.inf, -6.73656795, -5.0037],
                          [-3.99003723, -3.27083205, -2.71297317],
                          [-2.25716928, -1.87179258, -1.5379641],
@@ -1769,7 +1770,7 @@ class TestXRImage:
                          [3.62126886, 3.66063976, 3.69940022],
                          [3.7375689, 3.7751636, 3.81220131],
                          [3.84869831, 3.88467015, 3.92013174],
-                         [3.95509735, 3.98958065, 4.02359478]]], dtype=np.float32)
+                         [3.95509735, 3.98958065, 4.02359478]]], dtype=dtype)
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
