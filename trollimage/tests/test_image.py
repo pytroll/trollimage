@@ -1440,17 +1440,19 @@ class TestXRImage:
             with rio.open(tmp.name) as f:
                 assert f.tags() == tags
 
-    def test_gamma_single_value(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_gamma_single_value(self, dtype):
         """Test gamma correction for one value for all channels."""
-        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.gamma(.5)
-        assert img.data.dtype == np.float32
+        assert img.data.dtype == dtype
         np.testing.assert_allclose(img.data.values, arr ** 2)
         assert img.data.attrs['enhancement_history'][0] == {'gamma': 0.5}
 
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     @pytest.mark.parametrize(
         ("gamma_val"),
         [
@@ -1460,25 +1462,26 @@ class TestXRImage:
             ([None, None, None]),
         ]
     )
-    def test_gamma_noop(self, gamma_val):
+    def test_gamma_noop(self, gamma_val, dtype):
         """Test variety of unity gamma corrections."""
-        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.gamma(gamma_val)
-        assert img.data.dtype == np.float32
+        assert img.data.dtype == dtype
         np.testing.assert_equal(img.data.values, arr)
         assert 'enhancement_history' not in img.data.attrs
 
-    def test_gamma_per_channel(self):
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_gamma_per_channel(self, dtype):
         """Test gamma correction with a value for each channel."""
-        arr = np.arange(75, dtype=np.float32).reshape(5, 5, 3) / 75.
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
         img.gamma([2., 2., 2.])
-        assert img.data.dtype == np.float32
+        assert img.data.dtype == dtype
         assert img.data.attrs['enhancement_history'][0] == {'gamma': [2.0, 2.0, 2.0]}
         np.testing.assert_allclose(img.data.values, arr ** 0.5)
 
