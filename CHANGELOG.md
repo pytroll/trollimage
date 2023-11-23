@@ -1,3 +1,21 @@
+## Version 1.22.0 (2023/11/23)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 145](https://github.com/pytroll/trollimage/pull/145) - Do not apply linear stretch to alpha band
+
+#### Features added
+
+* [PR 151](https://github.com/pytroll/trollimage/pull/151) - Preserve dtypes in XRImage "enhancements"
+* [PR 150](https://github.com/pytroll/trollimage/pull/150) - Keep the original dtype of the data when stretching
+* [PR 141](https://github.com/pytroll/trollimage/pull/141) - Update colorbrew colormaps to be more accurate
+
+In this release 4 pull requests were closed.
+
+
 ## Version 1.21.0 (2023/09/04)
 
 ### Issues Closed
