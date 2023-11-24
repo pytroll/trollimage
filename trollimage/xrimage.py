@@ -1097,8 +1097,10 @@ class XRImage:
             val = self.xrify_tuples(val)
 
         dtype = self.data.dtype
-        if np.issubdtype(dtype, np.integer):
+        if isinstance(dtype, (np.uint8, np.int8, np.uint16, np.int16)):
             dtype = np.dtype(np.float32)
+        elif np.issubdtype(dtype, np.integer) or isinstance(dtype, int):
+            dtype = np.dtype(np.float64)
         try:
             val = val.astype(dtype)
         except AttributeError:
