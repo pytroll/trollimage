@@ -1,3 +1,20 @@
+## Version 1.22.1 (2023/11/24)
+
+### Issues Closed
+
+* [Issue 152](https://github.com/pytroll/trollimage/issues/152) - Linear stretch of `uint8` data gives unexpected results ([PR 153](https://github.com/pytroll/trollimage/pull/153) by [@pnuu](https://github.com/pnuu))
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 153](https://github.com/pytroll/trollimage/pull/153) - Fix stretching integer data ([152](https://github.com/pytroll/trollimage/issues/152))
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.22.0 (2023/11/23)
 
 
