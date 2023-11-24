@@ -1082,6 +1082,7 @@ class XRImage:
 
         attrs = self.data.attrs
         offset = -min_stretch * scale_factor
+
         self.data = np.multiply(self.data, scale_factor, dtype=scale_factor.dtype) + offset
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
@@ -1095,8 +1096,11 @@ class XRImage:
         if isinstance(val, (list, tuple)):
             val = self.xrify_tuples(val)
 
+        dtype = self.data.dtype
+        if np.issubdtype(dtype, np.integer):
+            dtype = np.dtype(np.float32)
         try:
-            val = val.astype(self.data.dtype)
+            val = val.astype(dtype)
         except AttributeError:
             val = self.data.dtype.type(val)
 
