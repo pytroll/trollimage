@@ -1631,6 +1631,18 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
+    def test_linear_stretch_uint8(self):
+        """Test linear stretch with uint8 data."""
+        arr = np.arange(75, dtype=np.uint8).reshape(5, 5, 3)
+        arr[4, 4, :] = 255
+        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        img = xrimage.XRImage(data)
+        img.stretch_linear()
+
+        assert img.data.values.min() == pytest.approx(0.0)
+        assert img.data.values.max() == pytest.approx(1.0960743801652901)
+
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     def test_histogram_stretch(self, dtype):
         """Test histogram stretching."""
