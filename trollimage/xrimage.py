@@ -1104,7 +1104,7 @@ class XRImage:
         try:
             val = val.astype(dtype)
         except AttributeError:
-            val = self.data.dtype.type(val)
+            val = dtype.type(val)
 
         return val
 
