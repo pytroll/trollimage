@@ -1,3 +1,14 @@
+## Version 1.22.2 (2023/11/26)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 154](https://github.com/pytroll/trollimage/pull/154) - Fix stretch when min/max value it outside input data type
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.22.1 (2023/11/24)
 
 ### Issues Closed
