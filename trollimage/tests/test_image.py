@@ -2277,7 +2277,7 @@ class TestXRImageColorize:
                 assert "colormap" not in metadata
             else:
                 assert "colormap" in metadata
-                loaded_brbg = Colormap.from_file(metadata["colormap"])
+                loaded_brbg = Colormap.from_string(metadata["colormap"])
                 np.testing.assert_allclose(new_brbg.values, loaded_brbg.values)
                 np.testing.assert_allclose(new_brbg.colors, loaded_brbg.colors)
 
@@ -2466,7 +2466,7 @@ class TestXRImagePalettize:
                 assert "colormap" not in metadata
             else:
                 assert "colormap" in metadata
-                loaded_brbg = Colormap.from_file(metadata["colormap"])
+                loaded_brbg = Colormap.from_string(metadata["colormap"])
                 np.testing.assert_allclose(new_brbg.values, loaded_brbg.values)
                 np.testing.assert_allclose(new_brbg.colors, loaded_brbg.colors)
 
