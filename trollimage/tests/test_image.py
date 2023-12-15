@@ -935,7 +935,8 @@ class TestXRImage:
 
         # with fill value
         with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, fill_value=128)
+            with pytest.warns(UserWarning, match="fill value will overlap with valid data"):
+                img.save(tmp.name, fill_value=128)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
             assert file_data.shape == (3, 5, 5)  # no alpha band
@@ -985,7 +986,8 @@ class TestXRImage:
 
         # float input with fill value saved to int16 (signed!)
         with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, dtype=np.int16, fill_value=-128)
+            with pytest.warns(UserWarning, match="fill value will overlap with valid data"):
+                img.save(tmp.name, dtype=np.int16, fill_value=-128)
             with rio.open(tmp.name) as f:
                 file_data = f.read()
             assert file_data.shape == (3, 5, 5)  # no alpha band
