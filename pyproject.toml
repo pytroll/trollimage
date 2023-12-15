@@ -23,6 +23,9 @@ filterwarnings = [
     "ignore::rasterio.errors.NotGeoreferencedWarning",
     # remove after #149 is merged
     "ignore:invalid value encountered in cast:RuntimeWarning",
+    # dateutil needs a new release
+    # https://github.com/dateutil/dateutil/issues/1314
+    "ignore:utcfromtimestamp() is deprecated and scheduled for removal",
 ]
 log_cli_level = "info"
 testpaths = [
