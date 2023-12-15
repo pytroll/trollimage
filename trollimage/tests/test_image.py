@@ -22,6 +22,7 @@ import random
 import sys
 import tempfile
 import unittest
+from datetime import timezone, datetime
 from unittest import mock
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
@@ -1033,8 +1034,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_datetime(self):
         """Test saving geotiffs when start_time is in the attributes."""
-        import datetime as dt
-
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3), dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
 
@@ -1044,7 +1043,7 @@ class TestXRImage:
         assert "TIFFTAG_DATETIME" not in tags
 
         # Valid datetime
-        data.attrs['start_time'] = dt.datetime.utcnow()
+        data.attrs['start_time'] = datetime.now(timezone.utc)
         tags = _get_tags_after_writing_to_geotiff(data)
         assert "TIFFTAG_DATETIME" in tags
 
