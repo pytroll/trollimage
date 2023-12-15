@@ -25,7 +25,7 @@ filterwarnings = [
     "ignore:invalid value encountered in cast:RuntimeWarning",
     # dateutil needs a new release
     # https://github.com/dateutil/dateutil/issues/1314
-    "ignore:utcfromtimestamp() is deprecated and scheduled for removal:DeprecationWarning",
+    'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated and scheduled for removal:DeprecationWarning:dateutil',
 ]
 log_cli_level = "info"
 testpaths = [
