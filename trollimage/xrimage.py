@@ -1242,11 +1242,12 @@ class XRImage:
 
         p = k.ln(S/S0)
         p is perception, S is the stimulus, S0 is the stimulus threshold (the
-        highest unpercieved stimulus), and k is the factor.
+        highest unperceived stimulus), and k is the factor.
 
         """
         attrs = self.data.attrs
-        self.data = k * np.log(self.data / s0)
+        clipped_stimuli = np.clip(self.data, s0, None)
+        self.data = k * np.log(clipped_stimuli / s0)
         self.data.attrs = attrs
         self.data.attrs.setdefault('enhancement_history', []).append({'weber_fechner': (k, s0)})
 

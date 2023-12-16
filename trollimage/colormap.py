@@ -239,11 +239,11 @@ class Colormap(object):
                              f"{self.values.shape[0]} and {self.colors.shape[0]}.")
 
     def _validate_colors(self, colors):
-        colors = np.array(colors)
+        colors = np.asarray(colors)
         if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
             raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
         if not np.issubdtype(colors.dtype, np.floating):
-            warnings.warn("Colormap 'colors' should be flotaing point numbers between 0 and 1.", stacklevel=3)
+            warnings.warn("Colormap 'colors' should be floating point numbers between 0 and 1.", stacklevel=3)
             colors = colors.astype(np.float64)
         return colors
 

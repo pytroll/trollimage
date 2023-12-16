@@ -13,3 +13,19 @@ build-backend = "setuptools.build_meta"
 relative_files = true
 plugins = ["Cython.Coverage"]
 omit = ["trollimage/version.py", "versioneer.py"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = [
+    "error",
+    "ignore::rasterio.errors.NotGeoreferencedWarning",
+    # dateutil needs a new release
+    # https://github.com/dateutil/dateutil/issues/1314
+    'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated and scheduled for removal:DeprecationWarning:dateutil',
+]
+log_cli_level = "info"
+testpaths = [
+    "trollimage/tests",
+]

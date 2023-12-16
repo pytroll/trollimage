@@ -184,19 +184,20 @@ class TestColormap:
 
     def test_nonfloat_colors(self):
         """Pass integer colors to colormap."""
-        colormap.Colormap(
-            colors=np.arange(5 * 3, dtype=np.uint8).reshape((5, 3)),
-            values=np.linspace(0, 1, 5),
-        )
+        with pytest.warns(UserWarning, match="should be floating point"):
+            colormap.Colormap(
+                colors=np.arange(5 * 3, dtype=np.uint8).reshape((5, 3)),
+                values=np.linspace(0, 1, 5),
+            )
 
     def test_merge_nonmonotonic(self):
         """Test that merged colormaps must have monotonic values."""
         cmap1 = colormap.Colormap(
-            colors=np.arange(5 * 3).reshape((5, 3)),
+            colors=np.arange(5 * 3.0).reshape((5, 3)),
             values=np.linspace(2, 3, 5),
         )
         cmap2 = colormap.Colormap(
-            colors=np.arange(5 * 3).reshape((5, 3)),
+            colors=np.arange(5 * 3.0).reshape((5, 3)),
             values=np.linspace(0, 1, 5),
         )
         with pytest.raises(ValueError, match=r".*monotonic.*"):
@@ -274,11 +275,11 @@ class TestColormap:
     def test_merge_equal_values(self):
         """Test that merged colormaps can have equal values at the merge point."""
         cmap1 = colormap.Colormap(
-            colors=np.arange(5 * 3).reshape((5, 3)),
+            colors=np.arange(5 * 3.0).reshape((5, 3)),
             values=np.linspace(0, 1, 5),
         )
         cmap2 = colormap.Colormap(
-            colors=np.arange(5 * 3).reshape((5, 3)),
+            colors=np.arange(5 * 3.0).reshape((5, 3)),
             values=np.linspace(1, 2, 5),
         )
         assert cmap1.values[-1] == cmap2.values[0]
@@ -288,11 +289,11 @@ class TestColormap:
     def test_merge_monotonic_decreasing(self):
         """Test that merged colormaps can be monotonically decreasing."""
         cmap1 = colormap.Colormap(
-            colors=np.arange(5 * 3).reshape((5, 3)),
+            colors=np.arange(5 * 3.0).reshape((5, 3)),
             values=np.linspace(2, 1, 5),
         )
         cmap2 = colormap.Colormap(
-            colors=np.arange(5 * 3).reshape((5, 3)),
+            colors=np.arange(5 * 3.0).reshape((5, 3)),
             values=np.linspace(1, 0, 5),
         )
         _assert_monotonic_values(cmap1, increasing=False)
@@ -557,7 +558,7 @@ class TestFromFileCreation:
         else:
             res = orig_cmap.to_csv(None, color_scale=color_scale)
             assert isinstance(res, str)
-            new_cmap = colormap.Colormap.from_file(res, color_scale=color_scale)
+            new_cmap = colormap.Colormap.from_string(res, color_scale=color_scale)
         np.testing.assert_allclose(orig_cmap.values, new_cmap.values)
         np.testing.assert_allclose(orig_cmap.colors, new_cmap.colors)
 
@@ -636,23 +637,27 @@ class TestFromFileCreation:
             with pytest.raises(ValueError):
                 colormap.Colormap.from_file(cmap_filename)
 
-    def test_cmap_from_np(self, tmp_path):
+    @pytest.mark.parametrize("color_scale", [None, 1.0])
+    def test_cmap_from_np(self, tmp_path, color_scale):
         """Test creating a colormap from a numpy file."""
-        cmap_data = _generate_cmap_test_data(None, "RGB")
+        cmap_data = _generate_cmap_test_data(color_scale, "RGB")
         fnp = tmp_path / "test.npy"
         np.save(fnp, cmap_data)
-        cmap = colormap.Colormap.from_np(fnp, color_scale=1)
+        cmap = colormap.Colormap.from_np(fnp, color_scale=color_scale or 255)
         np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.6666667, 1])
-        np.testing.assert_array_equal(cmap.colors, cmap_data)
+        exp_data = cmap_data if color_scale == 1.0 else cmap_data / 255.0
+        np.testing.assert_array_equal(cmap.colors, exp_data)
 
-    def test_cmap_from_csv(self, tmp_path, color_scale=1):
+    @pytest.mark.parametrize("color_scale", [None, 1.0])
+    def test_cmap_from_csv(self, tmp_path, color_scale):
         """Test creating a colormap from a CSV file."""
-        cmap_data = _generate_cmap_test_data(None, "RGB")
+        cmap_data = _generate_cmap_test_data(color_scale, "RGB")
         fnp = tmp_path / "test.csv"
         np.savetxt(fnp, cmap_data, delimiter=",")
-        cmap = colormap.Colormap.from_csv(fnp, color_scale=1)
+        cmap = colormap.Colormap.from_csv(fnp, color_scale=color_scale or 255)
         np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.66666667, 1])
-        np.testing.assert_array_equal(cmap.colors, cmap_data)
+        exp_data = cmap_data if color_scale == 1.0 else cmap_data / 255.0
+        np.testing.assert_array_equal(cmap.colors, exp_data)
 
 
 def test_cmap_from_string():
@@ -663,12 +668,14 @@ def test_cmap_from_string():
     np.testing.assert_array_equal(cmap.colors, [[0, 0, 0], [1, 1, 1], [2, 2, 2]])
 
 
-def test_cmap_from_ndarray():
+@pytest.mark.parametrize("color_scale", [None, 255, 1.0])
+def test_cmap_from_ndarray(color_scale):
     """Test creating a colormap from a numpy array."""
-    cmap_data = _generate_cmap_test_data(None, "RGB")
-    cmap = colormap.Colormap.from_ndarray(cmap_data, color_scale=1)
+    cmap_data = _generate_cmap_test_data(color_scale, "RGB")
+    cmap = colormap.Colormap.from_ndarray(cmap_data, color_scale=color_scale or 255)
     np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.66666667, 1])
-    np.testing.assert_array_equal(cmap.colors, cmap_data)
+    exp_data = cmap_data if color_scale == 1.0 else cmap_data / 255.0
+    np.testing.assert_array_equal(cmap.colors, exp_data)
 
 
 def test_cmap_from_name():
