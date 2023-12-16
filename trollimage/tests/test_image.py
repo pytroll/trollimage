@@ -23,6 +23,7 @@ import sys
 import tempfile
 import unittest
 from datetime import timezone, datetime
+import warnings
 from unittest import mock
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
@@ -880,155 +881,211 @@ class TestXRImage:
         with NamedTemporaryFile(suffix='.png') as tmp:
             img.save(tmp.name)
 
-    @pytest.mark.skipif(sys.platform.startswith('win'),
-                        reason="'NamedTemporaryFile' not supported on Windows")
-    def test_save_geotiff_float(self):
+    def test_save_geotiff_float_numpy_array(self, tmp_path):
         """Test saving geotiffs when input data is float."""
         # numpy array image - scale to 0 to 1 first
-        data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 75.,
+        data = xr.DataArray(np.arange(75).reshape((5, 5, 3)) / 75.,
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band added
-            exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            np.testing.assert_allclose(file_data[3], 255)  # completely opaque
+        filename = tmp_path / "image.tif"
 
-        data = xr.DataArray(da.from_array(np.arange(75.).reshape(5, 5, 3) / 75., chunks=5),
+        img.save(filename)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (4, 5, 5)  # alpha band added
+        exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
+        np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+        np.testing.assert_allclose(file_data[3], 255)  # completely opaque
+
+    def test_save_geotiff_float_dask_array(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        # Regular default save
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band added
-            exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            np.testing.assert_allclose(file_data[3], 255)  # completely opaque
+        filename = tmp_path / "image.tif"
 
-        # with NaNs
+        img.save(filename)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (4, 5, 5)  # alpha band added
+        exp = (np.arange(75.).reshape(5, 5, 3) / 75. * 255).round()
+        np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+        np.testing.assert_allclose(file_data[3], 255)  # completely opaque
+
+    def test_save_geotiff_float_dask_array_with_nans(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
         data = data.where(data > 10. / 75.)
         img = xrimage.XRImage(data)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band added
-            exp = np.arange(75.).reshape(5, 5, 3) / 75.
-            exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
-            exp = (exp * 255).round()
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            is_null = (exp == 0).all(axis=2)
-            np.testing.assert_allclose(file_data[3][~is_null], 255)  # completely opaque
-            np.testing.assert_allclose(file_data[3][is_null], 0)  # completely transparent
+        filename = tmp_path / "image.tif"
 
-        # with fill value
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            with pytest.warns(UserWarning, match="fill value will overlap with valid data"):
-                img.save(tmp.name, fill_value=128)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (3, 5, 5)  # no alpha band
-            exp = np.arange(75.).reshape(5, 5, 3) / 75.
-            exp2 = (exp * 255).round()
-            exp2[exp <= 10. / 75.] = 128
-            np.testing.assert_allclose(file_data[0], exp2[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp2[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp2[:, :, 2])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            img.save(filename)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (4, 5, 5)  # alpha band added
+        exp = np.arange(75.).reshape(5, 5, 3) / 75.
+        exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
+        exp = (exp * 255).round()
+        np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+        is_null = (exp == 0).all(axis=2)
+        np.testing.assert_allclose(file_data[3][~is_null], 255)  # completely opaque
+        np.testing.assert_allclose(file_data[3][is_null], 0)  # completely transparent
 
-        # float type - floats can't have alpha channel
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, dtype=np.float32)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (3, 5, 5)  # no alpha band
-            exp = np.arange(75.).reshape(5, 5, 3) / 75.
-            # fill value is forced to 0
-            exp[exp <= 10. / 75.] = 0
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+    def test_save_geotiff_float_dask_array_with_nans_and_fill_value(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        data = data.where(data > 10. / 75.)
+        img = xrimage.XRImage(data)
+        filename = tmp_path / "image.tif"
 
-        # float type with NaN fill value
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, dtype=np.float32, fill_value=np.nan)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (3, 5, 5)  # no alpha band
-            exp = np.arange(75.).reshape(5, 5, 3) / 75.
-            exp[exp <= 10. / 75.] = np.nan
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+        with pytest.warns(UserWarning, match="fill value will overlap with valid data"):
+            img.save(filename, fill_value=128)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (3, 5, 5)  # no alpha band
+        exp = np.arange(75.).reshape(5, 5, 3) / 75.
+        exp2 = (exp * 255).round()
+        exp2[exp <= 10. / 75.] = 128
+        np.testing.assert_allclose(file_data[0], exp2[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp2[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp2[:, :, 2])
 
-        # float type with non-NaN fill value
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name, dtype=np.float32, fill_value=128)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (3, 5, 5)  # no alpha band
-            exp = np.arange(75.).reshape(5, 5, 3) / 75.
-            exp[exp <= 10. / 75.] = 128
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+    def test_save_geotiff_float_dask_array_to_float(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        data = data.where(data > 10. / 75.)
+        img = xrimage.XRImage(data)
+        filename = tmp_path / "image.tif"
 
-        # float input with fill value saved to int16 (signed!)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            with pytest.warns(UserWarning, match="fill value will overlap with valid data"):
-                img.save(tmp.name, dtype=np.int16, fill_value=-128)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (3, 5, 5)  # no alpha band
-            exp = np.arange(75.).reshape(5, 5, 3) / 75.
-            exp2 = (exp * (2 ** 16 - 1) - (2 ** 15)).round()
-            exp2[exp <= 10. / 75.] = -128.
-            np.testing.assert_allclose(file_data[0], exp2[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp2[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp2[:, :, 2])
+        img.save(filename, dtype=np.float32)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (3, 5, 5)  # no alpha band
+        exp = np.arange(75.).reshape(5, 5, 3) / 75.
+        # fill value is forced to 0
+        exp[exp <= 10. / 75.] = 0
+        np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp[:, :, 2])
 
-        # dask delayed save
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            delay = img.save(tmp.name, compute=False)
-            assert isinstance(delay, tuple)
-            assert isinstance(delay[0], da.Array)
-            assert isinstance(delay[1], RIODataset)
-            da.store(*delay)
-            delay[1].close()
+    def test_save_geotiff_float_dask_array_to_float_with_nans_fill_value(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        data = data.where(data > 10. / 75.)
+        img = xrimage.XRImage(data)
+        filename = tmp_path / "image.tif"
 
-        # float RGBA input to uint8
+        img.save(filename, dtype=np.float32, fill_value=np.nan)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (3, 5, 5)  # no alpha band
+        exp = np.arange(75.).reshape(5, 5, 3) / 75.
+        exp[exp <= 10. / 75.] = np.nan
+        np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+    def test_save_geotiff_float_dask_array_to_float_with_numeric_fill_value(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        data = data.where(data > 10. / 75.)
+        img = xrimage.XRImage(data)
+        filename = tmp_path / "image.tif"
+
+        img.save(filename, dtype=np.float32, fill_value=128)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (3, 5, 5)  # no alpha band
+        exp = np.arange(75.).reshape(5, 5, 3) / 75.
+        exp[exp <= 10. / 75.] = 128
+        np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+
+    def test_save_geotiff_float_dask_array_to_signed_int(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        data = data.where(data > 10. / 75.)
+        img = xrimage.XRImage(data)
+        filename = tmp_path / "image.tif"
+
+        with pytest.warns(UserWarning, match="fill value will overlap with valid data"):
+            img.save(filename, dtype=np.int16, fill_value=-128)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (3, 5, 5)  # no alpha band
+        exp = np.arange(75.).reshape(5, 5, 3) / 75.
+        exp2 = (exp * (2 ** 16 - 1) - (2 ** 15)).round()
+        exp2[exp <= 10. / 75.] = -128.
+        np.testing.assert_allclose(file_data[0], exp2[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp2[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp2[:, :, 2])
+
+    def test_delayed_save_geotiff_float_dask_array(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        data = data.where(data > 10. / 75.)
+        img = xrimage.XRImage(data)
+        filename = tmp_path / "image.tif"
+
+        delay = img.save(filename, compute=False)
+        assert isinstance(delay, tuple)
+        assert isinstance(delay[0], da.Array)
+        assert isinstance(delay[1], RIODataset)
+        da.store(*delay)
+        delay[1].close()
+
+    def test_save_geotiff_float_dask_array_with_alpha(self, tmp_path):
+        """Test saving geotiffs when input data is float."""
+        data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
+                            dims=['y', 'x', 'bands'],
+                            coords={'bands': ['R', 'G', 'B']})
+        data = data.where(data > 10. / 75.)
         alpha = xr.ones_like(data[:, :, 0])
         alpha = alpha.where(data.notnull().all(dim='bands'), 0)
         alpha['bands'] = 'A'
         # make a float version of a uint8 RGBA
         rgb_data = xr.concat((data, alpha), dim='bands')
         img = xrimage.XRImage(rgb_data)
-        with NamedTemporaryFile(suffix='.tif') as tmp:
-            img.save(tmp.name)
-            with rio.open(tmp.name) as f:
-                file_data = f.read()
-            assert file_data.shape == (4, 5, 5)  # alpha band already existed
-            exp = np.arange(75.).reshape(5, 5, 3) / 75.
-            exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
-            exp = (exp * 255.).round()
-            np.testing.assert_allclose(file_data[0], exp[:, :, 0])
-            np.testing.assert_allclose(file_data[1], exp[:, :, 1])
-            np.testing.assert_allclose(file_data[2], exp[:, :, 2])
-            not_null = (alpha != 0).values
-            np.testing.assert_allclose(file_data[3][not_null], 255)  # completely opaque
-            np.testing.assert_allclose(file_data[3][~not_null], 0)  # completely transparent
+        filename = tmp_path / "image.tif"
+
+        img.save(filename)
+        with rio.open(filename) as f:
+            file_data = f.read()
+        assert file_data.shape == (4, 5, 5)  # alpha band already existed
+        exp = np.arange(75.).reshape(5, 5, 3) / 75.
+        exp[exp <= 10. / 75.] = 0  # numpy converts NaNs to 0s
+        exp = (exp * 255.).round()
+        np.testing.assert_allclose(file_data[0], exp[:, :, 0])
+        np.testing.assert_allclose(file_data[1], exp[:, :, 1])
+        np.testing.assert_allclose(file_data[2], exp[:, :, 2])
+        not_null = (alpha != 0).values
+        np.testing.assert_allclose(file_data[3][not_null], 255)  # completely opaque
+        np.testing.assert_allclose(file_data[3][~not_null], 0)  # completely transparent
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
