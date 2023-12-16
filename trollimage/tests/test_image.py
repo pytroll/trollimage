@@ -22,6 +22,7 @@ import random
 import sys
 import tempfile
 import unittest
+import warnings
 from unittest import mock
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
@@ -917,7 +918,7 @@ class TestXRImage:
         np.testing.assert_allclose(file_data[2], exp[:, :, 2])
         np.testing.assert_allclose(file_data[3], 255)  # completely opaque
 
-    def test_save_geotiff_float_dask_array_with_nans(self, tmp_path, recwarn):
+    def test_save_geotiff_float_dask_array_with_nans(self, tmp_path):
         """Test saving geotiffs when input data is float."""
         data = xr.DataArray(da.from_array(np.arange(75.).reshape((5, 5, 3)) / 75., chunks=5),
                             dims=['y', 'x', 'bands'],
@@ -926,7 +927,9 @@ class TestXRImage:
         img = xrimage.XRImage(data)
         filename = tmp_path / "image.tif"
 
-        img.save(filename)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            img.save(filename)
         with rio.open(filename) as f:
             file_data = f.read()
         assert file_data.shape == (4, 5, 5)  # alpha band added
@@ -939,8 +942,6 @@ class TestXRImage:
         is_null = (exp == 0).all(axis=2)
         np.testing.assert_allclose(file_data[3][~is_null], 255)  # completely opaque
         np.testing.assert_allclose(file_data[3][is_null], 0)  # completely transparent
-        for warning in recwarn:
-            assert "invalid value encountered in cast" not in str(warning)
 
     def test_save_geotiff_float_dask_array_with_nans_and_fill_value(self, tmp_path):
         """Test saving geotiffs when input data is float."""
