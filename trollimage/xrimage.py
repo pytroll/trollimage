@@ -683,6 +683,8 @@ class XRImage:
                 data = data.clip(0, 1) * scale + offset
                 attrs.setdefault('enhancement_history', list()).append({'scale': scale, 'offset': offset})
             data = data.round()
+            if fill_value is None:
+                data = data.fillna(np.iinfo(dtype).min)
         data.attrs = attrs
         return data
 
