@@ -1009,13 +1009,14 @@ class XRImage:
 
         Use *cutoffs* for left and right trimming.
 
-        If the cutoffs are just a tuple or list of two scalar, all the channels except the alpha channel
-        will be stretched with the cutoffs.
-        If the cutoffs are a sequence of tuples/lists of two scalar:
-          - if there is the same number of tuples/lists as channels, each channel will be stretched with the respective
-            cutoff.
-          - if there is one less tuples/lists as channels, the same applies, except for the alpha channel which will
-            not be stretched.
+        If the cutoffs are just a tuple or list of two scalars, all the
+        channels except the alpha channel will be stretched with the cutoffs.
+        If the cutoffs are a sequence of tuples/lists of two scalars then:
+
+        - if there are the same number of tuples/lists as channels, each channel will be stretched with the respective
+          cutoff.
+        - if there is one less tuple/list as channels, the same applies, except for the alpha channel which will
+          not be stretched.
 
         """
         logger.debug("Perform a linear contrast stretch.")
