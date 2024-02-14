@@ -1004,29 +1004,19 @@ class XRImage:
         else:
             raise TypeError("Stretch parameter must be a string or a tuple.")
 
-    @staticmethod
-    def _compute_quantile(data, dims, cutoffs):
-        """Compute quantile for stretch_linear.
-
-        Dask delayed functions need to be non-internal functions (created
-        inside a function) to be serializable on a multi-process scheduler.
-
-        Quantile requires the data to be loaded since it not supported on
-        dask arrays yet.
-
-        """
-        # numpy doesn't get a 'quantile' function until 1.15
-        # for better backwards compatibility we use xarray's version
-        data_arr = xr.DataArray(data, dims=dims)
-        # delayed will provide us the fully computed xarray with ndarray
-        left, right = data_arr.quantile([cutoffs[0], 1. - cutoffs[1]], dim=['x', 'y'])
-        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
-        return left.data, right.data
-
     def stretch_linear(self, cutoffs=(0.005, 0.005)):
         """Stretch linearly the contrast of the current image.
 
         Use *cutoffs* for left and right trimming.
+
+        If the cutoffs are just a tuple or list of two scalars, all the
+        channels except the alpha channel will be stretched with the cutoffs.
+        If the cutoffs are a sequence of tuples/lists of two scalars then:
+
+        - if there are the same number of tuples/lists as channels, each channel will be stretched with the respective
+          cutoff.
+        - if there is one less tuple/list as channels, the same applies, except for the alpha channel which will
+          not be stretched.
 
         """
         logger.debug("Perform a linear contrast stretch.")
@@ -1047,12 +1037,20 @@ class XRImage:
             cutoff_type = self.data.dtype
 
         data = self.data
-        if 'A' in self.data.coords['bands'].values:
+        nb_bands = len(data.coords["bands"])
+
+        dont_stretch_alpha = ('A' in self.data.coords['bands'].values and
+                              (np.isscalar(cutoffs[0]) or len(cutoffs) == nb_bands - 1))
+
+        if np.isscalar(cutoffs[0]):
+            cutoffs = [cutoffs] * nb_bands
+
+        if dont_stretch_alpha:
             data = self.data.sel(bands=self.data.coords['bands'].values[:-1])
 
         left_data, right_data = self._get_left_and_right_quantiles_without_alpha(data, cutoffs, cutoff_type)
 
-        if 'A' in self.data.coords['bands'].values:
+        if dont_stretch_alpha:
             left_data = np.hstack([left_data, np.array([0])])
             right_data = np.hstack([right_data, np.array([1])])
         left = xr.DataArray(left_data, dims=('bands',),
@@ -1070,6 +1068,33 @@ class XRImage:
                                      shape=(data.sizes['bands'],),
                                      dtype=cutoff_type)
         return left_data, right_data
+
+    @staticmethod
+    def _compute_quantile(data, dims, cutoffs):
+        """Compute quantile for stretch_linear.
+
+        Dask delayed functions need to be non-internal functions (created
+        inside a function) to be serializable on a multi-process scheduler.
+
+        Quantile requires the data to be loaded since it not supported on
+        dask arrays yet.
+
+        """
+        # numpy doesn't get a 'quantile' function until 1.15
+        # for better backwards compatibility we use xarray's version
+        data_arr = xr.DataArray(data, dims=dims)
+        # delayed will provide us the fully computed xarray with ndarray
+        nb_bands = len(data_arr.coords["bands"])
+
+        left = []
+        right = []
+        for i in range(nb_bands):
+            left_i, right_i = data_arr.isel(bands=i).quantile([cutoffs[i][0], 1-cutoffs[i][1]])
+            left.append(left_i)
+            right.append(right_i)
+
+        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
+        return np.array(left), np.array(right)
 
     def crude_stretch(self, min_stretch=None, max_stretch=None):
         """Perform simple linear stretching.
