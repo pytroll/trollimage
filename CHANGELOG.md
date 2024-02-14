@@ -1,3 +1,14 @@
+## Version 1.23.1 (2024/02/14)
+
+### Pull Requests Merged
+
+#### Features added
+
+* [PR 164](https://github.com/pytroll/trollimage/pull/164) - Build wheels with numpy 2
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.23.0 (2024/02/14)
 
 ### Issues Closed
