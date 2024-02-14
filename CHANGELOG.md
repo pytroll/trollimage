@@ -1,3 +1,25 @@
+## Version 1.23.0 (2024/02/14)
+
+### Issues Closed
+
+* [Issue 162](https://github.com/pytroll/trollimage/issues/162) - Versions above 1.21.0 will not produce IR Images ([PR 163](https://github.com/pytroll/trollimage/pull/163) by [@mraspaud](https://github.com/mraspaud))
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 157](https://github.com/pytroll/trollimage/pull/157) - Fix most warnings during tests
+* [PR 149](https://github.com/pytroll/trollimage/pull/149) - Make sure no cast warning is issued when saving
+
+#### Features added
+
+* [PR 163](https://github.com/pytroll/trollimage/pull/163) - Allow linear alpha stretching in certain conditions ([162](https://github.com/pytroll/trollimage/issues/162))
+
+In this release 3 pull requests were closed.
+
+
 ## Version 1.22.2 (2023/11/26)
 
 ### Pull Requests Merged
