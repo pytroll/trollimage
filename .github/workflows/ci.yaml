@@ -43,20 +43,22 @@ jobs:
         if: matrix.experimental == true
         shell: bash -l {0}
         run: |
-          python -m pip install versioneer; \
+          python -m pip install versioneer pkgconfig setuptools-scm; \
+          conda uninstall --force-remove -y numpy pandas scipy xarray; \
           python -m pip install \
           -f https://pypi.anaconda.org/scientific-python-nightly-wheels/simple/ \
           --trusted-host pypi.anaconda.org \
           --no-deps --pre --upgrade \
           numpy \
-          pandas; \
+          pandas \
+          scipy; \
           python -m pip install \
           --no-deps --upgrade --pre --no-build-isolation \
           git+https://github.com/dask/dask \
           git+https://github.com/dask/distributed \
-          git+https://github.com/Unidata/cftime \
-          git+https://github.com/mapbox/rasterio \
+          git+https://github.com/rasterio/rasterio \
           git+https://github.com/pydata/bottleneck \
+          git+https://github.com/zarr-developers/zarr \
           git+https://github.com/pydata/xarray;
           python -m pip install -e . --no-deps --no-build-isolation;
 
