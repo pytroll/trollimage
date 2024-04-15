@@ -1,3 +1,14 @@
+## Version 1.23.2 (2024/04/15)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 168](https://github.com/pytroll/trollimage/pull/168) - Build against numpy 2.0rc1
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.23.1 (2024/02/14)
 
 ### Pull Requests Merged
