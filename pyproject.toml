@@ -1,8 +1,7 @@
 [build-system]
 requires = [
     "wheel",
-    'numpy; python_full_version<"3.12.0rc1"',
-    'numpy>=1.26.0rc1; python_full_version>="3.12.0rc1"',
+    "numpy>=2.0.0rc1,<2.3",
     "setuptools>=42",
     "versioneer",
     "Cython>=3.0.0"

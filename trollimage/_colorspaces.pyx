@@ -18,7 +18,7 @@ np.import_array()
 #     bint npy_isnan(np.float32_t x) nogil
 
 # Function pointer type to allow for generic high-level functions
-ctypedef void (*CONVERT_FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3, floating[:, ::1] out) nogil
+ctypedef void (*CONVERT_FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3, floating[:, ::1] out) noexcept nogil
 
 
 cdef:
