@@ -365,6 +365,42 @@ class Colormap(object):
         cmap.values = values
         return cmap
 
+    def set_alpha_range(self, min_alpha, max_alpha, inplace=True):
+        """Set the colormap alpha channel between two values in linear steps.
+
+        If the input colormap does not have an alpha channel,
+        it will be added to it. If an alpha channel is already existing,
+        the values will be overwritten.
+
+        The min and max values shall be between 0 (completely transparent)
+        and 1 (completely opaque).
+
+        Args:
+            min_alpha (float): Start value of the alpha channel [0-1]
+            max_alpha (float): End value of the alpha channel [0-1]
+            inplace (bool): If True (default), modify the values inplace.
+                If False, return a new Colormap instance.
+
+        """
+
+        if inplace:
+            cmap = self
+        else:
+            cmap = Colormap(
+                values=self.values.copy(),
+                colors=self.colors.copy())
+
+        alpha = np.linspace(min_alpha,
+                            max_alpha,
+                            self.colors.shape[0])
+
+        if cmap.colors.shape[1] == 4:
+            cmap.colors[:, 3] = alpha
+        else:
+            cmap.colors = np.column_stack((cmap.colors, alpha))
+
+        return cmap
+
     def to_rio(self):
         """Convert the colormap to a rasterio colormap.
 
@@ -687,7 +723,7 @@ class Colormap(object):
             # remove the last value because monkeys don't like water sprays
             # on a more serious note, I don't know why we are removing the last
             # value here, but this behaviour was copied from ancient satpy code
-            values = np.arange(squeezed_palette.shape[0]-remove_last)
+            values = np.arange(squeezed_palette.shape[0] - remove_last)
             if remove_last:
                 squeezed_palette = squeezed_palette[:-remove_last, :]
 
