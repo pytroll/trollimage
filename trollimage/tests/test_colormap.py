@@ -30,7 +30,6 @@ import xarray
 
 import pytest
 
-
 COLORS_RGB1 = np.array([
     [0.0, 0.0, 0.0],
     [0.2, 0.2, 0.0],
@@ -339,6 +338,32 @@ class TestColormap:
         _assert_monotonic_values(new_cmap, increasing=not flipped_range)
         _assert_values_changed(cmap, new_cmap, inplace, orig_values)
         _assert_unchanged_colors(cmap, new_cmap, orig_colors)
+
+    @pytest.mark.parametrize(
+        'new_range',
+        [
+            (0.0, 1.0),
+            (1.0, 0.0),
+            (0.2, 0.5),
+            (0.8, 0.3),
+        ])
+    @pytest.mark.parametrize('colors_already_with_alpha', [False, True])
+    @pytest.mark.parametrize('inplace', [False, True])
+    def test_set_alpha_range(self, new_range, inplace, colors_already_with_alpha):
+        """Test 'set_alpha_range' method."""
+        values = np.linspace(0, 1, 11)
+        colors_col_n = 4 if colors_already_with_alpha else 3
+        colors = np.repeat(np.linspace(0, 1, 11)[:, np.newaxis], colors_col_n, 1)
+        orig_values = values.copy()
+
+        cmap = colormap.Colormap(values=values, colors=colors)
+        new_cmap = cmap.set_alpha_range(*new_range, inplace)
+
+        np.testing.assert_equal(new_cmap.colors[0, 3], new_range[0])
+        np.testing.assert_equal(new_cmap.colors[-1, 3], new_range[1])
+
+        _assert_inplace_worked(cmap, new_cmap, inplace)
+        _assert_unchanged_values(cmap, new_cmap, inplace, orig_values)
 
     @pytest.mark.parametrize(
         ("input_cmap_func", "expected_result"),
@@ -690,7 +715,7 @@ def test_cmap_from_sequence_of_colors():
     colors = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]
     cmap = colormap.Colormap.from_sequence_of_colors(colors, color_scale=2)
     np.testing.assert_allclose(cmap.values, [0, 0.33333333, 0.66666667, 1])
-    np.testing.assert_array_equal(cmap.colors*2, colors)
+    np.testing.assert_array_equal(cmap.colors * 2, colors)
 
     vals = [0, 5, 10, 15]
     cmap = colormap.Colormap.from_sequence_of_colors(colors, values=vals, color_scale=2)
@@ -706,7 +731,7 @@ def test_build_colormap_with_int_data_and_without_meanings():
     # test that values are respected even if valid_range is passed
     # see https://github.com/pytroll/satpy/issues/2376
     cmap = colormap.Colormap.from_array_with_metadata(
-            palette, np.uint8, valid_range=[0, 100])
+        palette, np.uint8, valid_range=[0, 100])
 
     np.testing.assert_array_equal(cmap.values, [0, 1])
 
@@ -716,23 +741,23 @@ def test_build_colormap_with_float_data():
     palette = np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]])
 
     with pytest.raises(AttributeError):
-        colormap.Colormap.from_array_with_metadata(palette/100, np.float32)
+        colormap.Colormap.from_array_with_metadata(palette / 100, np.float32)
 
     cmap = colormap.Colormap.from_array_with_metadata(
-            palette,
-            np.float32,
-            valid_range=[0, 100],
-            scale_factor=2,
-            remove_last=True)
+        palette,
+        np.float32,
+        valid_range=[0, 100],
+        scale_factor=2,
+        remove_last=True)
 
     np.testing.assert_array_equal(cmap.values, [0, 200])
 
     cmap = colormap.Colormap.from_array_with_metadata(
-            palette,
-            np.float32,
-            valid_range=[0, 100],
-            scale_factor=2,
-            remove_last=False)
+        palette,
+        np.float32,
+        valid_range=[0, 100],
+        scale_factor=2,
+        remove_last=False)
 
     np.testing.assert_array_equal(cmap.values, [0, 100, 200])
 
