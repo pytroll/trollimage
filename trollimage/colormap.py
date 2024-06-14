@@ -382,7 +382,6 @@ class Colormap(object):
                 If False, return a new Colormap instance.
 
         """
-
         if inplace:
             cmap = self
         else:
