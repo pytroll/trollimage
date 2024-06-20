@@ -673,6 +673,9 @@ class XRImage:
         """
         attrs = data.attrs.copy()
         if np.issubdtype(dtype, np.integer):
+            if np.issubdtype(data, np.bool_):
+                # convert boolean masks to floats so they can be scaled to the output integer dtype
+                data = data.astype(np.float64)
             if np.issubdtype(data, np.integer):
                 # preserve integer data type
                 data = data.clip(np.iinfo(dtype).min, np.iinfo(dtype).max)
@@ -1109,6 +1112,10 @@ class XRImage:
 
         attrs = self.data.attrs
         offset = -min_stretch * scale_factor
+        try:
+            offset = offset.astype(scale_factor.dtype)
+        except AttributeError:
+            offset = scale_factor.dtype.type(offset)
 
         self.data = np.multiply(self.data, scale_factor, dtype=scale_factor.dtype) + offset
         self.data.attrs = attrs
@@ -1225,7 +1232,7 @@ class XRImage:
         log_func = np.log if base == "e" else getattr(np, "log" + base)
         min_stretch, max_stretch = self._convert_log_minmax_stretch(min_stretch, max_stretch)
 
-        b__ = float(crange[1] - crange[0]) / log_func(factor)
+        b__ = float(crange[1] - crange[0]) / self.data.dtype.type(log_func(factor))
         c__ = float(crange[0])
 
         def _band_log(arr, min_input, max_input):

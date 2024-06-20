@@ -20,6 +20,8 @@ xfail_strict = true
 filterwarnings = [
     "error",
     "ignore::rasterio.errors.NotGeoreferencedWarning",
+    # remove when fixed by xarray
+    "ignore:__array_wrap__ must accept context and return_scalar arguments:DeprecationWarning:numpy",
     # dateutil needs a new release
     # https://github.com/dateutil/dateutil/issues/1314
     'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated and scheduled for removal:DeprecationWarning:dateutil',
