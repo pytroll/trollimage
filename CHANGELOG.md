@@ -1,3 +1,19 @@
+## Version 1.24.0 (2024/06/20)
+
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 171](https://github.com/pytroll/trollimage/pull/171) - Fix various numpy 2 and new xarray casting issues
+
+#### Features added
+
+* [PR 170](https://github.com/pytroll/trollimage/pull/170) - Implement set_alpha_channel in Colorbar
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.23.2 (2024/04/15)
 
 ### Pull Requests Merged
