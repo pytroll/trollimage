@@ -37,7 +37,7 @@ jobs:
           - os: windows-2019
             cibw_archs: "AMD64 ARM64"
             artifact_name: "win"
-          - os: macos-11
+          - os: macos-12
             cibw_archs: "x86_64 arm64"
             artifact_name: "mac"
           - os: "ubuntu-20.04"
@@ -59,7 +59,7 @@ jobs:
           platforms: all
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.18.1
+        uses: pypa/cibuildwheel@v2.19.1
         env:
           CIBW_SKIP: "cp36-* cp37-* cp38-* pp* *-manylinux_i686 *-musllinux_i686 *-musllinux_aarch64 *-win32"
           CIBW_ARCHS: "${{ matrix.cibw_archs }}"
