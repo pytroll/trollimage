@@ -179,11 +179,11 @@ def _palettize(arr, values):
 def _digitize_array(arr, values):
     if values[0] <= values[-1]:
         # monotonic increasing values
-        outside_range_bin = max(np.nanmax(arr), values.max()) + 1
+        outside_range_bin = max(np.nanmax(arr), values.max()) + np.int64(1)
         right = False
     else:
         # monotonic decreasing values
-        outside_range_bin = min(np.nanmin(arr), values.min()) - 1
+        outside_range_bin = min(np.nanmin(arr), values.min()) - np.int64(1)
         right = True
     bins = np.concatenate((values, [outside_range_bin]))
 
