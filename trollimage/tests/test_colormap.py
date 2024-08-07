@@ -414,6 +414,15 @@ class TestColormap:
                                                         [0, 1, 2, 3]])
         assert channels.dtype == int
 
+    def test_palettize_edge_of_dtype_range(self):
+        """Test palettize when bins span the entire dtype range."""
+        from trollimage.colormap import palettize
+
+        arr = np.linspace(0, 255, 100, dtype=np.uint8).reshape(10, 10)
+        colors = np.linspace(0, 255, 768).reshape(256, 3)
+        values = np.arange(0, 256, dtype=np.uint8)
+        palettize(arr, colors, values)
+
     @pytest.mark.parametrize(
         ("input_cmap_func", "expected_result"),
         [
