@@ -2676,6 +2676,15 @@ class TestXRImageSaveScaleOffset:
             expected_tags,
             scale_offset_tags=("gradient", "axis_intercept"))
 
+    @pytest.mark.skipif(sys.platform.startswith('win'), reason="'NamedTemporaryFile' not supported on Windows")
+    def test_save_scale_offset_custom_values(self):
+        """Test saving GeoTIFF overriding the scale/offset values."""
+        expected_tags = {"gradient": 1, "axis_intercept": 0}
+        self.img.stretch()
+        self._save_and_check_tags(
+            expected_tags,
+            scale_offset_tags={"gradient": 1, "axis_intercept": 0})
+
 
 def _get_tags_after_writing_to_geotiff(data):
     import rasterio as rio
