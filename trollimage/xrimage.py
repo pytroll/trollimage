@@ -305,7 +305,7 @@ class XRImage:
                 provided. Common values include `nearest` (default),
                 `bilinear`, `average`, and many others. See the rasterio
                 documentation for more information.
-            scale_offset_tags (Tuple[str, str] or None):
+            scale_offset_tags (Tuple[str, str] or Dict[str, number] or None):
                 If set to a ``(str, str)`` tuple, scale and offset will be
                 stored in GDALMetaData tags.  Those can then be used to
                 retrieve the original data values from pixel values.
@@ -314,7 +314,9 @@ class XRImage:
                 represented by a simple scale and offset. Scale and offset
                 are also saved as (NaN, NaN) for multi-band images (ex. RGB)
                 as storing multiple values in a single GDALMetaData tag is not
-                currently supported.
+                currently supported.  If set to a dictionary, automatically
+                determined scale/offset values are overruled by the values
+                provided in the keys.
             colormap_tag (str or None):
                 If set and the image was colorized or palettized, a tag will
                 be added with this name with the value of a comma-separated
@@ -471,7 +473,11 @@ class XRImage:
 
     def _add_scale_offset_to_tags(self, scale_offset_tags, data_arr, tags):
         scale_label, offset_label = scale_offset_tags
-        scale, offset = self.get_scaling_from_history(data_arr.attrs.get('enhancement_history', []))
+        try:
+            scale = scale_offset_tags[scale_label]
+            offset = scale_offset_tags[offset_label]
+        except TypeError:
+            scale, offset = self.get_scaling_from_history(data_arr.attrs.get('enhancement_history', []))
         tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
     def get_scaling_from_history(self, history=None):
