@@ -1,3 +1,24 @@
+## Version 1.25.0 (2024/08/15)
+
+### Issues Closed
+
+* [Issue 175](https://github.com/pytroll/trollimage/issues/175) - palettize fails in numpy2 ([PR 176](https://github.com/pytroll/trollimage/pull/176) by [@gerritholl](https://github.com/gerritholl))
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 176](https://github.com/pytroll/trollimage/pull/176) - Make palettize work on numpy 2.0. ([175](https://github.com/pytroll/trollimage/issues/175))
+
+#### Features added
+
+* [PR 177](https://github.com/pytroll/trollimage/pull/177) - Allow overriding scale and offset values ([2869](https://github.com/pytroll/satpy/issues/2869))
+
+In this release 2 pull requests were closed.
+
+
 ## Version 1.24.0 (2024/06/20)
 
 
