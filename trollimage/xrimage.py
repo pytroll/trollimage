@@ -1483,6 +1483,7 @@ class XRImage:
 
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
+        self.data.attrs["_FillValue"] = colormap.values.shape[0]-1
         # See docstring notes above for how scale/offset should be used
         scale_factor, offset = self._get_colormap_scale_offset(colormap)
         self.data.attrs.setdefault('enhancement_history', []).append({
