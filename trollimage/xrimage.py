@@ -1428,6 +1428,9 @@ class XRImage:
         To (directly) get an image in mode "RGB" or "RGBA", use
         :meth:`~XRImage.colorize`.
 
+        Invalid data (NaN) are sorted into the final bin and the ``_FillValue``
+        attributed for the resulting image is set to the corresponding value.
+
         Args:
             colormap (:class:`~trollimage.colormap.Colormap`):
                 Colormap to be applied to the image.

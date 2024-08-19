@@ -2602,7 +2602,6 @@ class TestXRImagePalettize:
 
     def test_palettize_fill_value(self):
         """Test that fill values are adapted."""
-
         arr = np.arange(25, dtype="float32").reshape(5, 5)/25
         arr[2, 2] = np.nan
         data = xr.DataArray(arr.copy(), dims=['y', 'x'], attrs={"_FillValue": np.nan})
