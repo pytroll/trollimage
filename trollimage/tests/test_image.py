@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Copyright (c) 2009-2021 trollimage developers
+# Copyright (c) 2009-2024 trollimage developers
 #
 # This file is part of trollimage.
 #
@@ -1383,6 +1381,25 @@ class TestXRImage:
             with pytest.raises(ValueError):
                 img.save(tmp.name, keep_palette=True, cmap=t_cmap,
                          dtype='uint16')
+
+    def test_save_geotiff_with_cmap_and_fill_value(self, tmp_path):
+        """Test saving GeoTIFF with colormap and fill value."""
+        import rasterio
+        test_file = tmp_path / "test.tif"
+        fv = np.uint8(42)
+        arr = np.ones((1, 5, 5), dtype="uint8")
+        arr[0, 2, 2] = 255
+        data = xr.DataArray(
+                arr,
+                dims=["bands", 'y', 'x'],
+                attrs={"_FillValue": 255},
+                coords={"bands": ["P"]})
+        img = xrimage.XRImage(data)
+        img.save(test_file, keep_palette=True, cmap=brbg,
+                 fill_value=fv)
+        with rasterio.open(test_file) as f:
+            cont = f.read()
+            assert cont[0, 2, 2] == fv
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
