@@ -1,13 +1,11 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# Copyright (c) 2017-2024 trollimage developers
 #
-# Copyright (c) 2017-2018
+# This file is part of trollimage.
 #
-# Author(s):
-#
-#   Martin Raspaud <martin.raspaud@smhi.se>
-#   Adam Dybbroe <adam.dybbroe@smhi.se>
-#   Esben S. Nielsen <esn@dmi.dk>
+# trollimage is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -830,20 +828,25 @@ class XRImage:
             return data.attrs.get('_FillValue')
         return None
 
-    def _scale_and_replace_fill_value(self, data, input_fill_value, fill_value, dtype):
+    def _scale_and_replace_fill_value(self, data, input_fill_value, fill_value,
+                                      dtype, scale, replace_fill_value):
         # scale float data to the proper dtype
         # this method doesn't cast yet so that we can keep track of NULL values
-        data = self._scale_to_dtype(data, dtype, fill_value)
-        data = self._replace_fill_value(data, input_fill_value, fill_value, dtype)
+        if scale:
+            data = self._scale_to_dtype(data, dtype, fill_value)
+        if replace_fill_value:
+            data = self._replace_fill_value(data, input_fill_value, fill_value, dtype)
         return data
 
-    def _scale_alpha_or_fill_data(self, data, fill_value, dtype):
+    def _scale_alpha_or_fill_data(self, data, fill_value, dtype, scale, alpha, replace_fill_value):
         input_fill_value = self._get_input_fill_value(data)
-        needs_alpha = fill_value is None and not self.mode.endswith('A')
+        needs_alpha = alpha and fill_value is None and not self.mode.endswith('A')
         if needs_alpha:
             # We don't have a fill value or an alpha, let's add an alpha
             return self._add_alpha_and_scale(data, input_fill_value, dtype)
-        return self._scale_and_replace_fill_value(data, input_fill_value, fill_value, dtype)
+        return self._scale_and_replace_fill_value(data, input_fill_value,
+                                                  fill_value, dtype, scale,
+                                                  replace_fill_value)
 
     def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False):
         """Finalize the image to be written to an output file.
@@ -908,8 +911,11 @@ class XRImage:
             pass
         with xr.set_options(keep_attrs=True):
             attrs = final_data.attrs
-            if not keep_palette:
-                final_data = self._scale_alpha_or_fill_data(final_data, fill_value, dtype)
+            final_data = self._scale_alpha_or_fill_data(
+                    final_data, fill_value, dtype,
+                    scale=not keep_palette,
+                    alpha=not keep_palette,
+                    replace_fill_value=True)
             final_data = final_data.astype(dtype)
             final_data.attrs = attrs
 
