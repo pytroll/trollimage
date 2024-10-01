@@ -63,6 +63,7 @@ jobs:
       - name: Install trollimage
         shell: bash -l {0}
         run: |
+          conda list
           pip install --no-deps -e .
           # pip forces non-wheel builds if we provide --cython-coverage as a --build-option
           # and that's way too slow
