@@ -1595,8 +1595,8 @@ class TestXRImage:
         np.testing.assert_allclose(img.data.values, arr.astype(np.float32) / max_stretch, rtol=1e-6)
 
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
-    def test_invert(self, dtype):
-        """Check inversion of the image."""
+    def test_invert_single_parameter(self, dtype):
+        """Check inversion of the image for single inversion parameter."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1605,10 +1605,13 @@ class TestXRImage:
         img.invert(True)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'scale': -1, 'offset': 1}
-        assert img.data.dtype == dtype
         assert np.allclose(img.data.values, 1 - arr)
 
-        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_invert_parameter_for_each_channel(self, dtype):
+        """Check inversion of the image for single inversion parameter."""
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
 
@@ -1618,6 +1621,7 @@ class TestXRImage:
         scale = xr.DataArray(np.array([-1, 1, -1]), dims=['bands'],
                              coords={'bands': ['R', 'G', 'B']})
         np.testing.assert_allclose(img.data.values, (data * scale + offset).values)
+        assert img.data.dtype == dtype
 
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     def test_linear_stretch(self, dtype):
