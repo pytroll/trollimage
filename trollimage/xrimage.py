@@ -1132,7 +1132,6 @@ class XRImage:
         if val is None:
             non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
             val = getattr(self.data, kind)(dim=non_band_dims)
-
         if isinstance(val, (list, tuple)):
             val = self.xrify_tuples(val)
 
@@ -1302,7 +1301,7 @@ class XRImage:
         logger.debug("Applying invert with parameters %s", str(invert))
         if isinstance(invert, (tuple, list)):
             invert = self.xrify_tuples(invert)
-            offset = invert.astype(int)
+            offset = invert.astype(self.data.dtype)
             scale = (-1) ** offset
         elif invert:
             offset = 1
