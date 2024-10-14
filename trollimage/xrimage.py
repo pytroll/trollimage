@@ -1301,7 +1301,7 @@ class XRImage:
         logger.debug("Applying invert with parameters %s", str(invert))
         if isinstance(invert, (tuple, list)):
             invert = self.xrify_tuples(invert)
-            offset = invert.astype(np.int8)
+            offset = invert.astype(self.data.dtype)
             scale = (-1) ** offset
         elif invert:
             offset = 1
