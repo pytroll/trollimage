@@ -1605,6 +1605,7 @@ class TestXRImage:
         img.invert(True)
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'scale': -1, 'offset': 1}
+        assert img.data.dtype == dtype
         assert np.allclose(img.data.values, 1 - arr)
 
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
