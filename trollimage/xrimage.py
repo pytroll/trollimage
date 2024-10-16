@@ -1512,12 +1512,12 @@ class XRImage:
         if ((np.issubdtype(old_dtype, np.inexact) and
              math.isnan(self.data.attrs.get("_FillValue", np.nan))) or
             (np.issubdtype(old_dtype, np.integer) and
-             self.data.attrs.get("_FillValue", np.iinfo(old_dtype).max) == np.iinfo(old_dtype.max))):
+             self.data.attrs.get("_FillValue", np.iinfo(old_dtype).max) == np.iinfo(old_dtype).max)):
             self.data.attrs["_FillValue"] = colormap.values.shape[0]-1
         # not OK: float or int with different fill value
         elif "_FillValue" in self.data.attrs:
             warnings.warn(
-                f"Palettizing {old_dtype.name:s} data with fill value set to, "
+                f"Palettizing {old_dtype.name:s} data with fill value set to "
                 f"{self.data.attrs['_FillValue']!s}, "
                  "but palettize is not generally fill value aware (masked data "
                  "will be correctly palettized only for float with NaN or for "

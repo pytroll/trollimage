@@ -2609,6 +2609,15 @@ class TestXRImagePalettize:
         img.palettize(brbg)
         assert img.data[0, 2, 2] == img.data.attrs["_FillValue"]
 
+    def test_palettize_bad_fill_value(self):
+        """Test that palettize warns with a strange fill value."""
+        arr = np.arange(25, dtype="uint8").reshape(5, 5)
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'], attrs={"_FillValue": 10})
+        img = xrimage.XRImage(data)
+        with pytest.warns(UserWarning,
+                          match="Palettizing uint8 data with fill value set to 10, "
+                                "but palettize is not generally fill value aware"):
+            img.palettize(brbg)
 
 class TestXRImageSaveScaleOffset:
     """Test case for saving an image with scale and offset tags."""
