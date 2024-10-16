@@ -33,7 +33,6 @@ chunks can be saved in parallel.
 """
 
 import logging
-import math
 import numbers
 import os
 import warnings
@@ -1510,7 +1509,7 @@ class XRImage:
         # OK: float without fill value or fill value nan
         # OK: int without fill value or fill value to max value
         if ((np.issubdtype(old_dtype, np.inexact) and
-             math.isnan(self.data.attrs.get("_FillValue", np.nan))) or
+             np.isnan(self.data.attrs.get("_FillValue", np.nan))) or
             (np.issubdtype(old_dtype, np.integer) and
              self.data.attrs.get("_FillValue", np.iinfo(old_dtype).max) == np.iinfo(old_dtype).max)):
             self.data.attrs["_FillValue"] = colormap.values.shape[0]-1
