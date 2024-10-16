@@ -1523,7 +1523,7 @@ class XRImage:
                 "will be correctly palettized only for float with NaN or for "
                 "ints with fill value set to dtype max.",
                 UserWarning,
-                stacklevel=2)
+                stacklevel=3)
         # else: non-numeric data, probably doesn't work at all and will fail
         # elsewhere anyway
 
