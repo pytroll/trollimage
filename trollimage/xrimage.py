@@ -1517,7 +1517,7 @@ class XRImage:
         # not OK: float or int with different fill value
         elif "_FillValue" in self.data.attrs:
             warnings.warn(
-                f"Palettizing {old_dtype.name:s} data with fill value set to "
+                f"Palettizing {old_dtype.name:s} data with the _FillValue attribute set to "
                 f"{self.data.attrs['_FillValue']!s}, "
                  "but palettize is not generally fill value aware (masked data "
                  "will be correctly palettized only for float with NaN or for "

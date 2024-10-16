@@ -2615,7 +2615,7 @@ class TestXRImagePalettize:
         data = xr.DataArray(arr.copy(), dims=['y', 'x'], attrs={"_FillValue": 10})
         img = xrimage.XRImage(data)
         with pytest.warns(UserWarning,
-                          match="Palettizing uint8 data with fill value set to 10, "
+                          match="Palettizing uint8 data with the _FillValue attribute set to 10, "
                                 "but palettize is not generally fill value aware"):
             img.palettize(brbg)
 
