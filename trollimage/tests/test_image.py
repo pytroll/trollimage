@@ -2619,6 +2619,7 @@ class TestXRImagePalettize:
                                 "but palettize is not generally fill value aware"):
             img.palettize(brbg)
 
+
 class TestXRImageSaveScaleOffset:
     """Test case for saving an image with scale and offset tags."""
 

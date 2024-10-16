@@ -1519,10 +1519,11 @@ class XRImage:
             warnings.warn(
                 f"Palettizing {old_dtype.name:s} data with the _FillValue attribute set to "
                 f"{self.data.attrs['_FillValue']!s}, "
-                 "but palettize is not generally fill value aware (masked data "
-                 "will be correctly palettized only for float with NaN or for "
-                 "ints with fill value set to dtype max.",
-                  UserWarning)
+                "but palettize is not generally fill value aware (masked data "
+                "will be correctly palettized only for float with NaN or for "
+                "ints with fill value set to dtype max.",
+                UserWarning,
+                stacklevel=2)
         # else: non-numeric data, probably doesn't work at all and will fail
         # elsewhere anyway
 
