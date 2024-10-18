@@ -1427,6 +1427,9 @@ class XRImage:
         To (directly) get an image in mode "RGB" or "RGBA", use
         :meth:`~XRImage.colorize`.
 
+        Invalid data (NaN) are sorted into the final bin and the ``_FillValue``
+        attributed for the resulting image is set to the corresponding value.
+
         Args:
             colormap (:class:`~trollimage.colormap.Colormap`):
                 Colormap to be applied to the image.
@@ -1480,8 +1483,10 @@ class XRImage:
             mode = "PA"
             new_data = da.concatenate([new_data, self.data.sel(bands=['A'])], axis=0)
 
+        old_dtype = self.data.dtype
         self.data.data = new_data
         self.data.coords['bands'] = list(mode)
+        self._set_new_fill_value_after_palettize(colormap, old_dtype)
         # See docstring notes above for how scale/offset should be used
         scale_factor, offset = self._get_colormap_scale_offset(colormap)
         self.data.attrs.setdefault('enhancement_history', []).append({
@@ -1497,6 +1502,28 @@ class XRImage:
         scale_factor = 1.0 / (cmap_max - cmap_min)
         offset = -cmap_min * scale_factor
         return scale_factor, offset
+
+    def _set_new_fill_value_after_palettize(self, colormap, old_dtype):
+        """Set new fill value after palettizing."""
+        # OK: float without fill value or fill value nan
+        # OK: int without fill value or fill value to max value
+        if ((np.issubdtype(old_dtype, np.inexact) and
+             np.isnan(self.data.attrs.get("_FillValue", np.nan))) or
+            (np.issubdtype(old_dtype, np.integer) and
+             self.data.attrs.get("_FillValue", np.iinfo(old_dtype).max) == np.iinfo(old_dtype).max)):
+            self.data.attrs["_FillValue"] = colormap.values.shape[0]-1
+        # not OK: float or int with different fill value
+        elif "_FillValue" in self.data.attrs:
+            warnings.warn(
+                f"Palettizing {old_dtype.name:s} data with the _FillValue attribute set to "
+                f"{self.data.attrs['_FillValue']!s}, "
+                "but palettize is not generally fill value aware (masked data "
+                "will be correctly palettized only for float with NaN or for "
+                "ints with fill value set to dtype max.",
+                UserWarning,
+                stacklevel=3)
+        # else: non-numeric data, probably doesn't work at all and will fail
+        # elsewhere anyway
 
     def blend(self, src):
         r"""Alpha blend *src* on top of the current image.
