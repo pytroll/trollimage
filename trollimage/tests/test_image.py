@@ -1612,8 +1612,8 @@ class TestXRImage:
         np.testing.assert_allclose(img.data.values, arr.astype(np.float32) / max_stretch, rtol=1e-6)
 
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
-    def test_invert(self, dtype):
-        """Check inversion of the image."""
+    def test_invert_single_parameter(self, dtype):
+        """Check inversion of the image for single inversion parameter."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
@@ -1625,7 +1625,11 @@ class TestXRImage:
         assert img.data.dtype == dtype
         assert np.allclose(img.data.values, 1 - arr)
 
-        data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_invert_parameter_for_each_channel(self, dtype):
+        """Check inversion of the image for single inversion parameter."""
+        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
+        data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
 
@@ -1635,6 +1639,7 @@ class TestXRImage:
         scale = xr.DataArray(np.array([-1, 1, -1]), dims=['bands'],
                              coords={'bands': ['R', 'G', 'B']})
         np.testing.assert_allclose(img.data.values, (data * scale + offset).values)
+        assert img.data.dtype == dtype
 
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     def test_linear_stretch(self, dtype):
@@ -2625,6 +2630,16 @@ class TestXRImagePalettize:
         img = xrimage.XRImage(data)
         img.palettize(brbg)
         assert img.data[0, 2, 2] == img.data.attrs["_FillValue"]
+
+    def test_palettize_bad_fill_value(self):
+        """Test that palettize warns with a strange fill value."""
+        arr = np.arange(25, dtype="uint8").reshape(5, 5)
+        data = xr.DataArray(arr.copy(), dims=['y', 'x'], attrs={"_FillValue": 10})
+        img = xrimage.XRImage(data)
+        with pytest.warns(UserWarning,
+                          match="Palettizing uint8 data with the _FillValue attribute set to 10, "
+                                "but palettize is not generally fill value aware"):
+            img.palettize(brbg)
 
 
 class TestXRImageSaveScaleOffset:

@@ -30,9 +30,7 @@ jobs:
       - name: Setup Conda Environment
         uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-variant: Mambaforge
           miniforge-version: latest
-          use-mamba: true
           python-version: ${{ matrix.python-version }}
           activate-environment: test-environment
           channels: conda-forge
@@ -65,6 +63,7 @@ jobs:
       - name: Install trollimage
         shell: bash -l {0}
         run: |
+          conda list
           pip install --no-deps -e .
           # pip forces non-wheel builds if we provide --cython-coverage as a --build-option
           # and that's way too slow
