@@ -1,3 +1,28 @@
+###############################################################################
+## Version 1.26.0 (2024/10/21)
+
+### Issues Closed
+
+* [Issue 180](https://github.com/pytroll/trollimage/issues/180) - fill value not respected when saving palette images while keeping palette ([PR 181](https://github.com/pytroll/trollimage/pull/181) by [@gerritholl](https://github.com/gerritholl))
+* [Issue 178](https://github.com/pytroll/trollimage/issues/178) - XRImage.palettize results in image with fill value inconsistent with dtype ([PR 179](https://github.com/pytroll/trollimage/pull/179) by [@gerritholl](https://github.com/gerritholl))
+
+In this release 2 issues were closed.
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 186](https://github.com/pytroll/trollimage/pull/186) - Fix dtype promotion in channel inversion
+* [PR 179](https://github.com/pytroll/trollimage/pull/179) - Adapt fill value after palettizing. ([178](https://github.com/pytroll/trollimage/issues/178))
+
+#### Features added
+
+* [PR 181](https://github.com/pytroll/trollimage/pull/181) - Respect fill value when saving palette images while keeping the palette. ([180](https://github.com/pytroll/trollimage/issues/180))
+
+In this release 3 pull requests were closed.
+
+###############################################################################
+
 ## Version 1.25.0 (2024/08/15)
 
 ### Issues Closed
