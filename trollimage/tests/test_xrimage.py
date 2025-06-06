@@ -2054,11 +2054,15 @@ def _get_tags_after_writing_to_geotiff(data):
             return f.tags()
 
 
-def test_missing_bands_coord():
+@pytest.mark.parametrize("attrs", [{}, {"mode": "XYZ"}])
+def test_missing_bands_coord(attrs):
     """Test that 'bands' dimenisons need a corresponding coordinate."""
     data = xr.DataArray(
         da.zeros((3, 10, 5), dtype=np.float32),
-        dims=("bands", "y", "x"))
+        dims=("bands", "y", "x"),
+        attrs=attrs,
+    )
     with pytest.warns(UserWarning, match="Missing 'bands' coordinate.*"):
         img = xrimage.XRImage(data)
-    np.testing.assert_array_equal(img.data.coords["bands"], ["R", "G", "B"])
+    exp_bands = ["R", "G", "B"] if not attrs else ["X", "Y", "Z"]
+    np.testing.assert_array_equal(img.data.coords["bands"], exp_bands)
