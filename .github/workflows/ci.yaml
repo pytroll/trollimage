@@ -35,6 +35,7 @@ jobs:
           activate-environment: test-environment
           channels: conda-forge
           channel-priority: strict
+          conda-remove-defaults: "true"
           environment-file: continuous_integration/environment.yaml
 
       - name: Install unstable dependencies
@@ -78,7 +79,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           flags: unittests
-          file: ./coverage.xml
+          files: ./coverage.xml
           env_vars: OS,PYTHON_VERSION,UNSTABLE
 
       - name: Coveralls Parallel

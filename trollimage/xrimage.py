@@ -151,6 +151,17 @@ class XRImage:
                 data['bands'] = ['L']
             else:
                 raise ValueError("No 'bands' dimension provided.")
+        elif "bands" not in data.coords or not np.issubdtype(data.coords["bands"].dtype, str):
+            bands_by_size = {1: "L", 3: "RGB", 4: "RGBA"}
+            if "mode" in data.attrs:
+                mode = data.attrs["mode"]
+                mode_method = "'mode' attribute"
+            else:
+                mode = bands_by_size[data.sizes["bands"]]
+                mode_method = "dimension size"
+            warnings.warn(f"Missing 'bands' coordinate. Assigning bands based on {mode_method}: {mode}",
+                          stacklevel=3)
+            data.coords["bands"] = list(mode)
 
         # doesn't actually copy the data underneath
         # we don't want our operations to change the user's data
