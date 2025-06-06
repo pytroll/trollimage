@@ -2052,3 +2052,13 @@ def _get_tags_after_writing_to_geotiff(data):
         img.save(tmp.name)
         with rio.open(tmp.name) as f:
             return f.tags()
+
+
+def test_missing_bands_coord():
+    """Test that 'bands' dimenisons need a corresponding coordinate."""
+    data = xr.DataArray(
+        da.zeros((3, 10, 5), dtype=np.float32),
+        dims=("bands", "y", "x"))
+    with pytest.warns(UserWarning, match="Missing 'bands' coordinate.*"):
+        img = xrimage.XRImage(data)
+    np.testing.assert_array_equal(img.data.coords["bands"], ["R", "G", "B"])
