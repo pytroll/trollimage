@@ -113,7 +113,7 @@ setup(name="trollimage",
       extras_require={
           'geotiff': ['rasterio>=1.0'],
           'xarray': ['xarray', 'dask[array]'],
+          'tests': ['xarray', 'dask[array]', 'pyproj', 'pyresample', 'pytest'],
       },
-      tests_require=['xarray', 'dask[array]', 'pyproj', 'pyresample'],
       ext_modules=EXTENSIONS,
       )
