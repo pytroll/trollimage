@@ -975,6 +975,38 @@ class TestXRImage:
         np.testing.assert_allclose(img.data.values, (data * scale + offset).values)
         assert img.data.dtype == dtype
 
+    @pytest.mark.parametrize("with_bands", (False, True))
+    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    def test_linear_stretch_single_band(self, with_bands, dtype):
+        """Test linear stretching with cutoffs for single band data."""
+        new_shape = (5, 5)
+        kwargs = {"dims": ("y", "x")}
+        if with_bands:
+            kwargs["dims"] += ("bands",)
+            kwargs["coords"] = {"bands": ["L"]}
+            new_shape += (1,)
+        arr = np.arange(25, dtype=dtype).reshape(*new_shape) / 74.
+        data = xr.DataArray(arr.copy(), **kwargs)
+        img = xrimage.XRImage(data)
+        with assert_maximum_dask_computes(0):
+            img.stretch_linear()
+        assert img.data.dtype == dtype
+        enhs = img.data.attrs['enhancement_history'][0]
+        np.testing.assert_allclose(enhs['scale'].values, np.array([3.114479], dtype=dtype), atol=1e-6)
+        np.testing.assert_allclose(enhs['offset'].values, np.array([-0.00505051], dtype=dtype), atol=1e-8)
+        res = np.array([[
+            [-0.005051, 0.037037, 0.079125,  0.121212,  0.1633],
+            [0.205387, 0.247475, 0.289562, 0.33165, 0.373737],
+            [0.415825, 0.457913, 0.5, 0.542088, 0.584175],
+            [0.6262627, 0.66835034, 0.71043783, 0.7525254, 0.79461294],
+            [0.83670044, 0.87878805, 0.9208756, 0.9629631, 1.0050505],
+        ]], dtype=dtype)
+        if with_bands:
+            # switch from (1, 5, 5) to (5, 5, 1)
+            res = res.reshape(new_shape)
+
+        np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
+
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     def test_linear_stretch(self, dtype):
         """Test linear stretching with cutoffs."""
@@ -982,7 +1014,8 @@ class TestXRImage:
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        img.stretch_linear()
+        with assert_maximum_dask_computes(0):
+            img.stretch_linear()
         assert img.data.dtype == dtype
         enhs = img.data.attrs['enhancement_history'][0]
         np.testing.assert_allclose(enhs['scale'].values, np.array([1.03815937, 1.03815937, 1.03815937]))
@@ -1023,7 +1056,8 @@ class TestXRImage:
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B', 'A']})
         img = xrimage.XRImage(data)
-        img.stretch_linear((0.005, 0.005))
+        with assert_maximum_dask_computes(0):
+            img.stretch_linear((0.005, 0.005))
         assert img.data.dtype == dtype
         res = np.array([[[-0.005051, -0.005051, -0.005051, 1.],
                          [0.037037, 0.037037, 0.037037, 1.],
@@ -1061,7 +1095,8 @@ class TestXRImage:
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B', 'A']})
         img = xrimage.XRImage(data)
-        img.stretch_linear([(0.005, 0.005), (0.005, 0.005), (0.005, 0.005)])
+        with assert_maximum_dask_computes(0):
+            img.stretch_linear([(0.005, 0.005), (0.005, 0.005), (0.005, 0.005)])
         assert img.data.dtype == dtype
         res = np.array([[[-0.005051, -0.005051, -0.005051, 1.],
                          [0.037037, 0.037037, 0.037037, 1.],
@@ -1098,7 +1133,8 @@ class TestXRImage:
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B', 'A']})
         img = xrimage.XRImage(data)
-        img.stretch_linear([(0.005, 0.005), (0.005, 0.005), (0.005, 0.005), (0.005, 0.005)])
+        with assert_maximum_dask_computes(0):
+            img.stretch_linear([(0.005, 0.005), (0.005, 0.005), (0.005, 0.005), (0.005, 0.005)])
         assert img.data.dtype == dtype
         res = np.array([[[-0.005051, -0.005051, -0.005051, -0.005051],
                          [0.037037, 0.037037, 0.037037, 0.037037],
@@ -1143,7 +1179,8 @@ class TestXRImage:
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        img.stretch_linear()
+        with assert_maximum_dask_computes(0):
+            img.stretch_linear()
         assert img.data.values.min() == pytest.approx(exp_min)
         assert img.data.values.max() == pytest.approx(exp_max)
 
