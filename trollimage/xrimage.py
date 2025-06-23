@@ -24,11 +24,13 @@ evaluated. With the optional ``rasterio`` library installed dask array
 chunks can be saved in parallel.
 
 """
+from __future__ import annotations
 
 import logging
 import numbers
 import os
 import warnings
+from collections.abc import Sequence
 
 import dask
 import dask.array as da
@@ -1050,13 +1052,6 @@ class XRImage:
         logger.debug("Calculate the histogram quantiles: ")
         logger.debug("Left and right quantiles: " +
                      str(cutoffs[0]) + " " + str(cutoffs[1]))
-        cutoff_type = np.float64
-        # numpy percentile (which quantile calls) returns 64-bit floats
-        # unless the value is a higher order float
-        if np.issubdtype(self.data.dtype, np.floating) and \
-                np.dtype(self.data.dtype).itemsize > 8:
-            cutoff_type = self.data.dtype
-
         data = self.data
         nb_bands = len(data.coords["bands"])
 
@@ -1069,53 +1064,29 @@ class XRImage:
         if dont_stretch_alpha:
             data = self.data.sel(bands=self.data.coords['bands'].values[:-1])
 
-        left_data, right_data = self._get_left_and_right_quantiles_without_alpha(data, cutoffs, cutoff_type)
+        left_data, right_data = self._get_left_and_right_quantiles_without_alpha(data, cutoffs)
 
         if dont_stretch_alpha:
-            left_data = np.hstack([left_data, np.array([0])])
-            right_data = np.hstack([right_data, np.array([1])])
-        left = xr.DataArray(left_data, dims=('bands',),
+            left_data = left_data + [da.zeros_like(left_data[0])]
+            right_data = right_data + [da.ones_like(right_data[0])]
+        left = xr.DataArray(da.stack(left_data), dims=('bands',),
                             coords={'bands': self.data['bands']})
-        right = xr.DataArray(right_data, dims=('bands',),
+        right = xr.DataArray(da.stack(right_data), dims=('bands',),
                              coords={'bands': self.data['bands']})
         return left, right
 
-    def _get_left_and_right_quantiles_without_alpha(self, data, cutoffs, cutoff_type):
-        left, right = dask.delayed(self._compute_quantile, nout=2)(data.data, data.dims, cutoffs)
-        left_data = da.from_delayed(left,
-                                    shape=(data.sizes['bands'],),
-                                    dtype=cutoff_type)
-        right_data = da.from_delayed(right,
-                                     shape=(data.sizes['bands'],),
-                                     dtype=cutoff_type)
-        return left_data, right_data
-
     @staticmethod
-    def _compute_quantile(data, dims, cutoffs):
-        """Compute quantile for stretch_linear.
-
-        Dask delayed functions need to be non-internal functions (created
-        inside a function) to be serializable on a multi-process scheduler.
-
-        Quantile requires the data to be loaded since it not supported on
-        dask arrays yet.
-
-        """
-        # numpy doesn't get a 'quantile' function until 1.15
-        # for better backwards compatibility we use xarray's version
-        data_arr = xr.DataArray(data, dims=dims)
-        # delayed will provide us the fully computed xarray with ndarray
-        nb_bands = len(data_arr.coords["bands"])
-
+    def _get_left_and_right_quantiles_without_alpha(
+            data_arr: xr.DataArray,
+            cutoffs: Sequence[Sequence[float]],  # two-element sequences [left_cutoff, right_cutoff]
+    ) -> tuple[list[da.Array], list[da.Array]]:
         left = []
         right = []
-        for i in range(nb_bands):
-            left_i, right_i = data_arr.isel(bands=i).quantile([cutoffs[i][0], 1-cutoffs[i][1]])
-            left.append(left_i)
-            right.append(right_i)
-
-        logger.debug("Interval: left=%s, right=%s", str(left), str(right))
-        return np.array(left), np.array(right)
+        for i in range(data_arr.sizes["bands"]):
+            left_i, right_i = data_arr.isel(bands=i).quantile([cutoffs[i][0], 1-cutoffs[i][1]], dim=("y", "x"))
+            left.append(left_i.data)
+            right.append(right_i.data)
+        return left, right
 
     def crude_stretch(self, min_stretch=None, max_stretch=None):
         """Perform simple linear stretching.
