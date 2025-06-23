@@ -995,7 +995,7 @@ class TestXRImage:
         np.testing.assert_allclose(enhs['scale'].values, np.array([3.114479], dtype=dtype), atol=1e-6)
         np.testing.assert_allclose(enhs['offset'].values, np.array([-0.00505051], dtype=dtype), atol=1e-8)
         res = np.array([[
-            [-0.005051, 0.037037, 0.079125,  0.121212,  0.1633],
+            [-0.005051, 0.037037, 0.079125, 0.121212, 0.1633],
             [0.205387, 0.247475, 0.289562, 0.33165, 0.373737],
             [0.415825, 0.457913, 0.5, 0.542088, 0.584175],
             [0.6262627, 0.66835034, 0.71043783, 0.7525254, 0.79461294],
