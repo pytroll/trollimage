@@ -1150,35 +1150,33 @@ class XRImage:
         """Stretch the current image's colors through histogram equalization.
 
         Args:
-            approximate (bool): Use a faster less-accurate percentile
-                                calculation. At the time of writing the dask
-                                version of `percentile` is not as accurate as
-                                the numpy version. This will likely change in
-                                the future. Current dask version 0.17.
-
+            approximate (bool): Deprecated.
         """
         logger.info("Perform a histogram equalized contrast stretch.")
 
-        nwidth = 2048.
-        logger.debug("Make histogram bins having equal amount of data, " +
-                     "using numpy percentile function:")
+        if approximate:
+            warnings.warn("The 'approximate' keyword is deprecated.", stacklevel=2)
 
-        def _band_hist(band_data):
-            cdf = da.arange(0., 1., 1. / nwidth, chunks=nwidth)
-            if approximate:
-                # need a 1D array
-                flat_data = band_data.ravel()
-                # replace with nanpercentile in the future, if available
-                # dask < 0.17 returns all NaNs for this
-                bins = da.percentile(flat_data[da.notnull(flat_data)],
-                                     cdf * 100.)
-            else:
-                bins = dask.delayed(np.nanpercentile)(band_data, cdf * 100.)
-                bins = da.from_delayed(bins, shape=(nwidth,), dtype=cdf.dtype)
-            res = dask.delayed(np.interp)(band_data, bins, cdf)
-            res = da.from_delayed(res, shape=band_data.shape,
-                                  dtype=band_data.dtype)
-            return res
+        nwidth = 2048.
+        cdf = np.arange(0., 1., 1. / nwidth)
+
+        def _band_hist(band_data: da.Array) -> da.Array:
+            one_chunk_data = band_data.rechunk((-1,) * band_data.ndim)
+            # FUTURE: 2025-06-24 - The next release of dask should fix the need for the `axis` keyword argument here
+            # See https://github.com/dask/dask/pull/11988
+            # Without the single chunk of data above, `axis` is needed, but we use the single chunk
+            # during the call to `interp` so we do it here instead of letting dask do it for us
+            bins = da.nanpercentile(one_chunk_data, cdf * 100.0, axis=tuple(range(band_data.ndim)))
+            res = da.map_blocks(
+                np.interp,
+                one_chunk_data,
+                bins,
+                cdf,
+                chunks=one_chunk_data.chunks,
+                meta=np.array((), dtype=one_chunk_data.dtype),
+                dtype=one_chunk_data.dtype,
+            )
+            return res.rechunk(band_data.chunks)
 
         band_results = []
         for band in self.data['bands'].values:

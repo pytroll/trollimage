@@ -1187,14 +1187,17 @@ class TestXRImage:
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     def test_histogram_stretch(self, dtype):
         """Test histogram stretching."""
-        arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
+        arr = da.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
+        arr = arr.rechunk((2, 2, 1))
         data = xr.DataArray(arr.copy(), dims=['y', 'x', 'bands'],
                             coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
-        img.stretch('histogram')
+        with assert_maximum_dask_computes(0):
+            img.stretch('histogram')
         enhs = img.data.attrs['enhancement_history'][0]
         assert enhs == {'hist_equalize': True}
         assert img.data.dtype == dtype
+        assert img.data.chunks == ((2, 2, 1), (2, 2, 1), (1, 1, 1))
         res = np.array([[[0., 0., 0.],
                          [0.04166667, 0.04166667, 0.04166667],
                          [0.08333333, 0.08333333, 0.08333333],
