@@ -1,10 +1,10 @@
 [build-system]
 requires = [
     "wheel",
-    "numpy>=2.0.0rc1,<2.3",
+    "numpy>=2.0.0,<2.3",
     "setuptools>=42",
     "versioneer",
-    "Cython>=3.0.0"
+    "Cython>=3.1.0"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -25,6 +25,9 @@ filterwarnings = [
     # dateutil needs a new release
     # https://github.com/dateutil/dateutil/issues/1314
     'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated and scheduled for removal:DeprecationWarning:dateutil',
+    # updates incoming in pillow that remove this warning for our use cases
+    # https://github.com/python-pillow/Pillow/pull/9063
+    "ignore:'mode' parameter is deprecated",
 ]
 log_cli_level = "info"
 testpaths = [
