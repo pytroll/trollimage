@@ -1,9 +1,9 @@
 [build-system]
 requires = [
     "wheel",
-    "numpy>=2.0.0,<2.3",
+    "numpy>=2.0.0,<3.0",
     "setuptools>=42",
-    "versioneer",
+    "versioneer[toml]",
     "Cython>=3.1.0"
 ]
 build-backend = "setuptools.build_meta"
@@ -33,3 +33,10 @@ log_cli_level = "info"
 testpaths = [
     "trollimage/tests",
 ]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "trollimage/version.py"
+versionfile_build = "trollimage/version.py"
+tag_prefix = "v"
