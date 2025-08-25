@@ -2108,3 +2108,19 @@ def test_missing_bands_coord(attrs):
         img = xrimage.XRImage(data)
     exp_bands = ["R", "G", "B"] if not attrs else ["X", "Y", "Z"]
     np.testing.assert_array_equal(img.data.coords["bands"], exp_bands)
+
+
+@pytest.mark.parametrize("fill_value", [None, 255])
+def test_pil_array(fill_value):
+    """Test 'pil_array' method."""
+    data = xr.DataArray(
+        da.zeros((10, 5), dtype=np.float32, chunks=2),
+        dims=("y", "x"),
+    )
+    img = xrimage.XRImage(data)
+    pil_arr, mode = img.pil_array(fill_value)
+    assert isinstance(pil_arr, da.Array)
+    assert mode == ("L" if fill_value is not None else "LA")
+    np_arr = pil_arr.compute()
+    assert isinstance(np_arr, np.ndarray)
+    assert np_arr.dtype == pil_arr.dtype

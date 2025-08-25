@@ -82,7 +82,7 @@ def invert_scale_offset(scale, offset):
     return 1 / scale, -offset / scale
 
 
-def delayed_pil_save(
+def lazy_pil_save(
         pil_ready_arr: da.Array,
         mode: str,
         pathname_or_io: str | os.PathLike | IO[bytes],
@@ -513,12 +513,10 @@ class XRImage:
             # Take care of GeoImage.tags (if any).
             format_kwargs['pnginfo'] = self._pngmeta()
 
-        channels, mode = self.finalize(fill_value)
-        pil_ready_arr = np.squeeze(channels.transpose('y', 'x', 'bands').data)
-        filename_arr = delayed_pil_save(pil_ready_arr, mode, filename, fformat, **format_kwargs)
+        pil_ready_arr, mode = self.pil_array(fill_value)
+        filename_arr = lazy_pil_save(pil_ready_arr, mode, filename, fformat, **format_kwargs)
         if compute:
             fn_arr = filename_arr.compute()
-            print(fn_arr.shape)
             return fn_arr[0]
         return filename_arr
 
@@ -570,9 +568,7 @@ class XRImage:
             pil_args = tuple()
         if pil_kwargs is None:
             pil_kwargs = dict()
-        # img_arr = self.pil_image(*pil_args, compute=False, **pil_kwargs)
-        channels, mode = self.finalize(*pil_args, **pil_kwargs)
-        pil_ready_arr = np.squeeze(channels.transpose('y', 'x', 'bands').data)
+        pil_ready_arr, mode = self.pil_array(*pil_args, **pil_kwargs)
 
         # HACK: aggdraw.Font objects cause segmentation fault in dask tokenize
         # Remove this when aggdraw is either updated to allow type(font_obj)
@@ -977,7 +973,7 @@ class XRImage:
             self,
             fill_value: int | float | None = None,
             compute: bool = True,
-    ) -> PILImage.Image | da.Array:
+    ) -> PILImage.Image:
         """Return a PIL image from the current image.
 
         Args:
@@ -993,8 +989,7 @@ class XRImage:
             1-element dask array (a `PILImage.Image`).
 
         """
-        channels, mode = self.finalize(fill_value)
-        pil_ready_arr = np.squeeze(channels.transpose('y', 'x', 'bands').data)
+        pil_ready_arr, mode = self.pil_array(fill_value)
         if not compute:
             raise RuntimeError("Delayed PIL Image creation is no longer supported. Set 'compute=True' (default) "
                                "to get a PIL Image object back or use the 'pil_array' method to get a dask "
@@ -1002,6 +997,46 @@ class XRImage:
                                "in a later dask function.")
 
         return PILImage.fromarray(pil_ready_arr.compute(), mode=mode)
+
+    def pil_array(
+            self,
+            fill_value: int | float | None = None,
+    ) -> tuple[da.Array, str]:
+        """Return a PIL-ready array wrapped in a dask Array and the associated image mode.
+
+        The underlying array is a numpy array of this image's data that has
+        been finalized and squeezed to remove dimensions of size 1. The second
+        return value is the expected image mode of the data as a string
+        (ex. "RGB") that can be passed to ``PIL.Image.fromarray``.
+
+        This method exists to avoid using dask Delayed functions which at the
+        time of writing result in duplicate computation of Array tasks that
+        are used as input to the Delayed function. This method should be used
+        when wanting to perform a lazy evaluated dask operation on a PIL Image
+        object. The lazy operation (ex. a function called from dask's
+        ``map_blocks``) is expected to do
+        ``PIL.Image.fromarray(pil_array, mode=mode)`` with the input
+        ``pil_array``.
+
+        The dask Array will have whatever chunking this `XRImage`'s data has
+        and is not guaranteed to be one large chunk. One chunk may be needed
+        to process the data as one single PIL Image. To rechunk the data
+        for a call to dask's ``map_blocks`` pass the rechunked version of the
+        data with ``pil_ready_arr.rechunk(pil_ready_arr.shape)``.
+
+        Args:
+            fill_value (int or float): Value to use for NaN null values.
+                See :meth:`~trollimage.xrimage.XRImage.finalize` for more
+                info.
+
+        Returns:
+            Dask array wrapping a finalized image numpy array and the image
+            mode as a string (ex. "RGB").
+
+        """
+        channels, mode = self.finalize(fill_value)
+        pil_ready_arr = np.squeeze(channels.transpose('y', 'x', 'bands').data)
+        return pil_ready_arr, mode
 
     def xrify_tuples(self, tup):
         """Make xarray.DataArray from tuple."""
