@@ -28,6 +28,8 @@ filterwarnings = [
     # updates incoming in pillow that remove this warning for our use cases
     # https://github.com/python-pillow/Pillow/pull/9063
     "ignore:'mode' parameter is deprecated",
+    # dask deprecated the map_blocks token= kwarg but it is being reverted
+    "ignore:The `token=` keyword to `map_blocks` has been moved to:FutureWarning",
 ]
 log_cli_level = "info"
 testpaths = [
