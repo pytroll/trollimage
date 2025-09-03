@@ -980,13 +980,12 @@ class XRImage:
             fill_value (int or float): Value to use for NaN null values.
                 See :meth:`~trollimage.xrimage.XRImage.finalize` for more
                 info.
-            compute (bool): Whether to return a fully computed PIL.Image
-                object (True) or return a dask Delayed object representing
-                the Image (False). This is True by default.
+            compute (bool): Deprecated. The ``False`` case is no longer
+                supported, use :meth:`pil_array` instead.
 
         Returns:
-            Either a `PILImage.Image` if `compute` is `True` (default) or a
-            1-element dask array (a `PILImage.Image`).
+            A ``PILImage.Image`` if ``compute`` is ``True`` (default). The
+            ``compute=False`` case is no longer supported.
 
         """
         pil_ready_arr, mode = self.pil_array(fill_value)
