@@ -29,15 +29,15 @@ from __future__ import annotations
 import logging
 import numbers
 import os
+import pathlib
 import warnings
 from collections.abc import Sequence
+from typing import IO, Callable
 
-import dask
 import dask.array as da
 import numpy as np
 import xarray as xr
 from PIL import Image as PILImage
-from dask.delayed import delayed
 from trollimage.image import check_image_format
 
 logger = logging.getLogger(__name__)
@@ -82,16 +82,45 @@ def invert_scale_offset(scale, offset):
     return 1 / scale, -offset / scale
 
 
-@delayed(nout=1, pure=True)
-def delayed_pil_save(img, *args, **kwargs):
-    """Dask delayed saving of PIL Image object.
+def lazy_pil_save(
+        pil_ready_arr: da.Array,
+        mode: str,
+        pathname_or_io: str | os.PathLike | IO[bytes],
+        *args,
+        **kwargs,
+) -> da.Array:
+    """Save PIL Image in a dask-friendly way.
 
     Special wrapper to handle `fill_value` try/except catch and provide a
     more useful error message.
 
     """
+    save_res = da.map_blocks(
+        _save_img_arr,
+        pil_ready_arr.rechunk(pil_ready_arr.shape),
+        mode,
+        pathname_or_io,
+        args,
+        kwargs,
+        chunks=((1,),),
+        drop_axis=list(range(pil_ready_arr.ndim))[1:],  # drop all but the first axis
+        dtype=object,
+        meta=np.ndarray((), dtype=object),
+    )
+    return save_res
+
+
+def _save_img_arr(
+        pil_ready_arr: np.ndarray,
+        mode: str,
+        pathname_or_io: str | os.PathLike | IO[bytes],
+        pil_args: tuple,
+        pil_kwargs: dict,
+) -> np.ndarray:
+    img = PILImage.fromarray(pil_ready_arr, mode)
+
     try:
-        img.save(*args, **kwargs)
+        img.save(pathname_or_io, *pil_args, **pil_kwargs)
     except OSError as e:
         # ex: cannot write mode LA as JPEG
         if "A as JPEG" in str(e):
@@ -99,6 +128,9 @@ def delayed_pil_save(img, *args, **kwargs):
                        "`fill_value=0` to set invalid values to black.")
             raise OSError(new_msg) from e
         raise
+
+    ret_val = pil_args[0] if isinstance(pil_args[0], (str, os.PathLike)) else None
+    return np.array([ret_val], dtype=object)
 
 
 class XRImage:
@@ -239,7 +271,7 @@ class XRImage:
                            at this stage would be superseeded by `fformat`.
 
         Returns:
-            Either `None` if `compute` is True or a `dask.Delayed` object or
+            Either `None` or the saved filename if `compute` is True or
             ``(source, target)`` pair to be passed to `dask.array.store`.
             If compute is False the return value depends on format and how
             the image backend is used. If ``(source, target)`` is provided
@@ -331,7 +363,12 @@ class XRImage:
                 information.
 
         Returns:
-            The delayed or computed result of the saving.
+            The filename saved if ``compute`` is ``True``. Otherwise, a two element
+            tuple to be passed to :func:`dask.array.core.store`. The first element
+            represents the source or sources to save and the second element is the
+            target or targets to save to. Sources and targets may be a single object
+            or a list of objects. The targets may be file-like objects that must be
+            closed by the user.
 
         """
         from ._xrimage_rasterio import RIOFile, RIODataset, split_regular_vs_lazy_tags
@@ -431,19 +468,18 @@ class XRImage:
                                overviews_resampling=overviews_resampling,
                                overviews_minsize=overviews_minsize)
 
-        to_store = (data.data, r_dataset)
+        to_store = ([data.data], [r_dataset])
         if da_tags:
-            to_store = list(zip(*([to_store] + da_tags)))
+            to_store[0].extend([tag_pair[0] for tag_pair in da_tags])
+            to_store[1].extend([tag_pair[1] for tag_pair in da_tags])
 
         if compute:
             # write data to the file now
-            res = da.store(*to_store)
+            da.store(*to_store)
             to_close = to_store[1]
-            if not isinstance(to_close, tuple):
-                to_close = [to_close]
             for item in to_close:
                 item.close()
-            return res
+            return filename
         # provide the data object and the opened file so the caller can
         # store them when they would like. Caller is responsible for
         # closing the file
@@ -456,8 +492,14 @@ class XRImage:
                 return enhance_dict["colormap"]
         return None
 
-    def pil_save(self, filename, fformat=None, fill_value=None,
-                 compute=True, **format_kwargs):
+    def pil_save(
+            self,
+            filename: str | pathlib.Path,
+            fformat: str | None = None,
+            fill_value: float | int | None = None,
+            compute: bool = True,
+            **format_kwargs,
+    ) -> da.Array | str | pathlib.Path:
         """Save the image to the given *filename* using PIL.
 
         For now, the compression level [0-9] is ignored, due to PIL's
@@ -471,11 +513,12 @@ class XRImage:
             # Take care of GeoImage.tags (if any).
             format_kwargs['pnginfo'] = self._pngmeta()
 
-        img = self.pil_image(fill_value, compute=False)
-        delay = delayed_pil_save(img, filename, fformat, **format_kwargs)
+        pil_ready_arr, mode = self.pil_array(fill_value)
+        filename_arr = lazy_pil_save(pil_ready_arr, mode, filename, fformat, **format_kwargs)
         if compute:
-            return delay.compute()
-        return delay
+            fn_arr = filename_arr.compute()
+            return fn_arr[0]
+        return filename_arr
 
     def _add_scale_offset_to_tags(self, scale_offset_tags, data_arr, tags):
         scale_label, offset_label = scale_offset_tags
@@ -510,25 +553,11 @@ class XRImage:
             return np.nan, np.nan
         return scale, offset
 
-    @delayed(nout=1, pure=True)
-    def _delayed_apply_pil(self, fun, pil_image, fun_args, fun_kwargs,
-                           image_metadata=None, output_mode=None):
-        if fun_args is None:
-            fun_args = tuple()
-        if fun_kwargs is None:
-            fun_kwargs = dict()
-        if image_metadata is None:
-            image_metadata = dict()
-        new_img = fun(pil_image, image_metadata, *fun_args, **fun_kwargs)
-        if output_mode is not None:
-            new_img = new_img.convert(output_mode)
-        return np.array(new_img) / self.data.dtype.type(255.0)
-
     def apply_pil(self, fun, output_mode, pil_args=None, pil_kwargs=None, fun_args=None, fun_kwargs=None):
         """Apply a function `fun` on the pillow image corresponding to the instance of the XRImage.
 
         The function shall take a pil image as first argument, and is then passed fun_args and fun_kwargs.
-        In addition, the current images's metadata is passed as a keyword argument called `image_mda`.
+        In addition, the current images's metadata is passed as a keyword argument called `image_metadata`.
         It is expected to return the modified pil image.
         This function returns a new XRImage instance with the modified image data.
 
@@ -539,7 +568,7 @@ class XRImage:
             pil_args = tuple()
         if pil_kwargs is None:
             pil_kwargs = dict()
-        pil_image = self.pil_image(*pil_args, compute=False, **pil_kwargs)
+        pil_ready_arr, mode = self.pil_array(*pil_args, **pil_kwargs)
 
         # HACK: aggdraw.Font objects cause segmentation fault in dask tokenize
         # Remove this when aggdraw is either updated to allow type(font_obj)
@@ -548,31 +577,42 @@ class XRImage:
         # The last positional argument to the _burn_overlay function in Satpy
         # is the 'overlay' dict. This could include aggdraw.Font objects so we
         # completely remove it.
-        delayed_kwargs = {}
+        mapblocks_kwargs = {}
         if fun.__name__ == "_burn_overlay":
             from dask.base import tokenize
             from dask.utils import funcname
-            func = self._delayed_apply_pil
+            func = _delayed_apply_pil
             if fun_args is None:
                 fun_args = tuple()
             if fun_kwargs is None:
                 fun_kwargs = dict()
-            tokenize_args = (fun, pil_image, fun_args[:-1], fun_kwargs,
-                             self.data.attrs, output_mode)
+            tokenize_args = (pil_ready_arr, mode, fun, fun_args[:-1], fun_kwargs,
+                             self.data.attrs, self.data.dtype, output_mode)
             dask_key_name = "%s-%s" % (
                 funcname(func),
-                tokenize(func.key, *tokenize_args, pure=True),
+                tokenize(*tokenize_args, pure=True),
             )
-            delayed_kwargs['dask_key_name'] = dask_key_name
+            mapblocks_kwargs["token"] = dask_key_name
 
-        new_array = self._delayed_apply_pil(fun, pil_image, fun_args, fun_kwargs,
-                                            self.data.attrs, output_mode,
-                                            **delayed_kwargs)
-        bands = len(output_mode)
-        arr = da.from_delayed(new_array, dtype=self.data.dtype,
-                              shape=(self.data.sizes['y'], self.data.sizes['x'], bands))
-
-        new_data = xr.DataArray(arr, dims=['y', 'x', 'bands'],
+        new_img_data = da.map_blocks(
+            _delayed_apply_pil,
+            pil_ready_arr.rechunk(pil_ready_arr.shape),
+            mode,
+            fun,
+            fun_args,
+            fun_kwargs,
+            self.data.dtype,
+            output_mode=output_mode,
+            image_metadata=self.data.attrs,
+            dtype=self.data.dtype,
+            meta=np.ndarray((), dtype=self.data.dtype),
+            chunks=((self.data.sizes["y"],), (self.data.sizes["x"],), (len(output_mode),)),
+            **mapblocks_kwargs,
+        )
+        # new_array = self._delayed_apply_pil(fun, img_arr, fun_args, fun_kwargs,
+        #                                     self.data.attrs, output_mode,
+        #                                     **mapblocks_kwargs)
+        new_data = xr.DataArray(new_img_data, dims=['y', 'x', 'bands'],
                                 coords={'y': self.data.coords['y'],
                                         'x': self.data.coords['x'],
                                         'bands': list(output_mode)},
@@ -929,24 +969,73 @@ class XRImage:
 
         return final_data, ''.join(final_data['bands'].values)
 
-    def pil_image(self, fill_value=None, compute=True):
+    def pil_image(
+            self,
+            fill_value: int | float | None = None,
+            compute: bool = True,
+    ) -> PILImage.Image:
         """Return a PIL image from the current image.
 
         Args:
             fill_value (int or float): Value to use for NaN null values.
                 See :meth:`~trollimage.xrimage.XRImage.finalize` for more
                 info.
-            compute (bool): Whether to return a fully computed PIL.Image
-                object (True) or return a dask Delayed object representing
-                the Image (False). This is True by default.
+            compute (bool): Deprecated. The ``False`` case is no longer
+                supported, use :meth:`pil_array` instead.
+
+        Returns:
+            A ``PILImage.Image`` if ``compute`` is ``True`` (default). The
+            ``compute=False`` case is no longer supported.
+
+        """
+        pil_ready_arr, mode = self.pil_array(fill_value)
+        if not compute:
+            raise RuntimeError("Delayed PIL Image creation is no longer supported. Set 'compute=True' (default) "
+                               "to get a PIL Image object back or use the 'pil_array' method to get a dask "
+                               "array and image mode that are ready to be passed to 'PILImage.fromarray' "
+                               "in a later dask function.")
+
+        return PILImage.fromarray(pil_ready_arr.compute(), mode=mode)
+
+    def pil_array(
+            self,
+            fill_value: int | float | None = None,
+    ) -> tuple[da.Array, str]:
+        """Return a PIL-ready array wrapped in a dask Array and the associated image mode.
+
+        The underlying array is a numpy array of this image's data that has
+        been finalized and squeezed to remove dimensions of size 1. The second
+        return value is the expected image mode of the data as a string
+        (ex. "RGB") that can be passed to ``PIL.Image.fromarray``.
+
+        This method exists to avoid using dask Delayed functions which at the
+        time of writing result in duplicate computation of Array tasks that
+        are used as input to the Delayed function. This method should be used
+        when wanting to perform a lazy evaluated dask operation on a PIL Image
+        object. The lazy operation (ex. a function called from dask's
+        ``map_blocks``) is expected to do
+        ``PIL.Image.fromarray(pil_array, mode=mode)`` with the input
+        ``pil_array``.
+
+        The dask Array will have whatever chunking this `XRImage`'s data has
+        and is not guaranteed to be one large chunk. One chunk may be needed
+        to process the data as one single PIL Image. To rechunk the data
+        for a call to dask's ``map_blocks`` pass the rechunked version of the
+        data with ``pil_ready_arr.rechunk(pil_ready_arr.shape)``.
+
+        Args:
+            fill_value (int or float): Value to use for NaN null values.
+                See :meth:`~trollimage.xrimage.XRImage.finalize` for more
+                info.
+
+        Returns:
+            Dask array wrapping a finalized image numpy array and the image
+            mode as a string (ex. "RGB").
 
         """
         channels, mode = self.finalize(fill_value)
-        res = channels.transpose('y', 'x', 'bands')
-        img = dask.delayed(PILImage.fromarray)(np.squeeze(res.data), mode)
-        if compute:
-            img = img.compute()
-        return img
+        pil_ready_arr = np.squeeze(channels.transpose('y', 'x', 'bands').data)
+        return pil_ready_arr, mode
 
     def xrify_tuples(self, tup):
         """Make xarray.DataArray from tuple."""
@@ -1571,6 +1660,29 @@ class XRImage:
         b = io.BytesIO()
         self.pil_image().save(b, format='png')
         return b.getvalue()
+
+
+def _delayed_apply_pil(
+        pil_ready_array: np.ndarray,
+        mode: str,
+        fun: Callable,
+        fun_args: tuple | None,
+        fun_kwargs: dict | None,
+        dtype: np.dtype,
+        image_metadata: dict | None = None,
+        output_mode: str | None = None,
+) -> np.ndarray:
+    if fun_args is None:
+        fun_args = tuple()
+    if fun_kwargs is None:
+        fun_kwargs = dict()
+    if image_metadata is None:
+        image_metadata = dict()
+    pil_image = PILImage.fromarray(pil_ready_array, mode=mode)
+    new_img = fun(pil_image, image_metadata, *fun_args, **fun_kwargs)
+    if output_mode is not None:
+        new_img = new_img.convert(output_mode)
+    return np.array(new_img) / dtype.type(255.0)
 
 
 def _is_unity_or_none(gamma):

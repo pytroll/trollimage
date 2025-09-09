@@ -95,8 +95,6 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_rgb_save(self):
         """Test saving RGB/A data to simple image formats."""
-        from dask.delayed import Delayed
-
         data = xr.DataArray(np.arange(75).reshape(5, 5, 3) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['R', 'G', 'B']})
         img = xrimage.XRImage(data)
@@ -119,7 +117,7 @@ class TestXRImage:
         # dask delayed save
         with NamedTemporaryFile(suffix='.png') as tmp:
             delay = img.save(tmp.name, compute=False)
-            assert isinstance(delay, Delayed)
+            assert isinstance(delay, da.Array)
             delay.compute()
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
@@ -386,10 +384,12 @@ class TestXRImage:
 
         delay = img.save(filename, compute=False)
         assert isinstance(delay, tuple)
-        assert isinstance(delay[0], da.Array)
-        assert isinstance(delay[1], RIODataset)
+        assert isinstance(delay[0], list)
+        assert isinstance(delay[1], list)
+        assert isinstance(delay[0][0], da.Array)
+        assert isinstance(delay[1][0], RIODataset)
         da.store(*delay)
-        delay[1].close()
+        delay[1][0].close()
 
     def test_save_geotiff_float_dask_array_with_alpha(self, tmp_path):
         """Test saving geotiffs when input data is float."""
@@ -473,10 +473,12 @@ class TestXRImage:
         with NamedTemporaryFile(suffix='.tif') as tmp:
             delay = img.save(tmp.name, compute=False)
             assert isinstance(delay, tuple)
-            assert isinstance(delay[0], da.Array)
-            assert isinstance(delay[1], RIODataset)
+            assert isinstance(delay[0], list)
+            assert isinstance(delay[1], list)
+            assert isinstance(delay[0][0], da.Array)
+            assert isinstance(delay[1][0], RIODataset)
             da.store(*delay)
-            delay[1].close()
+            delay[1][0].close()
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
@@ -752,9 +754,9 @@ class TestXRImage:
         assert np.issubdtype(img.data.dtype, np.integer)
         with NamedTemporaryFile(suffix='.tif') as tmp:
             results = img.save(tmp.name, compute=False)
-            results[1].close()  # mimic garbage collection
+            results[1][0].close()  # mimic garbage collection
             da.store(results[0], results[1])
-            results[1].close()  # required to flush writes to disk
+            results[1][0].close()  # required to flush writes to disk
             with rio.open(tmp.name) as f:
                 file_data = f.read()
             assert file_data.shape == (4, 5, 5)  # alpha band added
@@ -2106,3 +2108,19 @@ def test_missing_bands_coord(attrs):
         img = xrimage.XRImage(data)
     exp_bands = ["R", "G", "B"] if not attrs else ["X", "Y", "Z"]
     np.testing.assert_array_equal(img.data.coords["bands"], exp_bands)
+
+
+@pytest.mark.parametrize("fill_value", [None, 255])
+def test_pil_array(fill_value):
+    """Test 'pil_array' method."""
+    data = xr.DataArray(
+        da.zeros((10, 5), dtype=np.float32, chunks=2),
+        dims=("y", "x"),
+    )
+    img = xrimage.XRImage(data)
+    pil_arr, mode = img.pil_array(fill_value)
+    assert isinstance(pil_arr, da.Array)
+    assert mode == ("L" if fill_value is not None else "LA")
+    np_arr = pil_arr.compute()
+    assert isinstance(np_arr, np.ndarray)
+    assert np_arr.dtype == pil_arr.dtype
