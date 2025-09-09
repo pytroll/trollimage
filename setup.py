@@ -114,7 +114,7 @@ setup(name="trollimage",
       packages=find_packages(),
       zip_safe=False,
       install_requires=['numpy>=1.25', 'pillow'],
-      python_requires='>=3.10',
+      python_requires='>=3.11',
       extras_require={
           'geotiff': ['rasterio>=1.0'],
           'xarray': ['xarray', 'dask[array]'],
