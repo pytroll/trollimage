@@ -98,6 +98,7 @@ setup(name="trollimage",
       cmdclass=cmdclass,
       description='Pytroll imaging library',
       long_description=long_description,
+      long_description_content_type='text/x-rst',
       author='Martin Raspaud',
       author_email='martin.raspaud@smhi.se',
       classifiers=[
