@@ -1,4 +1,21 @@
-###############################################################################
+## Version 1.27.0 (2025/09/10)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 199](https://github.com/pytroll/trollimage/pull/199) - Update histogram stretch to not use dask delayed
+* [PR 198](https://github.com/pytroll/trollimage/pull/198) - Optimize linear stretch to work with newer dask
+* [PR 197](https://github.com/pytroll/trollimage/pull/197) - Update XRImage to create missing 'bands' coordinate when dimension is present
+
+#### Features added
+
+* [PR 203](https://github.com/pytroll/trollimage/pull/203) - Rewrite XRImage saving to not use Delayed functions
+* [PR 202](https://github.com/pytroll/trollimage/pull/202) - Enable free-threading compatibility
+
+In this release 5 pull requests were closed.
+
+
 ## Version 1.26.0 (2024/10/21)
 
 ### Issues Closed
@@ -21,7 +38,6 @@ In this release 2 issues were closed.
 
 In this release 3 pull requests were closed.
 
-###############################################################################
 
 ## Version 1.25.0 (2024/08/15)
 
