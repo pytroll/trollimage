@@ -1,4 +1,4 @@
-# Trollimage contributors
+# Trollimage developers
 
 - [Adam Dybbroe (adybbroe)](https://github.com/adybbroe)
 - [Andrea Meraner (ameraner)](https://github.com/ameraner)
