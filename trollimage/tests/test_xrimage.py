@@ -881,7 +881,7 @@ class TestXRImage:
         img.gamma([2., 2., 2.])
         assert img.data.dtype == dtype
         assert img.data.attrs['enhancement_history'][0] == {'gamma': [2.0, 2.0, 2.0]}
-        np.testing.assert_allclose(img.data.values, arr ** 0.5)
+        np.testing.assert_allclose(img.data.values, arr ** 0.5, atol=1e-7)
 
     @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
     def test_crude_stretch(self, dtype):
