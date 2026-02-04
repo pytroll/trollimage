@@ -1,3 +1,20 @@
+## Version 1.28.0 (2026/02/04)
+
+### Issues Closed
+
+* [Issue 210](https://github.com/pytroll/trollimage/issues/210) - Relicense to Apache Version 2 ([PR 212](https://github.com/pytroll/trollimage/pull/212) by [@mraspaud](https://github.com/mraspaud))
+
+In this release 1 issue was closed.
+
+### Pull Requests Merged
+
+#### Features added
+
+* [PR 212](https://github.com/pytroll/trollimage/pull/212) - Relicense to Apache v2.0 ([210](https://github.com/pytroll/trollimage/issues/210))
+
+In this release 1 pull request was closed.
+
+
 ## Version 1.27.0 (2025/09/10)
 
 ### Pull Requests Merged
