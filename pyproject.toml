@@ -30,6 +30,10 @@ filterwarnings = [
     "ignore:'mode' parameter is deprecated",
     # dask deprecated the map_blocks token= kwarg but it is being reverted
     "ignore:The `token=` keyword to `map_blocks` has been moved to:FutureWarning",
+    # rasterio composes affine transforms with `*` (ex. rasterio.transform.from_bounds, used by
+    # trollimage when writing geotiffs); affine 3.1 made that a PendingDeprecationWarning.
+    # Remove once rasterio switches to the `@` matmul operator.
+    "ignore:Use `@` matmul instead of:PendingDeprecationWarning:rasterio",
 ]
 log_cli_level = "info"
 testpaths = [
