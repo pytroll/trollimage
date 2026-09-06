@@ -8,6 +8,56 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[tool.ruff]
+line-length = 120
+# There is no [project] table, so ruff cannot infer this from the metadata.
+target-version = "py311"
+# Vendored and generated respectively; versioneer rewrites version.py on release.
+extend-exclude = ["versioneer.py", "trollimage/version.py"]
+
+[tool.ruff.lint]
+# See https://docs.astral.sh/ruff/rules/
+# T10 (flake8-debugger) preserves a property the old flake8-debugger plugin gave us.
+# Q (flake8-quotes) is deliberately absent: quote style is owned by ruff format.
+select = [
+    "A", "B", "C4", "C90", "D", "DTZ", "E", "F", "FURB", "I", "ISC", "NPY",
+    "PERF", "PIE", "PLE", "PT", "RUF", "S", "SIM", "T10", "T20", "TID",
+    "UP", "W",
+]
+# Deferred so this change stays reviewable; each is its own follow-up pass.
+ignore = [
+    "UP031",   # %-format -> f-string, ~95 sites
+    "RUF005",  # [*a, b] over a + [b], a readability preference, ~22 sites
+]
+# Deliberately not selected. Revisit these one family at a time:
+#   ANN  (~950)  the package ships py.typed but is essentially unannotated
+#   N    (26)    N806 flags domain-correct color-channel names (R/G/B/X/Y/Z), and
+#                N818 would rename the public UnknownImageFormat exception
+#   PTH  (~76)   os.path -> pathlib
+#   EM, TRY, ERA, FBT, COM, G  (~226 combined) opinionated, no Pytroll consensus
+
+[tool.ruff.lint.per-file-ignores]
+# Sphinx requires the module-level name `copyright`.
+"doc/conf.py" = ["A001"]
+# Scripts and examples print to stdout on purpose.
+"doc/examples/utilities-examples.py" = ["T201", "D100"]
+"load_colorbrewer_colormaps.py" = ["T201"]
+"setup.py" = ["T201"]
+# S101: `assert` is how tests assert.
+"trollimage/tests/*" = ["S101"]
+# unittest.TestCase-era file. Every one of these is addressed by
+# specs/test-suite-cleanup.md; deleting this entry is that spec's closing move.
+"trollimage/tests/test_image.py" = ["PT009", "PT027", "S311", "NPY002"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+# A ratchet, not a target: the current worst offender is XRImage.rio_save at 19.
+# Drop this to 10 as the closing move of specs/xrimage-save-finalize-refactor.md,
+# which also covers image.py __init__ (18), stretch (15) and convert (11).
+max-complexity = 20
+
 [tool.coverage.run]
 relative_files = true
 plugins = ["Cython.Coverage"]

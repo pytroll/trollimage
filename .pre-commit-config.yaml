@@ -1,11 +1,28 @@
-exclude: '^$'
 fail_fast: false
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v1.2.3
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 'v0.16.3'
     hooks:
-    - id: flake8
-      additional_dependencies: [flake8-docstrings, flake8-debugger, flake8-bugbear]
+      # Order matters: --fix rewrites are not formatter-stable, so lint first.
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+  - repo: https://github.com/MarcoGorelli/cython-lint
+    rev: v0.21.1
+    hooks:
+      # Nothing else in the repo lints _colorspaces.pyx: neither flake8 nor ruff
+      # reads .pyx. These two are the Cython analogue of ruff-check/ruff-format.
+      - id: cython-lint
+        args: ["--max-line-length=120"]
+      - id: double-quote-cython-strings
 
 ci:
   # To trigger manually, comment on a pull request with "pre-commit.ci autofix"
