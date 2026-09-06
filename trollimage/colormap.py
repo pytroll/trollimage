@@ -57,7 +57,7 @@ def colorize(arr, colors, values):
 
 def can_be_block_mapped(data):
     """Check if the array can be processed in chunks."""
-    return hasattr(data, 'map_blocks')
+    return hasattr(data, "map_blocks")
 
 
 def _colorize_dask(dask_array, colors, values):
@@ -65,8 +65,9 @@ def _colorize_dask(dask_array, colors, values):
 
     The channels are stacked on the first dimension.
     """
-    return dask_array.map_blocks(_colorize, colors, values, dtype=colors.dtype, new_axis=0,
-                                 chunks=[colors.shape[1]] + list(dask_array.chunks))
+    return dask_array.map_blocks(
+        _colorize, colors, values, dtype=colors.dtype, new_axis=0, chunks=[colors.shape[1]] + list(dask_array.chunks)
+    )
 
 
 def _colorize(arr, colors, values):
@@ -106,10 +107,7 @@ def _ununwrap(input_radians):
 
 
 def _interpolate_alpha(arr, colors, values):
-    alpha = [np.interp(arr,
-                       np.array(values),
-                       np.array(colors)[:, i + 3])
-             for i in range(np.array(colors).shape[1] - 3)]
+    alpha = [np.interp(arr, np.array(values), np.array(colors)[:, i + 3]) for i in range(np.array(colors).shape[1] - 3)]
     return alpha
 
 
@@ -202,10 +200,10 @@ class Colormap:
 
     def __init__(self, *tuples, **kwargs):
         """Set up the instance."""
-        if 'colors' in kwargs and 'values' in kwargs:
-            values = kwargs['values']
-            colors = kwargs['colors']
-        elif 'colors' in kwargs or 'values' in kwargs:
+        if "colors" in kwargs and "values" in kwargs:
+            values = kwargs["values"]
+            colors = kwargs["colors"]
+        elif "colors" in kwargs or "values" in kwargs:
             raise ValueError("Both 'colors' and 'values' must be provided.")
         else:
             values = [a for (a, b) in tuples]
@@ -213,9 +211,11 @@ class Colormap:
         self.values = np.array(values)
         self.colors = self._validate_colors(colors)
         if self.values.shape[0] != self.colors.shape[0]:
-            raise ValueError("'values' and 'colors' should have the same "
-                             "number of elements. Got "
-                             f"{self.values.shape[0]} and {self.colors.shape[0]}.")
+            raise ValueError(
+                "'values' and 'colors' should have the same "
+                "number of elements. Got "
+                f"{self.values.shape[0]} and {self.colors.shape[0]}."
+            )
 
     def _validate_colors(self, colors):
         colors = np.asarray(colors)
@@ -246,10 +246,7 @@ class Colormap:
 
         values = self.values.copy()
         colors = self.colors.copy()
-        return Colormap(
-            values=values,
-            colors=colors[:, :3]
-        )
+        return Colormap(values=values, colors=colors[:, :3])
 
     def to_rgba(self):
         """Return colormap with RGBA colors.
@@ -265,18 +262,16 @@ class Colormap:
         colors = np.empty((self.colors.shape[0], 4), dtype=self.colors.dtype)
         colors[:, :3] = self.colors
         colors[:, 3] = 1.0
-        return Colormap(
-            values=values,
-            colors=colors
-        )
+        return Colormap(values=values, colors=colors)
 
     def __add__(self, other):
         """Append colormap together."""
         old, other = self._normalize_color_arrays(self, other)
         values = np.concatenate((old.values, other.values))
         if not self._monotonic_one_direction(values):
-            raise ValueError("Merged colormap 'values' are not monotonically "
-                             "increasing, monotonically decreasing, or equal.")
+            raise ValueError(
+                "Merged colormap 'values' are not monotonically increasing, monotonically decreasing, or equal."
+            )
         colors = np.concatenate((old.colors, other.colors))
         return Colormap(
             values=values,
@@ -308,10 +303,7 @@ class Colormap:
         """
         colors = np.flipud(self.colors)
         if not inplace:
-            return Colormap(
-                values=self.values.copy(),
-                colors=colors
-            )
+            return Colormap(values=self.values.copy(), colors=colors)
         self.colors = colors
         return self
 
@@ -332,14 +324,11 @@ class Colormap:
 
         """
         cmap = self
-        values = (((cmap.values * 1.0 - cmap.values[0]) /
-                   (cmap.values[-1] - cmap.values[0]))
-                  * (max_val - min_val) + min_val)
+        values = ((cmap.values * 1.0 - cmap.values[0]) / (cmap.values[-1] - cmap.values[0])) * (
+            max_val - min_val
+        ) + min_val
         if not inplace:
-            return Colormap(
-                values=values,
-                colors=cmap.colors.copy()
-            )
+            return Colormap(values=values, colors=cmap.colors.copy())
 
         cmap.values = values
         return cmap
@@ -363,9 +352,7 @@ class Colormap:
         """
         cmap = self if inplace else Colormap(values=self.values.copy(), colors=self.colors.copy())
 
-        alpha = np.linspace(min_alpha,
-                            max_alpha,
-                            self.colors.shape[0])
+        alpha = np.linspace(min_alpha, max_alpha, self.colors.shape[0])
 
         if cmap.colors.shape[1] == 4:
             cmap.colors[:, 3] = alpha
@@ -382,16 +369,15 @@ class Colormap:
         is already in the desired output range and to avoid issues with
         rasterio will round the values and convert them to unsigned integers.
         """
-        colors = (((self.colors * 1.0 - self.colors.min()) /
-                   (self.colors.max() - self.colors.min())) * 255)
+        colors = ((self.colors * 1.0 - self.colors.min()) / (self.colors.max() - self.colors.min())) * 255
         # rasterio doesn't allow non-integer colormap values
         values = np.round(self.values).astype(np.uint)
         return dict(zip(values, tuple(map(tuple, colors)), strict=True))
 
     def to_csv(
-            self,
-            filename: str | None = None,
-            color_scale: Number = 255,
+        self,
+        filename: str | None = None,
+        color_scale: Number = 255,
     ) -> str | None:
         """Save Colormap to a comma-separated text file or string.
 
@@ -424,10 +410,10 @@ class Colormap:
 
     @classmethod
     def from_file(
-            cls,
-            filename: str,
-            colormap_mode: str | None = None,
-            color_scale: Number = 255,
+        cls,
+        filename: str,
+        colormap_mode: str | None = None,
+        color_scale: Number = 255,
     ):
         """Create Colormap from a comma-separated or binary file of colormap data.
 
@@ -486,8 +472,7 @@ class Colormap:
         """
         if _is_actually_a_csv_string(filename):
             warnings.warn(
-                "Passing a data string to Colormap.from_file is deprecated. "
-                "Please use Colormap.from_string.",
+                "Passing a data string to Colormap.from_file is deprecated. Please use Colormap.from_string.",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
@@ -640,16 +625,12 @@ class Colormap:
         color_array = np.array(colors)
         values = np.linspace(0, 1, len(colors)) if values is None else np.asarray(values)
         color_array = np.concatenate((values[:, np.newaxis], color_array), axis=1)
-        return cls.from_ndarray(
-            color_array,
-            "VRGB" if color_array.shape[1] == 4 else "VRGBA",
-            color_scale=color_scale)
+        return cls.from_ndarray(color_array, "VRGB" if color_array.shape[1] == 4 else "VRGBA", color_scale=color_scale)
 
     @classmethod
     def from_array_with_metadata(
-            cls, palette, dtype, color_scale=255,
-            valid_range=None, scale_factor=1, add_offset=0,
-            remove_last=True):
+        cls, palette, dtype, color_scale=255, valid_range=None, scale_factor=1, add_offset=0, remove_last=True
+    ):
         """Create Colormap from an array with metadata.
 
         Create a colormap from an array with associated metadata, either in
@@ -694,9 +675,9 @@ class Colormap:
         # then it was refactored/rewritten for trollimage
         squeezed_palette = np.asanyarray(palette).squeeze()
         set_range = True
-        if hasattr(palette, 'attrs') and 'palette_meanings' in palette.attrs:
+        if hasattr(palette, "attrs") and "palette_meanings" in palette.attrs:
             set_range = False
-            values = np.asarray(palette.attrs['palette_meanings'])
+            values = np.asarray(palette.attrs["palette_meanings"])
         else:
             # remove the last value because monkeys don't like water sprays
             # on a more serious note, I don't know why we are removing the last
@@ -707,21 +688,20 @@ class Colormap:
 
         color_array = np.concatenate((values[:, np.newaxis], squeezed_palette), axis=1)
         colormap = cls.from_ndarray(
-            color_array,
-            "VRGB" if color_array.shape[1] == 4 else "VRGBA",
-            color_scale=color_scale)
+            color_array, "VRGB" if color_array.shape[1] == 4 else "VRGBA", color_scale=color_scale
+        )
         if dtype == np.dtype("uint8"):
             return colormap
 
         if valid_range is not None:
             if set_range:
-                colormap.set_range(
-                    *(np.array(valid_range) * scale_factor
-                      + add_offset))
+                colormap.set_range(*(np.array(valid_range) * scale_factor + add_offset))
             return colormap
 
-        raise AttributeError("Data need to have either a valid_range or be of type uint8"
-                             " in order to be displayable with an attached color-palette!")
+        raise AttributeError(
+            "Data need to have either a valid_range or be of type uint8"
+            " in order to be displayable with an attached color-palette!"
+        )
 
 
 def _is_actually_a_csv_string(string):
@@ -736,19 +716,14 @@ def _get_values_colors_from_file(filename, colormap_mode, color_scale):
 
 def _get_values_colors_from_ndarray(data, colormap_mode, color_scale):
     cols = data.shape[1]
-    default_modes = {
-        3: 'RGB',
-        4: 'VRGB',
-        5: 'VRGBA'
-    }
+    default_modes = {3: "RGB", 4: "VRGB", 5: "VRGBA"}
     default_mode = default_modes.get(cols)
     if colormap_mode is None:
         colormap_mode = default_mode
     if colormap_mode is None or len(colormap_mode) != cols:
-        raise ValueError(
-            f"Unexpected colormap shape for mode '{colormap_mode}'")
+        raise ValueError(f"Unexpected colormap shape for mode '{colormap_mode}'")
     rows = data.shape[0]
-    if colormap_mode[0] == 'V':
+    if colormap_mode[0] == "V":
         colors = data[:, 1:]
         if color_scale != 1:
             colors = data[:, 1:] / float(color_scale)
@@ -783,15 +758,17 @@ def _read_colormap_data_from_np(path):
 # matlab jet "#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow",
 # "#FF7F00", "red", "#7F0000"
 
-rainbow = Colormap((0.000, (0.0, 0.0, 0.5)),
-                   (0.125, (0.0, 0.0, 1.0)),
-                   (0.250, (0.0, 0.5, 1.0)),
-                   (0.375, (0.0, 1.0, 1.0)),
-                   (0.500, (0.5, 1.0, 0.5)),
-                   (0.625, (1.0, 1.0, 0.0)),
-                   (0.750, (1.0, 0.5, 0.0)),
-                   (0.875, (1.0, 0.0, 0.0)),
-                   (1.000, (0.5, 0.0, 0.0)))
+rainbow = Colormap(
+    (0.000, (0.0, 0.0, 0.5)),
+    (0.125, (0.0, 0.0, 1.0)),
+    (0.250, (0.0, 0.5, 1.0)),
+    (0.375, (0.0, 1.0, 1.0)),
+    (0.500, (0.5, 1.0, 0.5)),
+    (0.625, (1.0, 1.0, 0.0)),
+    (0.750, (1.0, 0.5, 0.0)),
+    (0.875, (1.0, 0.0, 0.0)),
+    (1.000, (0.5, 0.0, 0.0)),
+)
 
 # * Colors from www.ColorBrewer.org by Cynthia A. Brewer, Geography,
 # * Pennsylvania State University.
@@ -1291,7 +1268,7 @@ def colorbar(height, length, colormap, category=False):
     cbar = np.tile(np.arange(length) * 1.0 / (length - 1), (height, 1))
     cmin = colormap.values.min()
     cmax = colormap.values.max()
-    crange = (cmax - cmin)
+    crange = cmax - cmin
     if category:
         # add an extra buffer around colormap limits to show full category
         cbar = cbar * (crange + 1) + (cmin - 0.5)
@@ -1305,7 +1282,6 @@ def colorbar(height, length, colormap, category=False):
 def palettebar(height, length, colormap):
     """Return the channels of a palettebar."""
     cbar = np.tile(np.arange(length) * 1.0 / (length - 1), (height, 1))
-    cbar = (cbar * (colormap.values.max() + 1 - colormap.values.min())
-            + colormap.values.min())
+    cbar = cbar * (colormap.values.max() + 1 - colormap.values.min()) + colormap.values.min()
 
     return colormap.palettize(cbar)

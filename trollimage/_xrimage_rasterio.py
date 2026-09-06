@@ -33,23 +33,21 @@ def get_data_arr_crs_transform_gcps(data_arr):
 
     try:
         area = data_arr.attrs["area"]
-        wkt_version = 'WKT2_2018' if rasterio.__gdal_version__ >= '3' else 'WKT1_GDAL'
-        if hasattr(area, 'crs'):
+        wkt_version = "WKT2_2018" if rasterio.__gdal_version__ >= "3" else "WKT1_GDAL"
+        if hasattr(area, "crs"):
             crs = rasterio.crs.CRS.from_wkt(area.crs.to_wkt(version=wkt_version))
         else:
             crs = rasterio.crs.CRS(area.proj_dict)
         west, south, east, north = area.area_extent
         height, width = area.shape
-        transform = rasterio.transform.from_bounds(west, south,
-                                                   east, north,
-                                                   width, height)
+        transform = rasterio.transform.from_bounds(west, south, east, north, width, height)
 
     except KeyError:  # No area
         logger.info("Couldn't create geotransform")
     except AttributeError:
         try:
-            gcps = data_arr.attrs["area"].lons.attrs['gcps']
-            crs = data_arr.attrs["area"].lons.attrs['crs']
+            gcps = data_arr.attrs["area"].lons.attrs["gcps"]
+            crs = data_arr.attrs["area"].lons.attrs["crs"]
         except KeyError:
             logger.info("Couldn't create geotransform")
     return crs, transform, gcps
@@ -73,7 +71,7 @@ def split_regular_vs_lazy_tags(tags, r_file):
 class RIOFile:
     """Rasterio wrapper to allow da.store to do window saving."""
 
-    def __init__(self, path, mode='w', **kwargs):
+    def __init__(self, path, mode="w", **kwargs):
         """Initialize the object."""
         self.path = path
         self.mode = mode
@@ -84,12 +82,12 @@ class RIOFile:
     @property
     def width(self):
         """Width of the band images."""
-        return self.kwargs['width']
+        return self.kwargs["width"]
 
     @property
     def height(self):
         """Height of the band images."""
-        return self.kwargs['height']
+        return self.kwargs["height"]
 
     @property
     def closed(self):
@@ -138,19 +136,19 @@ class RIOFile:
     def write(self, *args, **kwargs):
         """Write to the file."""
         with self.lock:
-            self.open('r+')
+            self.open("r+")
             return self.rfile.write(*args, **kwargs)
 
     def build_overviews(self, *args, **kwargs):
         """Write overviews."""
         with self.lock:
-            self.open('r+')
+            self.open("r+")
             return self.rfile.build_overviews(*args, **kwargs)
 
     def update_tags(self, *args, **kwargs):
         """Update tags."""
         with self.lock:
-            self.open('a')
+            self.open("a")
             return self.rfile.update_tags(*args, **kwargs)
 
 
@@ -175,24 +173,19 @@ class RIOTag:
 class RIODataset:
     """A wrapper for a rasterio dataset."""
 
-    def __init__(self, rfile, overviews=None, overviews_resampling=None,
-                 overviews_minsize=256):
+    def __init__(self, rfile, overviews=None, overviews_resampling=None, overviews_minsize=256):
         """Init the rasterio dataset."""
         self.rfile = rfile
         self.overviews = overviews
         if overviews_resampling is None:
-            overviews_resampling = 'nearest'
+            overviews_resampling = "nearest"
         self.overviews_resampling = Resampling[overviews_resampling]
         self.overviews_minsize = overviews_minsize
 
     def __setitem__(self, key, item):
         """Put the data chunk in the image."""
         if len(key) == 3:
-            indexes = list(range(
-                key[0].start + 1,
-                key[0].stop + 1,
-                key[0].step or 1
-            ))
+            indexes = list(range(key[0].start + 1, key[0].stop + 1, key[0].step or 1))
             y = key[1]
             x = key[2]
         else:
@@ -205,8 +198,7 @@ class RIODataset:
         chx = x.stop - x.start
 
         # band indexes
-        self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy),
-                         indexes=indexes)
+        self.rfile.write(item, window=Window(chx_off, chy_off, chx, chy), indexes=indexes)
 
     def close(self):
         """Close the file."""
@@ -215,13 +207,12 @@ class RIODataset:
             # it's an empty list
             if len(overviews) == 0:
                 from rasterio.rio.overview import get_maximum_overview_level
+
                 width = self.rfile.width
                 height = self.rfile.height
-                max_level = get_maximum_overview_level(
-                    width, height, self.overviews_minsize)
-                overviews = [2 ** j for j in range(1, max_level + 1)]
-            logger.debug('Building overviews %s with %s resampling',
-                         str(overviews), self.overviews_resampling.name)
+                max_level = get_maximum_overview_level(width, height, self.overviews_minsize)
+                overviews = [2**j for j in range(1, max_level + 1)]
+            logger.debug("Building overviews %s with %s resampling", str(overviews), self.overviews_resampling.name)
             self.rfile.build_overviews(overviews, resampling=self.overviews_resampling)
 
         return self.rfile.close()
@@ -230,25 +221,29 @@ class RIODataset:
 def color_interp(data):
     """Get the color interpretation for this image."""
     from rasterio.enums import ColorInterp as ci
-    modes = {'L': [ci.gray],
-             'LA': [ci.gray, ci.alpha],
-             'YCbCr': [ci.Y, ci.Cb, ci.Cr],
-             'YCbCrA': [ci.Y, ci.Cb, ci.Cr, ci.alpha]}
+
+    modes = {
+        "L": [ci.gray],
+        "LA": [ci.gray, ci.alpha],
+        "YCbCr": [ci.Y, ci.Cb, ci.Cr],
+        "YCbCrA": [ci.Y, ci.Cb, ci.Cr, ci.alpha],
+    }
 
     try:
-        mode = ''.join(data['bands'].values)
+        mode = "".join(data["bands"].values)
         return modes[mode]
     except KeyError:
-        colors = {'R': ci.red,
-                  'G': ci.green,
-                  'B': ci.blue,
-                  'A': ci.alpha,
-                  'C': ci.cyan,
-                  'M': ci.magenta,
-                  'Y': ci.yellow,
-                  'H': ci.hue,
-                  'S': ci.saturation,
-                  'L': ci.lightness,
-                  'K': ci.black,
-                  }
-        return [colors[band] for band in data['bands'].values]
+        colors = {
+            "R": ci.red,
+            "G": ci.green,
+            "B": ci.blue,
+            "A": ci.alpha,
+            "C": ci.cyan,
+            "M": ci.magenta,
+            "Y": ci.yellow,
+            "H": ci.hue,
+            "S": ci.saturation,
+            "L": ci.lightness,
+            "K": ci.black,
+        }
+        return [colors[band] for band in data["bands"].values]

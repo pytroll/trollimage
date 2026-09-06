@@ -11,7 +11,7 @@ from trollimage.image import Image
 
 def _hex_to_rgb(value):
     """Convert a string of 3 hex color values into a tuple of decimal values."""
-    value = value.lstrip('#')
+    value = value.lstrip("#")
     dec = int(value, 16)
     return dec
 
@@ -57,8 +57,7 @@ def _make_cmap(colors, position=None, bit=False):
         sys.exit("position length must be the same as colors")
     elif position[0] != 0 or position[-1] != 1:
         sys.exit("position must start with 0 and end with 1")
-    palette = [(i, (float(r), float(g), float(b), float(a))) for
-               i, (r, g, b, a) in enumerate(colors)]
+    palette = [(i, (float(r), float(g), float(b), float(a))) for i, (r, g, b, a) in enumerate(colors)]
     cmap = Colormap(*palette)
     return cmap
 
@@ -76,7 +75,7 @@ def cmap_from_text(filename, norm=False, transparency=False, hex=False):
     if norm is set to True, the input values are normalized between 0 and 1.
     """
     with open(filename) as cmap_file:
-        lines = [line.rstrip('\n') for line in cmap_file]
+        lines = [line.rstrip("\n") for line in cmap_file]
     _colors = []
     _tot = len(lines)
     _index = 1
@@ -96,7 +95,7 @@ def _image2array(filepath):
     that can be fed into geo_image.GeoImage in order to generate
     a PyTROLL GeoImage object.
     """
-    im = Pimage.open(filepath).convert('RGB')
+    im = Pimage.open(filepath).convert("RGB")
     (width, height) = im.size
     _r = np.array(list(im.getdata(0))) / 255.0
     _g = np.array(list(im.getdata(1))) / 255.0
