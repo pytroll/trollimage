@@ -5,3 +5,4 @@ include versioneer.py
 include trollimage/version.py
 recursive-include doc *
 recursive-include trollimage *.pyx
+include trollimage/py.typed

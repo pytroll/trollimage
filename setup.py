@@ -97,6 +97,10 @@ setup(
     license_files=["LICENSE.txt", "LICENSE_RIO_COLOR.txt"],
     url="https://github.com/pytroll/trollimage",
     packages=find_packages(),
+    # Ship the inline type marker explicitly. setuptools >= 69 also picks this
+    # up on its own, but that behaviour is flagged EXPERIMENTAL and
+    # build-system.requires only asks for setuptools >= 42.
+    package_data={"trollimage": ["py.typed"]},
     zip_safe=False,
     install_requires=["numpy>=1.25", "pillow"],
     python_requires=">=3.11",
