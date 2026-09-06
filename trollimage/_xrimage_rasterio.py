@@ -5,7 +5,6 @@ import threading
 from contextlib import suppress
 
 import dask.array as da
-
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.windows import Window
@@ -34,10 +33,7 @@ def get_data_arr_crs_transform_gcps(data_arr):
 
     try:
         area = data_arr.attrs["area"]
-        if rasterio.__gdal_version__ >= '3':
-            wkt_version = 'WKT2_2018'
-        else:
-            wkt_version = 'WKT1_GDAL'
+        wkt_version = 'WKT2_2018' if rasterio.__gdal_version__ >= '3' else 'WKT1_GDAL'
         if hasattr(area, 'crs'):
             crs = rasterio.crs.CRS.from_wkt(area.crs.to_wkt(version=wkt_version))
         else:
@@ -74,7 +70,7 @@ def split_regular_vs_lazy_tags(tags, r_file):
     return tags, da_tags
 
 
-class RIOFile(object):
+class RIOFile:
     """Rasterio wrapper to allow da.store to do window saving."""
 
     def __init__(self, path, mode='w', **kwargs):

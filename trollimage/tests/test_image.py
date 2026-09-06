@@ -563,10 +563,7 @@ class TestRegularImage(unittest.TestCase):
                                 [0.5, 0.25, 0.25]])
             self.img.replace_luminance(luma)
             self.assertEqual(self.img.mode, mode)
-            if (self.img.mode.endswith("A")):
-                chans = self.img.channels[:-1]
-            else:
-                chans = self.img.channels
+            chans = self.img.channels[:-1] if self.img.mode.endswith("A") else self.img.channels
             for chn in chans:
                 self.assertTrue(np.all(chn - luma < EPSILON))
         self.img.convert(oldmode)

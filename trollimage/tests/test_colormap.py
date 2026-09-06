@@ -1,13 +1,14 @@
 """Test colormap.py."""
 
-import os
 import contextlib
-from trollimage import colormap
-import numpy as np
+import os
 from tempfile import NamedTemporaryFile
+
+import numpy as np
+import pytest
 import xarray
 
-import pytest
+from trollimage import colormap
 
 COLORS_RGB1 = np.array([
     [0.0, 0.0, 0.0],
@@ -523,9 +524,9 @@ def closed_named_temp_file(**kwargs):
 
 def _write_cmap_to_file(cmap_filename, cmap_data):
     ext = os.path.splitext(cmap_filename)[1]
-    if ext in (".npy",):
+    if ext == ".npy":
         np.save(cmap_filename, cmap_data)
-    elif ext in (".npz",):
+    elif ext == ".npz":
         np.savez(cmap_filename, cmap_data)
     else:
         np.savetxt(cmap_filename, cmap_data, delimiter=",")

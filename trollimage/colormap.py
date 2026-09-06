@@ -3,15 +3,15 @@
 import contextlib
 import copy
 import os
-from io import StringIO
-from typing import Optional
-import warnings
-from numbers import Number
 import pathlib
 import sys
+import warnings
+from io import StringIO
+from numbers import Number
 
 import numpy as np
-from trollimage.colorspaces import rgb2lch, lch2rgb
+
+from trollimage.colorspaces import lch2rgb, rgb2lch
 
 
 @contextlib.contextmanager
@@ -172,7 +172,7 @@ def _digitize_array(arr, values):
     return new_arr
 
 
-class Colormap(object):
+class Colormap:
     """The colormap object.
 
     Args:
@@ -220,7 +220,7 @@ class Colormap(object):
     def _validate_colors(self, colors):
         colors = np.asarray(colors)
         if colors.ndim != 2 or colors.shape[-1] not in (3, 4):
-            raise ValueError("Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {}".format(colors.shape))
+            raise ValueError(f"Colormap 'colors' must be RGB or RGBA. Got unexpected shape: {colors.shape}")
         if not np.issubdtype(colors.dtype, np.floating):
             warnings.warn("Colormap 'colors' should be floating point numbers between 0 and 1.", stacklevel=3)
             colors = colors.astype(np.float64)
@@ -361,12 +361,7 @@ class Colormap(object):
                 If False, return a new Colormap instance.
 
         """
-        if inplace:
-            cmap = self
-        else:
-            cmap = Colormap(
-                values=self.values.copy(),
-                colors=self.colors.copy())
+        cmap = self if inplace else Colormap(values=self.values.copy(), colors=self.colors.copy())
 
         alpha = np.linspace(min_alpha,
                             max_alpha,
@@ -395,9 +390,9 @@ class Colormap(object):
 
     def to_csv(
             self,
-            filename: Optional[str] = None,
+            filename: str | None = None,
             color_scale: Number = 255,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Save Colormap to a comma-separated text file or string.
 
         The CSV data will have 4 to 5 columns for each row where each
@@ -423,7 +418,7 @@ class Colormap(object):
                 scaled_color = [x * color_scale for x in color]
                 if color_scale != 1.0:
                     scaled_color = [int(x) for x in scaled_color]
-                csv_file.write(",".join(["{:0.6f}".format(value)] + [str(x) for x in scaled_color]) + "\n")
+                csv_file.write(",".join([f"{value:0.6f}"] + [str(x) for x in scaled_color]) + "\n")
         if isinstance(csv_file, StringIO):
             return csv_file.getvalue()
 
@@ -431,7 +426,7 @@ class Colormap(object):
     def from_file(
             cls,
             filename: str,
-            colormap_mode: Optional[str] = None,
+            colormap_mode: str | None = None,
             color_scale: Number = 255,
     ):
         """Create Colormap from a comma-separated or binary file of colormap data.
@@ -635,10 +630,7 @@ class Colormap(object):
         # satpy.enhancements.create_colormap
         # then it was refactored/rewritten
         color_array = np.array(colors)
-        if values is None:
-            values = np.linspace(0, 1, len(colors))
-        else:
-            values = np.asarray(values)
+        values = np.linspace(0, 1, len(colors)) if values is None else np.asarray(values)
         color_array = np.concatenate((values[:, np.newaxis], color_array), axis=1)
         return cls.from_ndarray(
             color_array,
@@ -720,7 +712,7 @@ class Colormap(object):
                       + add_offset))
             return colormap
 
-        raise AttributeError("Data need to have either a valid_range or be of type uint8" +
+        raise AttributeError("Data need to have either a valid_range or be of type uint8"
                              " in order to be displayable with an attached color-palette!")
 
 
@@ -746,7 +738,7 @@ def _get_values_colors_from_ndarray(data, colormap_mode, color_scale):
         colormap_mode = default_mode
     if colormap_mode is None or len(colormap_mode) != cols:
         raise ValueError(
-            "Unexpected colormap shape for mode '{}'".format(colormap_mode))
+            f"Unexpected colormap shape for mode '{colormap_mode}'")
     rows = data.shape[0]
     if colormap_mode[0] == 'V':
         colors = data[:, 1:]

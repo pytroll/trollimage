@@ -1,11 +1,12 @@
 """Simple utilities functions to handle colormaps and other use cases."""
 
-from __future__ import division
-import numpy as np
 import sys
+
+import numpy as np
+from PIL import Image as Pimage
+
 from trollimage.colormap import Colormap
 from trollimage.image import Image
-from PIL import Image as Pimage
 
 
 def _hex_to_rgb(value):
@@ -36,7 +37,7 @@ def _text_to_rgb(value, norm=False, cat=1, tot=1, offset=0.5, hex=False):
     if norm:
         return (float(tokens[0]) / 255.0, float(tokens[1]) / 255.0, float(tokens[2]) / 255.0, transparency)
     else:
-        return (int(tokens[0]), int(tokens[1]), int(tokens[2]), int(round(transparency * 255.0)))
+        return (int(tokens[0]), int(tokens[1]), int(tokens[2]), round(transparency * 255.0))
 
 
 def _make_cmap(colors, position=None, bit=False):

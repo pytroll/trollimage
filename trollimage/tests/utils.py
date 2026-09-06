@@ -17,7 +17,7 @@ class CustomScheduler:
         self.total_computes += 1
         if self.total_computes > self.max_computes:
             raise RuntimeError("Too many dask computations were scheduled: "
-                               "{}".format(self.total_computes))
+                               f"{self.total_computes}")
         return dask.get(dsk, keys, **kwargs)
 
 

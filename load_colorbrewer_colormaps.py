@@ -25,7 +25,7 @@ def _load_colormap_info_from_colorbrewer() -> dict[str, dict[str, list]]:
         colorbrewer_dict = json.load(json_file)
         cmap_groups: dict[str, dict[str, list]] = {"div": {}, "seq": {}, "qual": {}}
         for cmap_name, cmap_info in colorbrewer_dict.items():
-            max_colors = max((num_colors_str for num_colors_str in cmap_info.keys() if num_colors_str != "type"),
+            max_colors = max((num_colors_str for num_colors_str in cmap_info if num_colors_str != "type"),
                              key=lambda num_color_str: int(num_color_str))
             cmap_colors = cmap_info[max_colors]
             color_tuples = [rgb_color_str.replace("rgb(", "").replace(")", "").split(",")

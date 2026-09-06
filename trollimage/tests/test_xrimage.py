@@ -1,20 +1,21 @@
 """Module for testing the xrimage module."""
 import sys
-from datetime import timezone, datetime
 import warnings
-from unittest import mock
 from collections import OrderedDict
+from datetime import UTC, datetime
 from tempfile import NamedTemporaryFile
+from unittest import mock
 
 import dask.array as da
 import numpy as np
-import xarray as xr
-import rasterio as rio
 import pytest
+import rasterio as rio
+import xarray as xr
 
 from trollimage import xrimage
-from trollimage.colormap import Colormap, brbg
 from trollimage._xrimage_rasterio import RIODataset
+from trollimage.colormap import Colormap, brbg
+
 from .utils import assert_maximum_dask_computes
 
 
@@ -177,7 +178,7 @@ class TestXRImage:
     def test_save_palettes(self):
         """Test saving paletted images to simple image formats."""
         # Single band image palettized
-        from trollimage.colormap import brbg, Colormap
+        from trollimage.colormap import Colormap, brbg
         data = xr.DataArray(np.arange(75).reshape(15, 5, 1) / 74., dims=[
             'y', 'x', 'bands'], coords={'bands': ['L']})
         img = xrimage.XRImage(data)
@@ -416,7 +417,7 @@ class TestXRImage:
         assert "TIFFTAG_DATETIME" not in tags
 
         # Valid datetime
-        data.attrs['start_time'] = datetime.now(timezone.utc)
+        data.attrs['start_time'] = datetime.now(UTC)
         tags = _get_tags_after_writing_to_geotiff(data)
         assert "TIFFTAG_DATETIME" in tags
 
@@ -468,8 +469,8 @@ class TestXRImage:
                         reason="'NamedTemporaryFile' not supported on Windows")
     def test_save_geotiff_int_gcps(self):
         """Test saving geotiffs when input data is int and has GCPs."""
-        from rasterio.control import GroundControlPoint
         from pyresample import SwathDefinition
+        from rasterio.control import GroundControlPoint
 
         gcps = [GroundControlPoint(1, 1, 100.0, 1000.0, z=0.0),
                 GroundControlPoint(2, 3, 400.0, 2000.0, z=0.0)]
@@ -670,7 +671,7 @@ class TestXRImage:
 
         """
         exp_cmap = {i: (int(i * 255 / 19), int(i * 255 / 19), int(i * 255 / 19), 255) for i in range(20)}
-        exp_cmap.update({i: (0, 0, 0, 255) for i in range(20, 256)})
+        exp_cmap.update(dict.fromkeys(range(20, 256), (0, 0, 0, 255)))
         data = xr.DataArray(da.from_array(np.arange(81).reshape(9, 9, 1), chunks=9),
                             dims=['y', 'x', 'bands'],
                             coords={'bands': ['P']})
@@ -838,7 +839,7 @@ class TestXRImage:
             with rio.open(tmp.name) as f:
                 assert f.tags() == tags
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_gamma_single_value(self, dtype):
         """Test gamma correction for one value for all channels."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
@@ -850,7 +851,7 @@ class TestXRImage:
         np.testing.assert_allclose(img.data.values, arr ** 2)
         assert img.data.attrs['enhancement_history'][0] == {'gamma': 0.5}
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     @pytest.mark.parametrize(
         ("gamma_val"),
         [
@@ -871,7 +872,7 @@ class TestXRImage:
         np.testing.assert_equal(img.data.values, arr)
         assert 'enhancement_history' not in img.data.attrs
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_gamma_per_channel(self, dtype):
         """Test gamma correction with a value for each channel."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
@@ -883,7 +884,7 @@ class TestXRImage:
         assert img.data.attrs['enhancement_history'][0] == {'gamma': [2.0, 2.0, 2.0]}
         np.testing.assert_allclose(img.data.values, arr ** 0.5, atol=1e-7)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_crude_stretch(self, dtype):
         """Check crude stretching."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3)
@@ -907,7 +908,7 @@ class TestXRImage:
         expected_blue = (arr[:, :, 2] - 2.) / (74. - 2.)
         np.testing.assert_allclose(blue, expected_blue.astype(dtype), rtol=1e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_crude_stretch_with_limits(self, dtype):
         """Test crude stretch with different input dtypes."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3)
@@ -931,7 +932,7 @@ class TestXRImage:
         assert img.data.dtype == np.float32
         np.testing.assert_allclose(img.data.values, arr.astype(np.float32) / max_stretch, rtol=1e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_invert_single_parameter(self, dtype):
         """Check inversion of the image for single inversion parameter."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
@@ -945,7 +946,7 @@ class TestXRImage:
         assert img.data.dtype == dtype
         assert np.allclose(img.data.values, 1 - arr)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_invert_parameter_for_each_channel(self, dtype):
         """Check inversion of the image for single inversion parameter."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 75.
@@ -961,8 +962,8 @@ class TestXRImage:
         np.testing.assert_allclose(img.data.values, (data * scale + offset).values)
         assert img.data.dtype == dtype
 
-    @pytest.mark.parametrize("with_bands", (False, True))
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("with_bands", [False, True])
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_linear_stretch_single_band(self, with_bands, dtype):
         """Test linear stretching with cutoffs for single band data."""
         new_shape = (5, 5)
@@ -993,7 +994,7 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_linear_stretch(self, dtype):
         """Test linear stretching with cutoffs."""
         arr = np.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
@@ -1034,7 +1035,7 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_linear_stretch_does_not_affect_alpha(self, dtype):
         """Test linear stretching with cutoffs."""
         arr = np.arange(100, dtype=dtype).reshape(5, 5, 4) / 74.
@@ -1073,7 +1074,7 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_linear_stretch_does_not_affect_alpha_with_partial_cutoffs(self, dtype):
         """Test linear stretching with cutoffs."""
         arr = np.arange(100, dtype=dtype).reshape(5, 5, 4) / 74.
@@ -1112,7 +1113,7 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_linear_stretch_does_affect_alpha_with_explicit_cutoffs(self, dtype):
         """Test linear stretching with full explicit cutoffs."""
         arr = np.arange(100, dtype=dtype).reshape(5, 5, 4) / 74.
@@ -1151,14 +1152,14 @@ class TestXRImage:
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
     @pytest.mark.parametrize(("dtype", "max_val", "exp_min", "exp_max"),
-                             ((np.uint8, 255, -0.005358012691140175, 1.0053772069513798),
+                             [(np.uint8, 255, -0.005358012691140175, 1.0053772069513798),
                               (np.int8, 127, -0.004926108196377754, 1.0058689523488282),
                               (np.uint16, 65535, -0.005050825305515899, 1.005050893505104),
                               (np.int16, 32767, -0.005052744992717635, 1.0050527782880818),
                               (np.uint32, 4294967295, -0.005050505077517274, 1.0050505395923495),
                               (np.int32, 2147483647, -0.00505050499355784, 1.0050505395923495),
                               (int, 2147483647, -0.00505050499355784, 1.0050505395923495),
-                              ))
+                              ])
     def test_linear_stretch_integers(self, dtype, max_val, exp_min, exp_max):
         """Test linear stretch with low-bit unsigned integer data."""
         arr = np.linspace(0, max_val, num=75, dtype=dtype).reshape(5, 5, 3)
@@ -1170,7 +1171,7 @@ class TestXRImage:
         assert img.data.values.min() == pytest.approx(exp_min)
         assert img.data.values.max() == pytest.approx(exp_max)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_histogram_stretch(self, dtype):
         """Test histogram stretching."""
         arr = da.arange(75, dtype=dtype).reshape(5, 5, 3) / 74.
@@ -1216,7 +1217,7 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     @pytest.mark.parametrize(
         ("min_stretch", "max_stretch"),
         [
@@ -1271,7 +1272,7 @@ class TestXRImage:
 
         np.testing.assert_allclose(img.data.values, res, atol=1.e-6)
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_weber_fechner_stretch(self, dtype):
         """Test applying S=2.3klog10I+C to the data."""
         from trollimage import xrimage
@@ -1315,35 +1316,28 @@ class TestXRImage:
 
     def test_jpeg_save(self):
         """Test saving to jpeg."""
-        pass
 
     def test_gtiff_save(self):
         """Test saving to geotiff."""
-        pass
 
     def test_save_masked(self):
         """Test saving masked data."""
-        pass
 
     def test_LA_save(self):
         """Test LA saving."""
-        pass
 
     def test_L_save(self):
         """Test L saving."""
-        pass
 
     def test_P_save(self):
         """Test P saving."""
-        pass
 
     def test_PA_save(self):
         """Test PA saving."""
-        pass
 
     def test_convert_modes(self):
         """Test modes convertions."""
-        from trollimage.colormap import brbg, Colormap
+        from trollimage.colormap import Colormap, brbg
 
         # RGBA colormap
         bw = Colormap(
@@ -1520,9 +1514,8 @@ class TestXRImage:
 
     def test_merge(self):
         """Test merge."""
-        pass
 
-    @pytest.mark.parametrize("dtype", (np.float32, np.float64, float))
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64, float])
     def test_blend(self, dtype):
         """Test blend."""
         from trollimage import xrimage
@@ -1567,11 +1560,9 @@ class TestXRImage:
 
     def test_replace_luminance(self):
         """Test luminance replacement."""
-        pass
 
     def test_putalpha(self):
         """Test putalpha."""
-        pass
 
     def test_show(self):
         """Test that the show commands calls PIL.show."""
@@ -1875,7 +1866,7 @@ class TestXRImageColorize:
         img = xrimage.XRImage(data)
         img.colorize(bw)
         values = img.data.compute()
-        assert (4, 5, 15) == values.shape
+        assert values.shape == (4, 5, 15)
         np.testing.assert_allclose(values[:, 0, 0], [1.0, 1.0, 1.0, 1.0], rtol=1e-03)
         np.testing.assert_allclose(values[:, -1, -1], [0.0, 0.0, 0.0, 0.5])
         assert "enhancement_history" in img.data.attrs
@@ -1939,8 +1930,8 @@ class TestXRImagePalettize:
         img.palettize(bw)
 
         values = img.data.values
-        assert (1, 5, 15) == values.shape
-        assert (2, 4) == bw.colors.shape
+        assert values.shape == (1, 5, 15)
+        assert bw.colors.shape == (2, 4)
 
     @pytest.mark.parametrize("colormap_tag", [None, "colormap"])
     @pytest.mark.parametrize("keep_palette", [False, True])

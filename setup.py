@@ -2,11 +2,12 @@
 import sys
 from typing import Any
 
-from setuptools import setup, find_packages
-import versioneer
 import numpy as np
 from Cython.Build import build_ext
 from Cython.Distutils import Extension
+from setuptools import find_packages, setup
+
+import versioneer
 
 if sys.platform.startswith("win"):
     extra_compile_args = []
@@ -44,7 +45,7 @@ class CythonCoverageBuildExtCommand(build_ext):
     def initialize_options(self):
         """Initialize command line flag options to default values."""
         super().initialize_options()
-        self.cython_coverage = False  # noqa
+        self.cython_coverage = False
 
     def run(self):
         """Build extensions and handle cython coverage flags."""
@@ -67,7 +68,7 @@ class CythonCoverageBuildExtCommand(build_ext):
 
 cmdclass = versioneer.get_cmdclass(cmdclass={"build_ext": CythonCoverageBuildExtCommand})
 
-with open('README.rst', 'r') as readme_file:
+with open('README.rst') as readme_file:
     long_description = readme_file.read()
 
 setup(name="trollimage",

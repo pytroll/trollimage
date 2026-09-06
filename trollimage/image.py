@@ -62,7 +62,7 @@ def check_image_format(fformat):
     return fformat
 
 
-class Image(object):
+class Image:
     """Generic masked-array based image.
 
     This class defines images. As such, it contains data of the different
@@ -108,9 +108,8 @@ class Image(object):
 
         if (isinstance(channels, (tuple, list)) and
                 len(channels) != len(re.findall("[A-Z]", mode))):
-            errmsg = ("Number of channels (" +
-                      "{n}) does not match mode {mode}.".format(
-                          n=len(channels), mode=mode))
+            errmsg = ("Number of channels ("
+                      f"{len(channels)}) does not match mode {mode}.")
             raise ValueError(errmsg)
 
         if copy and channels is not None:
@@ -354,7 +353,7 @@ class Image(object):
         del compression
 
         if self.is_empty():
-            raise IOError("Cannot save an empty image")
+            raise OSError("Cannot save an empty image")
 
         if isinstance(filename, str):
             ensure_dir(filename)
@@ -510,10 +509,7 @@ class Image(object):
         """Convert the image from P or PA mode."""
         self._check_modes(("P", "PA"))
 
-        if self.mode.endswith("A"):
-            alpha = self.channels[-1]
-        else:
-            alpha = None
+        alpha = self.channels[-1] if self.mode.endswith("A") else None
 
         chans = []
         cdfs = []
@@ -804,10 +800,7 @@ class Image(object):
         """
         if (isinstance(gamma, (list, tuple, set)) and len(gamma) != len(self.channels)):
             raise ValueError("Number of channels and gamma components differ.")
-        if isinstance(gamma, (tuple, list)):
-            gamma_list = list(gamma)
-        else:
-            gamma_list = [gamma] * len(self.channels)
+        gamma_list = list(gamma) if isinstance(gamma, (tuple, list)) else [gamma] * len(self.channels)
         for i in range(len(self.channels)):
             gamma = float(gamma_list[i])
             if gamma < 0:
@@ -855,7 +848,7 @@ class Image(object):
         if self.mode.endswith("A"):
             ch_len -= 1
 
-        if ((isinstance(stretch, tuple) or isinstance(stretch, list))):
+        if (isinstance(stretch, (tuple, list))):
             if len(stretch) == 2:
                 for i in range(ch_len):
                     self.stretch_linear(i, cutoffs=stretch, **kwargs)
@@ -917,7 +910,7 @@ class Image(object):
         carr = arr.compressed()
 
         cdf = np.arange(0.0, 1.0, 1 / nwidth)
-        logger.debug("Make histogram bins having equal amount of data, " +
+        logger.debug("Make histogram bins having equal amount of data, "
                      "using numpy percentile function:")
         bins = np.percentile(carr, list(cdf * 100))
 
@@ -1030,10 +1023,7 @@ class Image(object):
         """
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
-        if self.mode == "LA":
-            alpha = self.channels[1]
-        else:
-            alpha = None
+        alpha = self.channels[1] if self.mode == "LA" else None
         self.channels = list(colormap.colorize(self.channels[0]))
         if alpha is not None:
             self.channels.append(alpha)
@@ -1077,7 +1067,7 @@ class Image(object):
 
 def _areinstances(the_list, types):
     """Check if all the elements of the list are of given type."""
-    return all([isinstance(item, types) for item in the_list])
+    return all(isinstance(item, types) for item in the_list)
 
 
 def _is_pair(item):
@@ -1090,7 +1080,7 @@ def _is_pair(item):
 
 def _is_list_of_pairs(the_list):
     """Check if a list contains only pairs."""
-    return all([_is_pair(item) for item in the_list])
+    return all(_is_pair(item) for item in the_list)
 
 
 def ycbcr2rgb(y__, cb_, cr_):

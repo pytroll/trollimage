@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # TrollImage documentation build configuration file, created by
 # sphinx-quickstart on Mon Dec  2 09:40:29 2013.
@@ -13,6 +12,7 @@
 
 import os
 import sys
+
 from trollimage import __version__
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -48,8 +48,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'TrollImage'
-copyright = u'2018, The Pytroll Team'
+project = 'TrollImage'
+copyright = '2018, The Pytroll Team'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -187,8 +187,8 @@ latex_paper_size = 'a4'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'TrollImage.tex', u'TrollImage Documentation',
-   u'The Pytroll Team', 'manual'),
+  ('index', 'TrollImage.tex', 'TrollImage Documentation',
+   'The Pytroll Team', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -220,8 +220,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'trollimage', u'TrollImage Documentation',
-     [u'The Pytroll Team'], 1)
+    ('index', 'trollimage', 'TrollImage Documentation',
+     ['The Pytroll Team'], 1)
 ]
 
 intersphinx_mapping = {

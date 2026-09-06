@@ -10,18 +10,20 @@ chunks can be saved in parallel.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import numbers
 import os
 import pathlib
 import warnings
-from collections.abc import Sequence
-from typing import IO, Callable
+from collections.abc import Callable, Sequence
+from typing import IO
 
 import dask.array as da
 import numpy as np
 import xarray as xr
 from PIL import Image as PILImage
+
 from trollimage.image import check_image_format
 
 logger = logging.getLogger(__name__)
@@ -156,11 +158,11 @@ class XRImage:
             # don't rename 'x' or 'y' if they already exist
             if 'y' not in data.dims:
                 # find a dimension that isn't 'x'
-                old_dim = [d for d in data.dims if d != 'x'][0]
+                old_dim = next(d for d in data.dims if d != 'x')
                 data = data.rename({old_dim: 'y'})
             if 'x' not in data.dims:
                 # find a dimension that isn't 'y'
-                old_dim = [d for d in data.dims if d != 'y'][0]
+                old_dim = next(d for d in data.dims if d != 'y')
                 data = data.rename({old_dim: 'x'})
 
         if "bands" not in data.dims:
@@ -355,7 +357,7 @@ class XRImage:
             closed by the user.
 
         """
-        from ._xrimage_rasterio import RIOFile, RIODataset, split_regular_vs_lazy_tags
+        from ._xrimage_rasterio import RIODataset, RIOFile, split_regular_vs_lazy_tags
         fformat = fformat or os.path.splitext(filename)[1][1:]
         drivers = {'jpg': 'JPEG',
                    'png': 'PNG',
@@ -549,9 +551,9 @@ class XRImage:
 
         """
         if pil_args is None:
-            pil_args = tuple()
+            pil_args = ()
         if pil_kwargs is None:
-            pil_kwargs = dict()
+            pil_kwargs = {}
         pil_ready_arr, mode = self.pil_array(*pil_args, **pil_kwargs)
 
         # HACK: aggdraw.Font objects cause segmentation fault in dask tokenize
@@ -567,9 +569,9 @@ class XRImage:
             from dask.utils import funcname
             func = _delayed_apply_pil
             if fun_args is None:
-                fun_args = tuple()
+                fun_args = ()
             if fun_kwargs is None:
-                fun_kwargs = dict()
+                fun_kwargs = {}
             tokenize_args = (pil_ready_arr, mode, fun, fun_args[:-1], fun_kwargs,
                              self.data.attrs, self.data.dtype, output_mode)
             dask_key_name = "%s-%s" % (
@@ -720,7 +722,7 @@ class XRImage:
                 # leave room for fill value if needed
                 scale, offset = self._get_dtype_scale_offset(dtype, fill_value)
                 data = data.clip(0, 1) * scale + offset
-                attrs.setdefault('enhancement_history', list()).append({'scale': scale, 'offset': offset})
+                attrs.setdefault('enhancement_history', []).append({'scale': scale, 'offset': offset})
             data = data.round()
             if fill_value is None:
                 data = data.fillna(np.iinfo(dtype).min)
@@ -922,10 +924,10 @@ class XRImage:
             keep_palette = False
 
         if not keep_palette:
-            finalize_kwargs = dict(
-                fill_value=fill_value, dtype=dtype,
-                keep_palette=keep_palette,
-            )
+            finalize_kwargs = {
+                "fill_value": fill_value, "dtype": dtype,
+                "keep_palette": keep_palette,
+            }
             if self.mode == "P":
                 return self.convert("RGB").finalize(**finalize_kwargs)
             if self.mode == "PA":
@@ -937,10 +939,8 @@ class XRImage:
             fill_value = 0
 
         final_data = self.data.copy()
-        try:
+        with contextlib.suppress(KeyError):
             final_data.attrs['enhancement_history'] = list(self.data.attrs['enhancement_history'])
-        except KeyError:
-            pass
         with xr.set_options(keep_attrs=True):
             attrs = final_data.attrs
             final_data = self._scale_alpha_or_fill_data(
@@ -1050,10 +1050,7 @@ class XRImage:
         self.data.attrs.setdefault('enhancement_history', []).append({'gamma': gamma})
 
     def _get_inverse_gamma(self, gamma):
-        if np.issubdtype(self.data.dtype, np.floating):
-            dtype = self.data.dtype
-        else:
-            dtype = np.float32
+        dtype = self.data.dtype if np.issubdtype(self.data.dtype, np.floating) else np.float32
         if isinstance(gamma, (list, tuple)):
             gamma = self.xrify_tuples(gamma).astype(dtype)
         else:
@@ -1606,7 +1603,7 @@ class XRImage:
 
         .. _alpha blending: https://en.wikipedia.org/w/index.php?title=Alpha_compositing&oldid=891033105#Alpha_blending
 
-        Returns
+        Returns:
             XRImage with mode "RGBA", blended as described above
 
         """
@@ -1614,14 +1611,11 @@ class XRImage:
 
         if self.mode != "RGBA":
             raise ValueError(
-                    "Expected self.mode='RGBA', got {md!s}".format(
-                        md=self.mode))
+                    f"Expected self.mode='RGBA', got {self.mode!s}")
         if not isinstance(src, XRImage):
-            raise TypeError("Expected XRImage, got {tp!s}".format(
-                tp=type(src)))
+            raise TypeError(f"Expected XRImage, got {type(src)!s}")
         if src.mode != "RGBA":
-            raise ValueError("Expected src.mode='RGBA', got {sm!s}".format(
-                sm=src.mode))
+            raise ValueError(f"Expected src.mode='RGBA', got {src.mode!s}")
 
         srca = src.data.sel(bands="A")
         dsta = self.data.sel(bands="A")
@@ -1657,11 +1651,11 @@ def _delayed_apply_pil(
         output_mode: str | None = None,
 ) -> np.ndarray:
     if fun_args is None:
-        fun_args = tuple()
+        fun_args = ()
     if fun_kwargs is None:
-        fun_kwargs = dict()
+        fun_kwargs = {}
     if image_metadata is None:
-        image_metadata = dict()
+        image_metadata = {}
     pil_image = PILImage.fromarray(pil_ready_array, mode=mode)
     new_img = fun(pil_image, image_metadata, *fun_args, **fun_kwargs)
     if output_mode is not None:
