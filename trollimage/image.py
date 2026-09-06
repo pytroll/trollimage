@@ -10,6 +10,7 @@ import os
 import re
 from copy import deepcopy
 from functools import lru_cache
+from typing import ClassVar
 
 import numpy as np
 from PIL import Image as Pil
@@ -58,7 +59,7 @@ def check_image_format(fformat):
     except KeyError:
         raise UnknownImageFormat(
             "Unknown image format '%s'. Supported formats for 'simple_image' writer are:\n%s" %
-            (fformat, _pprint_pil_formats()))
+            (fformat, _pprint_pil_formats())) from None
     return fformat
 
 
@@ -84,7 +85,7 @@ class Image:
     image to file.
     """
 
-    modes = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
+    modes: ClassVar[list[str]] = ["L", "LA", "RGB", "RGBA", "YCbCr", "YCbCrA", "P", "PA"]
 
     def __init__(self, channels=None, mode="L", color_range=None,
                  fill_value=None, palette=None, copy=True):
@@ -674,7 +675,7 @@ class Image:
                 cases[self.mode][mode](mode)
             except KeyError:
                 raise ValueError("Conversion from %s to %s not implemented !"
-                                 % (self.mode, mode))
+                                 % (self.mode, mode)) from None
 
     def clip(self, channels=True):
         """Limit the values of the array to the default [0,1] range.

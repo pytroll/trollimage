@@ -75,7 +75,8 @@ def cmap_from_text(filename, norm=False, transparency=False, hex=False):
     cat is the index of the current colour in the colormap
     if norm is set to True, the input values are normalized between 0 and 1.
     """
-    lines = [line.rstrip('\n') for line in open(filename)]
+    with open(filename) as cmap_file:
+        lines = [line.rstrip('\n') for line in cmap_file]
     _colors = []
     _tot = len(lines)
     _index = 1

@@ -4,6 +4,7 @@ import warnings
 from collections import OrderedDict
 from datetime import UTC, datetime
 from tempfile import NamedTemporaryFile
+from typing import ClassVar
 from unittest import mock
 
 import dask.array as da
@@ -125,10 +126,10 @@ class TestXRImage:
             # change the values
 
         # Jpeg fails without fill value (no alpha handling)
-        with NamedTemporaryFile(suffix='.jpg') as tmp:
-            # make sure fill_value is mentioned in the error message
-            with pytest.raises(OSError, match=r".*fill_value.*"):
-                img.save(tmp.name)
+        with (NamedTemporaryFile(suffix='.jpg') as tmp,
+              # make sure fill_value is mentioned in the error message
+              pytest.raises(OSError, match=r".*fill_value.*")):
+            img.save(tmp.name)
 
     @pytest.mark.skipif(sys.platform.startswith('win'),
                         reason="'NamedTemporaryFile' not supported on Windows")
@@ -500,7 +501,7 @@ class TestXRImage:
             img.save(tmp.name)
             with rio.open(tmp.name) as f:
                 fgcps, fcrs = f.gcps
-            for ref, val in zip(gcps, fgcps):
+            for ref, val in zip(gcps, fgcps, strict=True):
                 assert ref.col == val.col
                 assert ref.row == val.row
                 assert ref.x == val.x
@@ -697,9 +698,9 @@ class TestXRImage:
                             coords={'bands': ['P']})
         img = xrimage.XRImage(data)
         with NamedTemporaryFile(suffix='.tif') as tmp:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Colormap is not formatted correctly"):
                 img.save(tmp.name, keep_palette=True, cmap=bad_cmap)
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Rasterio only supports 8-bit colormaps"):
                 img.save(tmp.name, keep_palette=True, cmap=t_cmap,
                          dtype='uint16')
 
@@ -1456,7 +1457,7 @@ class TestXRImage:
             assert img.mode == 'RGB'
             assert len(img.data.coords['bands']) == 3
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Mode A not recognized"):
             img.convert('A')
 
         # L -> palettize -> RGBA (float) with RGBA colormap
@@ -1555,7 +1556,7 @@ class TestXRImage:
 
         wrongimg = xrimage.XRImage(
             xr.DataArray(np.zeros((0, 0)), dims=("y", "x")))
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Expected src\.mode='RGBA'"):
             img1.blend(wrongimg)
 
     def test_replace_luminance(self):
@@ -1635,7 +1636,7 @@ class TestXRImage:
 class TestXRImageColorize:
     """Test the colorize method of the XRImage class."""
 
-    _expected = {
+    _expected: ClassVar[dict] = {
         np.float64: np.array([[
             [3.29411723e-01, 3.57655082e-01, 3.86434110e-01, 4.15693606e-01,
              4.45354600e-01, 4.75400861e-01, 5.05821366e-01, 5.36605929e-01,
@@ -1995,7 +1996,7 @@ class TestXRImageSaveScaleOffset:
         expected_tags = {'scale': 24.0 / 255, 'offset': 0}
 
         self.img.stretch()
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(DeprecationWarning, match="include_scale_offset_tags is deprecated"):
             self._save_and_check_tags(
                 expected_tags,
                 include_scale_offset_tags=True)

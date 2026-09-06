@@ -1,3 +1,4 @@
+"""Sphinx configuration for the trollimage documentation."""
 #
 # TrollImage documentation build configuration file, created by
 # sphinx-quickstart on Mon Dec  2 09:40:29 2013.

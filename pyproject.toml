@@ -43,6 +43,9 @@ ignore = [
 "doc/examples/utilities-examples.py" = ["T201", "D100"]
 "load_colorbrewer_colormaps.py" = ["T201"]
 "setup.py" = ["T201"]
+# A002: `hex` shadows a builtin, but it is a public keyword argument of
+# cmap_from_text(); renaming it would break callers.
+"trollimage/utilities.py" = ["A002"]
 # S101: `assert` is how tests assert.
 "trollimage/tests/*" = ["S101"]
 # unittest.TestCase-era file. Every one of these is addressed by

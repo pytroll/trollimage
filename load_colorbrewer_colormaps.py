@@ -64,7 +64,7 @@ def _color_info_as_human_friendly_strings(
 
 
 def _print_single_colormap(cmap_name: str, cmap_values: list[str], cmap_colors: list[tuple[str, str, str]]) -> None:
-    cmap_pairs = [(cval, rgb_color) for cval, rgb_color in zip(cmap_values, cmap_colors)]
+    cmap_pairs = [(cval, rgb_color) for cval, rgb_color in zip(cmap_values, cmap_colors, strict=True)]
     print(f"{cmap_name} = Colormap(")
     for cmap_value_str, cmap_color_tuple in cmap_pairs:
         print(f"    ({cmap_value_str}, "

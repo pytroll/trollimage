@@ -373,9 +373,7 @@ class TestRegularImage(unittest.TestCase):
 
         for mode in "L":
             self.img.convert(mode)
-            old_channels = []
-            for chn in self.img.channels:
-                old_channels.append(chn)
+            old_channels = list(self.img.channels)
 
             linear = np.array([[0., 1.00048852, 1.00048852],
                                [1.00048852, 0.50024426, 0.50024426]])
@@ -416,9 +414,7 @@ class TestRegularImage(unittest.TestCase):
                 continue
             self.img.convert(mode)
 
-            old_channels = []
-            for chn in self.img.channels:
-                old_channels.append(chn)
+            old_channels = list(self.img.channels)
 
             # input a single value
             self.img.gamma()
@@ -454,9 +450,7 @@ class TestRegularImage(unittest.TestCase):
             if mode == "P" or mode == "PA":
                 continue
             self.img.convert(mode)
-            old_channels = []
-            for chn in self.img.channels:
-                old_channels.append(chn)
+            old_channels = list(self.img.channels)
             self.img.invert()
             for i in range(len(self.img.channels)):
                 self.assertTrue(np.all(self.img.channels[i] ==
@@ -603,7 +597,7 @@ class TestRegularImage(unittest.TestCase):
 
     def tearDown(self):
         """Clean up the mess."""
-        os.chmod(self.tempdir, 0o777)
+        os.chmod(self.tempdir, 0o777)  # noqa: S103  restore write access so rmdir succeeds
         os.rmdir(self.tempdir)
 
 

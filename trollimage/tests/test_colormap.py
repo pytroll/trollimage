@@ -416,7 +416,7 @@ class TestColormap:
         cm = input_cmap_func()
         channels = cm.colorize(data)
         output_colors = [channels[:, i] for i in range(data.size)]
-        for output_color, expected_color in zip(output_colors, expected_result):
+        for output_color, expected_color in zip(output_colors, expected_result, strict=True):
             np.testing.assert_allclose(output_color, expected_color, atol=0.001)
 
     @pytest.mark.parametrize(
@@ -635,7 +635,7 @@ class TestFromFileCreation:
             cmap_data = _generate_cmap_test_data(None, real_mode)
             _write_cmap_to_file(cmap_filename, cmap_data)
             # Force colormap_mode VRGBA to RGBA and we should see an exception
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Unexpected colormap shape"):
                 colormap.Colormap.from_file(cmap_filename, colormap_mode=forced_mode)
 
     def test_cmap_from_file_bad_shape(self):
@@ -648,7 +648,7 @@ class TestFromFileCreation:
                 [255],
             ]))
 
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Unexpected colormap shape"):
                 colormap.Colormap.from_file(cmap_filename)
 
     @pytest.mark.parametrize("color_scale", [None, 1.0])

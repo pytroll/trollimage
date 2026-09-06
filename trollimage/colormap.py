@@ -386,7 +386,7 @@ class Colormap:
                    (self.colors.max() - self.colors.min())) * 255)
         # rasterio doesn't allow non-integer colormap values
         values = np.round(self.values).astype(np.uint)
-        return dict(zip(values, tuple(map(tuple, colors))))
+        return dict(zip(values, tuple(map(tuple, colors)), strict=True))
 
     def to_csv(
             self,
@@ -414,7 +414,7 @@ class Colormap:
 
         """
         with _file_or_stringio(filename) as csv_file:
-            for value, color in zip(self.values, self.colors):
+            for value, color in zip(self.values, self.colors, strict=True):
                 scaled_color = [x * color_scale for x in color]
                 if color_scale != 1.0:
                     scaled_color = [int(x) for x in scaled_color]
@@ -508,6 +508,10 @@ class Colormap:
             string (str): String containing CSV.  Must have no less than three
                 and no more than five columns and describe entirely numeric
                 data.
+            *args: Additional positional arguments passed on to
+                :meth:`from_ndarray`, documented below.
+            **kwargs: Additional keyword arguments passed on to
+                :meth:`from_ndarray`, documented below.
             colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
                 "VRGBA".  If None (default), this is inferred from the dimensions of
                 the data contained in the CSV.  Modes starting with V have in
@@ -530,6 +534,10 @@ class Colormap:
 
         Args:
             path (str or Pathlib.Path): Path to file containing numpy data.
+            *args: Additional positional arguments passed on to
+                :meth:`from_ndarray`, documented below.
+            **kwargs: Additional keyword arguments passed on to
+                :meth:`from_ndarray`, documented below.
             colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
                 "VRGBA".  If None (default), this is inferred from the dimensions of
                 the data contained in the CSV.  Modes starting with V have in
@@ -551,7 +559,7 @@ class Colormap:
         To read from a string that contains CSV, use :meth:`from_string`.
 
         Args:
-            string (str or pathlib.Path): Path to file containing CSV.
+            path (str or pathlib.Path): Path to file containing CSV.
                 The CSV must have at least three and at most five columns and
                 describe entirely numeric data.
             colormap_mode (str or None): Optional. Can be None, "RGB", "RGBA", "VRGB", or
@@ -660,22 +668,22 @@ class Colormap:
         or according to ``valid_range``.
 
         Args:
-            palette (ndarray or xarray.DataArray)
+            palette (ndarray or xarray.DataArray):
                 Array describing colors, possibly with metadata.  If it has a
                 ``palette_meanings`` attribute, this will be used for color
                 interpretation.
-            dtype
+            dtype:
                 dtype for the colormap
             color_scale (number): The value that represents white in the
                 numbers describing the colors. Defaults to 255, could also be 1
                 or something else.
-            valid_range
+            valid_range:
                 valid range for colors, if colormap is not of dtype uint8
-            scale_factor
+            scale_factor:
                 scale factor to apply to the colormap
-            add_offset
+            add_offset:
                 add offset to apply to the colormap
-            remove_last
+            remove_last:
                 Remove the last value if the array has no metadata associated.
                 Defaults to true for historical reasons.
 

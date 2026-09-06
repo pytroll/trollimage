@@ -347,6 +347,11 @@ class XRImage:
                 version of the Colormap that was used. See
                 :meth:`trollimage.colormap.Colormap.to_csv` for more
                 information.
+            include_scale_offset_tags (bool): Deprecated. Equivalent to passing
+                ``scale_offset_tags=("scale", "offset")``. Use
+                ``scale_offset_tags`` instead.
+            **format_kwargs: Additional keyword arguments passed directly to
+                the underlying rasterio driver.
 
         Returns:
             The filename saved if ``compute`` is ``True``. Otherwise, a two element
@@ -445,8 +450,8 @@ class XRImage:
                 from trollimage.colormap import Colormap
                 cmap = cmap.to_rio() if isinstance(cmap, Colormap) else cmap
                 r_file.rfile.write_colormap(1, cmap)
-            except AttributeError:
-                raise ValueError("Colormap is not formatted correctly")
+            except AttributeError as err:
+                raise ValueError("Colormap is not formatted correctly") from err
 
         tags, da_tags = split_regular_vs_lazy_tags(tags, r_file)
         r_file.rfile.update_tags(**tags)
@@ -758,7 +763,7 @@ class XRImage:
 
         flat_indexes = self.data.sel(bands='P').data.ravel().astype('int64')
         dim_sizes = ((key, val) for key, val in self.data.sizes.items() if key != 'bands')
-        dims, new_shape = zip(*dim_sizes)
+        dims, new_shape = zip(*dim_sizes, strict=True)
         dims = dims + ('bands',)
         new_shape = new_shape + (pal.shape[1],)
         new_data = pal[flat_indexes].reshape(new_shape)
@@ -823,7 +828,7 @@ class XRImage:
                 new_img = XRImage(data)
             except KeyError:
                 raise ValueError("Conversion from %s to %s not implemented !"
-                                 % (self.mode, mode))
+                                 % (self.mode, mode)) from None
 
         if self.mode.startswith('P') and new_img.mode.startswith('P'):
             # need to copy the palette
@@ -1598,7 +1603,7 @@ class XRImage:
         Both images must have mode ``"RGBA"``.
 
         Args:
-            src (:class:`XRImage` with mode ``"RGBA"``)
+            src (:class:`XRImage` with mode ``"RGBA"``):
                 Image to be blended on top of current image.
 
         .. _alpha blending: https://en.wikipedia.org/w/index.php?title=Alpha_compositing&oldid=891033105#Alpha_blending
