@@ -716,7 +716,11 @@ def _get_values_colors_from_file(filename, colormap_mode, color_scale):
 
 def _get_values_colors_from_ndarray(data, colormap_mode, color_scale):
     cols = data.shape[1]
-    default_modes = {3: "RGB", 4: "VRGB", 5: "VRGBA"}
+    default_modes = {
+        3: "RGB",
+        4: "VRGB",
+        5: "VRGBA",
+    }
     default_mode = default_modes.get(cols)
     if colormap_mode is None:
         colormap_mode = default_mode

@@ -224,7 +224,9 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [("index", "trollimage", "TrollImage Documentation", ["The Pytroll Team"], 1)]
+man_pages = [
+    ("index", "trollimage", "TrollImage Documentation", ["The Pytroll Team"], 1),
+]
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),

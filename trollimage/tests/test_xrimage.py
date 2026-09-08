@@ -623,15 +623,7 @@ class TestXRImage:
         from pyresample import AreaDefinition
 
         crs = CRS.from_user_input(4326)
-        area_def = AreaDefinition(
-            "test",
-            "test",
-            "",
-            crs,
-            5,
-            5,
-            [-300, -250, 200, 250],
-        )
+        area_def = AreaDefinition("test", "test", "", crs, 5, 5, [-300, -250, 200, 250])
 
         data = xr.DataArray(
             np.arange(75).reshape(5, 5, 3),

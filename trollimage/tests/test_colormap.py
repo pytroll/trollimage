@@ -56,7 +56,12 @@ class TestColormap:
 
     def test_invert_set_range(self):
         """Test inverted set_range."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)), (2, (0.0, 1.0, 1.0)), (3, (1, 1, 1)), (4, (0, 0, 0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1, 1, 1)),
+            (4, (0, 0, 0)),
+        )
 
         cm_.set_range(8, 0)
         assert cm_.values[0] == 8
@@ -67,10 +72,21 @@ class TestColormap:
 
     def test_add(self):
         """Test adding colormaps."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)), (2, (0.0, 1.0, 1.0)), (3, (1, 1, 1)), (4, (0, 0, 0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1, 1, 1)),
+            (4, (0, 0, 0)),
+        )
 
-        cm1 = colormap.Colormap((1, (1.0, 1.0, 0.0)), (2, (0.0, 1.0, 1.0)))
-        cm2 = colormap.Colormap((3, (1.0, 1.0, 1.0)), (4, (0.0, 0.0, 0.0)))
+        cm1 = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+        )
+        cm2 = colormap.Colormap(
+            (3, (1.0, 1.0, 1.0)),
+            (4, (0.0, 0.0, 0.0)),
+        )
 
         cm3 = cm1 + cm2
 
@@ -81,7 +97,11 @@ class TestColormap:
     def test_colorbar(self, category):
         """Test colorbar."""
         cm_ = colormap.Colormap(
-            (1, (1.0, 1.0, 0.0)), (2, (0.0, 1.0, 1.0)), (3, (1.0, 0.0, 1.0)), (4, (1.0, 1.0, 1.0)), (5, (0.0, 0.0, 0.0))
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1.0, 0.0, 1.0)),
+            (4, (1.0, 1.0, 1.0)),
+            (5, (0.0, 0.0, 0.0)),
         )
 
         channels = colormap.colorbar(1, 9, cm_, category=category)
@@ -95,7 +115,12 @@ class TestColormap:
 
     def test_palettebar(self):
         """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)), (2, (0.0, 1.0, 1.0)), (3, (1.0, 1.0, 1.0)), (4, (0.0, 0.0, 0.0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1.0, 1.0, 1.0)),
+            (4, (0.0, 0.0, 0.0)),
+        )
 
         channel, palette = colormap.palettebar(1, 4, cm_)
 
@@ -104,11 +129,21 @@ class TestColormap:
 
     def test_to_rio(self):
         """Test conversion to rasterio colormap."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)), (2, (0.0, 1.0, 1.0)), (3, (1.0, 1.0, 1.0)), (4, (0.0, 0.0, 0.0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1.0, 1.0, 1.0)),
+            (4, (0.0, 0.0, 0.0)),
+        )
         orig_colors = cm_.colors.copy()
 
         d = cm_.to_rio()
-        exp = {1: (255, 255, 0), 2: (0, 255, 255), 3: (255, 255, 255), 4: (0, 0, 0)}
+        exp = {
+            1: (255, 255, 0),
+            2: (0, 255, 255),
+            3: (255, 255, 255),
+            4: (0, 0, 0),
+        }
 
         assert d == exp
         # assert original colormap information hasn't changed

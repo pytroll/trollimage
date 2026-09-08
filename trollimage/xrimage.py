@@ -387,7 +387,13 @@ class XRImage:
         from ._xrimage_rasterio import RIODataset, RIOFile, split_regular_vs_lazy_tags
 
         fformat = fformat or os.path.splitext(filename)[1][1:]
-        drivers = {"jpg": "JPEG", "png": "PNG", "tif": "GTiff", "tiff": "GTiff", "jp2": "JP2OpenJPEG"}
+        drivers = {
+            "jpg": "JPEG",
+            "png": "PNG",
+            "tif": "GTiff",
+            "tiff": "GTiff",
+            "jp2": "JP2OpenJPEG",
+        }
         # If fformat is specified but not driver then convert it into a driver
         driver = driver or drivers.get(fformat, fformat)
         # The COG driver adds overviews so we don't need to create them ourself.
