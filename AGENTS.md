@@ -124,7 +124,36 @@ ruff format .
 
 - `line-length = 120`, in `[tool.ruff]`.
 - **`ruff format` is authoritative.** Do not hand-format, and do not fight it. Quote style is
-  owned by the formatter, which is why the rule set deliberately does not select `Q`.
+  owned by the formatter, which is why the rule set deliberately does not select `Q`. The trailing
+  comma below is the one exception, and it works *with* the formatter rather than against it.
+- **A trailing comma is the lever that decides one-line vs. one-item-per-line.** `ruff format`
+  will never collapse a bracketed construct whose last element is followed by a comma (the "magic
+  trailing comma"), and it will never add that comma for you — so the choice is a deliberate,
+  per-site one that the formatter then locks in and keeps stable. Use it in both directions:
+  - **Add it** so data reads as a table — colormap entries, color dicts, mapping literals, lists
+    of items:
+
+    ```python
+    cm_ = colormap.Colormap(
+        (1, (1.0, 1.0, 0.0)),
+        (2, (0.0, 1.0, 1.0)),
+        (3, (1, 1, 1)),
+        (4, (0, 0, 0)),
+    )
+    ```
+
+  - **Leave it off** when the arguments are short scalars or dummy test values, so the call stays
+    on one line inside the 120-column limit rather than becoming a column of stubs:
+
+    ```python
+    area_def = AreaDefinition("test", "test", "", crs, 5, 5, [-300, -250, 200, 250])
+    ```
+
+  Two things to watch. A trailing comma on a collection *nested inside* a call also forces the
+  enclosing call to split, which costs an extra indent level — usually not worth it for a small
+  array literal. And when editing near an existing exploded block, do not drop its trailing comma:
+  that silently collapses the block on the next `ruff format` run. Never set
+  `skip-magic-trailing-comma` in `pyproject.toml`; it would disable the lever repo-wide.
 - **Every module, class, method, and function needs a Google-style docstring — including test
   methods.** Note that Google style needs the colon: `name (type): description`. An entry written
   as `name (type)` with the description on the next line is not parsed as a parameter at all, and
