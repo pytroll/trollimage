@@ -1,7 +1,18 @@
 # cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False
 # cython: initializedcheck=False, nonecheck=False, cpow=True
+"""Cython colorspace conversion kernels.
 
-from libc.math cimport cos, sin, atan2
+Every conversion is a single fused loop over pixels: the per-pixel scalar
+steps (``_*_px``) are inlined by the C compiler, so a three-step conversion
+like RGB -> XYZ -> Lab -> LCh reads and writes each pixel exactly once. The
+loops are bound by the libm calls (``pow``, ``atan2``, ``sincos``), not by
+memory traffic, so the float32 specialization deliberately uses the float
+libm entry points (``powf`` etc.) and float constants to avoid promoting
+everything to double.
+
+"""
+
+from libc.math cimport atan2, atan2f, cos, cosf, pow, powf, sin, sinf, sqrt, sqrtf
 import numpy as np
 cimport numpy as np
 
@@ -12,42 +23,50 @@ ctypedef fused floating:
 
 np.import_array()
 
-# cdef extern from "numpy/npy_math.h":
-#     np.float32_t NPY_NANF
-#     bint npy_isnan(np.float64_t x) nogil
-#     bint npy_isnan(np.float32_t x) nogil
-
 # Function pointer type to allow for generic high-level functions
-ctypedef void (*CONVERT_FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3,
-                              floating[:, ::1] out) noexcept nogil
+ctypedef void (*CONVERT_FUNC)(const floating[:, :] in_arr, floating[:, :] out_arr) noexcept nogil
+
+# Compile-time double constants. Using C macros (instead of module-level
+# ``cdef`` variables) lets the compiler fold them, and the ``<floating>``
+# casts at the use sites keep the float32 specialization in single precision.
+cdef extern from *:
+    """
+    #define TI_BINTERCEPT (4.0 / 29.0)              /* 0.137931 */
+    #define TI_DELTA (6.0 / 29.0)                   /* 0.206896 */
+    #define TI_T0 (TI_DELTA * TI_DELTA * TI_DELTA)  /* 0.008856 */
+    #define TI_ALPHA ((1.0 / (TI_DELTA * TI_DELTA)) / 3.0)  /* 7.787037 */
+    #define TI_THIRD (1.0 / 3.0)
+    #define TI_KAPPA ((29.0 / 3.0) * (29.0 / 3.0) * (29.0 / 3.0))  /* 903.3 */
+    #define TI_GAMMA 2.2
+    #define TI_XN 0.95047
+    #define TI_YN 1.0
+    #define TI_ZN 1.08883
+    #define TI_DENOM_N (TI_XN + (15 * TI_YN) + (3 * TI_ZN))
+    #define TI_UPRIME_N ((4 * TI_XN) / TI_DENOM_N)
+    #define TI_VPRIME_N ((9 * TI_YN) / TI_DENOM_N)
+
+    /* Compile time option to use sRGB companding (default, 1 - True) or
+     * simplified gamma (0 - False). sRGB companding is slightly slower but is
+     * more accurate at the extreme ends of scale.
+     * Unit tests tuned to sRGB companding, change with caution. */
+    #define TI_SRGB_COMPAND 1
+    """
+    double BINTERCEPT "TI_BINTERCEPT"
+    double DELTA "TI_DELTA"
+    double T0 "TI_T0"
+    double ALPHA "TI_ALPHA"
+    double THIRD "TI_THIRD"
+    double KAPPA "TI_KAPPA"
+    double GAMMA "TI_GAMMA"
+    double XN "TI_XN"
+    double YN "TI_YN"
+    double ZN "TI_ZN"
+    double UPRIME_N "TI_UPRIME_N"
+    double VPRIME_N "TI_VPRIME_N"
+    bint SRGB_COMPAND "TI_SRGB_COMPAND"
 
 
-cdef:
-    np.float32_t bintercept = 4.0 / 29  # 0.137931
-    np.float32_t delta = 6.0 / 29  # 0.206896
-    np.float32_t t0 = delta ** 3  # 0.008856
-    np.float32_t alpha = (delta ** -2) / 3  # 7.787037
-    np.float32_t third = 1.0 / 3
-    np.float32_t kappa = (29.0 / 3) ** 3  # 903.3
-    np.float32_t gamma = 2.2
-    np.float32_t xn = 0.95047
-    np.float32_t yn = 1.0
-    np.float32_t zn = 1.08883
-    np.float32_t denom_n = xn + (15 * yn) + (3 * zn)
-    np.float32_t uprime_n = (4 * xn) / denom_n
-    np.float32_t vprime_n = (9 * yn) / denom_n
-
-    # Compile time option to use
-    # sRGB companding (default, True) or simplified gamma (False)
-    # sRGB companding is slightly slower but is more accurate at
-    # the extreme ends of scale
-    # Unit tests tuned to sRGB companding, change with caution
-    bint SRGB_COMPAND = True
-
-
-def rgb2lch(
-        object rgba_arr,
-):
+def rgb2lch(object rgba_arr, object out=None):
     """Convert numpy RGB[A] arrays to CIE LCh_ab (Luminance, Chroma, Hue).
 
     See :func:`convert_colors` for more information on color spaces.
@@ -57,16 +76,17 @@ def rgb2lch(
             shape as long as the channel (band) dimension is the last (-1)
             dimension. If an Alpha (A) channel is provided it is ignored.
             Values should be between 0 and 1.
+        out: Optional output array. See :func:`convert_colors`.
 
     Returns: LCH_ab (l, c, h) numpy array where the last dimension represents Hue, Chroma,
         and Luminance. Hue is in radians from -pi to pi. Chroma is from 0 to
         1. Luminance is also from 0 and 1 (usually a maximum of ~0.5).
 
     """
-    return convert_colors(rgba_arr, "rgb", "lch")
+    return convert_colors(rgba_arr, "rgb", "lch", out=out)
 
 
-def lch2rgb(object lch_arr):
+def lch2rgb(object lch_arr, object out=None):
     """Convert an LCH (luminance, chroma, hue) array to RGB.
 
     See :func:`convert_colors` for more information on color spaces.
@@ -76,14 +96,15 @@ def lch2rgb(object lch_arr):
             shape as long as the channel (band) dimension is the last (-1)
             dimension. Hue must be between -pi to pi. Chroma and Luminance
             should be between 0 and 1.
+        out: Optional output array. See :func:`convert_colors`.
 
     Returns: RGB array where each Red, Green, and Blue channel is between 0 and 1.
 
     """
-    return convert_colors(lch_arr, "lch", "rgb")
+    return convert_colors(lch_arr, "lch", "rgb", out=out)
 
 
-def convert_colors(object input_colors, str in_space, str out_space):
+def convert_colors(object input_colors, str in_space, str out_space, object out=None):
     """Convert from one color space to another.
 
     Color Spaces
@@ -117,15 +138,23 @@ def convert_colors(object input_colors, str in_space, str out_space):
             The array can be of any shape, but the color dimension must be the
             last dimension. Only the first three elements in the color
             dimension will be used. So if an Alpha (A) channel is provided it
-            is ignored.
+            is ignored. Float32 and float64 arrays are converted in their own
+            precision; any other dtype is converted as float64. The array does
+            not need to be contiguous.
         in_space: String name of the color space of the input data. Can be one
             of "rgb", "lch", "lab", "luv", or "xyz".
         out_space: String name of the color space to convert to. Available
             options are the same as for ``in_space``.
+        out: Optional array to write the result into. Must have the same
+            shape as ``input_colors[..., :3]`` and the dtype the conversion is
+            performed in. It may be a non-contiguous view (for example a
+            transposed "planar" ``(3, ...)`` array), which lets callers get
+            channel-first output without an extra copy.
 
     Returns:
         Numpy array with equal shape to the input, but the last dimension is
-        always length 3 to match the ``out_space`` color space.
+        always length 3 to match the ``out_space`` color space. If ``out`` was
+        provided it is returned.
 
     Notes:
         This function is called by all the individual ``<space>2<space>``
@@ -138,21 +167,31 @@ def convert_colors(object input_colors, str in_space, str out_space):
         in a "no GIL" way and allow for 32-bit and 64-bit floating point data.
 
     """
-    cdef object in123_arr = input_colors[..., :3]
+    cdef object in123_arr = np.asarray(input_colors)[..., :3]
     cdef tuple shape = in123_arr.shape
-    cdef np.ndarray in123_2d = in123_arr.reshape((-1, 3))
-    cdef np.ndarray out123
-    if in123_arr.dtype == np.float32:
-        out123 = _call_convert_func[np.float32_t](in123_2d, in_space, out_space)
+    cdef object dtype = in123_arr.dtype
+    if dtype != np.float32 and dtype != np.float64:
+        dtype = np.dtype(np.float64)
+        in123_arr = in123_arr.astype(dtype)
+    if out is None:
+        out = np.empty(shape, dtype=dtype)
+    elif out.shape != shape or out.dtype != dtype:
+        raise ValueError(f"'out' must have shape {shape} and dtype {dtype}, got {out.shape} and {out.dtype}")
+
+    # reshape to (N, 3); this is a view unless the color axis was sliced off
+    # a wider (e.g. RGBA) array, in which case numpy copies
+    cdef object in123_2d = in123_arr.reshape((-1, 3))
+    cdef object out123_2d = out.reshape((-1, 3))
+    if dtype == np.float32:
+        _call_convert_func[np.float32_t](in123_2d, out123_2d, in_space, out_space)
     else:
-        out123 = _call_convert_func[np.float64_t](in123_2d, in_space, out_space)
-    return out123.reshape(shape)
+        _call_convert_func[np.float64_t](in123_2d, out123_2d, in_space, out_space)
+    return out
 
 
-cdef np.ndarray[floating, ndim=2] _call_convert_func(
-        floating[:, :] in_colors, str in_space, str out_space,
+cdef void _call_convert_func(
+        const floating[:, :] in_colors, floating[:, :] out_colors, str in_space, str out_space,
 ):
-    cdef floating[:] in1_view, in2_view, in3_view
     cdef CONVERT_FUNC conv_func = NULL
     if in_space == "rgb":
         if out_space == "lch":
@@ -203,329 +242,359 @@ cdef np.ndarray[floating, ndim=2] _call_convert_func(
     if conv_func is NULL:
         raise ValueError("Unknown colorspace combination")
 
-    cdef object dtype
-    if floating is np.float32_t:
-        dtype = np.float32
-    else:
-        dtype = np.float64
-
-    in1_view = in_colors[:, 0]
-    in2_view = in_colors[:, 1]
-    in3_view = in_colors[:, 2]
-    cdef np.ndarray[floating, ndim=2] out_colors = np.empty((in_colors.shape[0], 3), dtype=dtype)
-    cdef floating[:, ::1] out_view = out_colors
     with nogil:
-        conv_func(in1_view, in2_view, in3_view, out_view)
-    return out_colors
+        conv_func(in_colors, out_colors)
 
 
-cdef void _rgb_to_lab(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lab_arr) noexcept nogil:
-    _rgb_to_xyz[floating](r_arr, g_arr, b_arr, lab_arr)
-    _xyz_to_lab[floating](lab_arr[:, 0], lab_arr[:, 1], lab_arr[:, 2], lab_arr)
+# Typed libm wrappers: pick the float or double entry point at compile time
+
+cdef inline floating _pow(floating x, floating y) noexcept nogil:
+    if floating is np.float32_t:
+        return powf(x, y)
+    else:
+        return pow(x, y)
 
 
-cdef void _rgb_to_lch(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lch_arr) noexcept nogil:
-    _rgb_to_xyz(r_arr, g_arr, b_arr, lch_arr)
-    _xyz_to_lab[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
-    _lab_to_lch[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
+cdef inline floating _sqrt(floating x) noexcept nogil:
+    if floating is np.float32_t:
+        return sqrtf(x)
+    else:
+        return sqrt(x)
 
 
-cdef void _rgb_to_luv(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] luv_arr) noexcept nogil:
-    _rgb_to_xyz(r_arr, g_arr, b_arr, luv_arr)
-    _xyz_to_luv[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
+cdef inline floating _sin(floating x) noexcept nogil:
+    if floating is np.float32_t:
+        return sinf(x)
+    else:
+        return sin(x)
 
 
-cdef void _xyz_to_lch(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] lch_arr) noexcept nogil:
-    _xyz_to_lab(x_arr, y_arr, z_arr, lch_arr)
-    _lab_to_lch[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
+cdef inline floating _cos(floating x) noexcept nogil:
+    if floating is np.float32_t:
+        return cosf(x)
+    else:
+        return cos(x)
 
 
-cdef void _lab_to_rgb(floating[:] l_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] rgb_arr) noexcept nogil:
-    _lab_to_xyz(l_arr, a_arr, b_arr, rgb_arr)
-    _xyz_to_rgb[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
+cdef inline floating _atan2(floating y, floating x) noexcept nogil:
+    if floating is np.float32_t:
+        return atan2f(y, x)
+    else:
+        return atan2(y, x)
 
 
-cdef void _lab_to_luv(floating[:] l_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] luv_arr) noexcept nogil:
-    _lab_to_xyz(l_arr, a_arr, b_arr, luv_arr)
-    _xyz_to_luv[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
-
-
-cdef void _lch_to_xyz(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] xyz_arr) noexcept nogil:
-    _lch_to_lab(l_arr, c_arr, h_arr, xyz_arr)
-    _lab_to_xyz[floating](xyz_arr[:, 0], xyz_arr[:, 1], xyz_arr[:, 2], xyz_arr)
-
-
-cdef void _lch_to_rgb(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] rgb_arr) noexcept nogil:
-    _lch_to_lab(l_arr, c_arr, h_arr, rgb_arr)
-    _lab_to_xyz[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
-    _xyz_to_rgb[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
-
-
-cdef void _lch_to_luv(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] luv_arr) noexcept nogil:
-    _lch_to_lab(l_arr, c_arr, h_arr, luv_arr)
-    _lab_to_xyz[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
-    _xyz_to_rgb[floating](luv_arr[:, 0], luv_arr[:, 1], luv_arr[:, 2], luv_arr)
-
-
-cdef void _luv_to_lab(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] lab_arr) noexcept nogil:
-    _luv_to_xyz(l_arr, u_arr, v_arr, lab_arr)
-    _xyz_to_lab[floating](lab_arr[:, 0], lab_arr[:, 1], lab_arr[:, 2], lab_arr)
-
-
-cdef void _luv_to_rgb(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] rgb_arr) noexcept nogil:
-    _luv_to_xyz(l_arr, u_arr, v_arr, rgb_arr)
-    _xyz_to_rgb[floating](rgb_arr[:, 0], rgb_arr[:, 1], rgb_arr[:, 2], rgb_arr)
-
-
-cdef void _luv_to_lch(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] lch_arr) noexcept nogil:
-    _luv_to_xyz(l_arr, u_arr, v_arr, lch_arr)
-    _xyz_to_lab[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
-    _lab_to_lch[floating](lch_arr[:, 0], lch_arr[:, 1], lch_arr[:, 2], lch_arr)
-
-
-# Direct colorspace conversions
-
-cdef void _rgb_to_xyz(floating[:] red_arr, floating[:] green_arr, floating[:] blue_arr,
-                      floating[:, ::1] xyz_arr) noexcept nogil:
-    cdef floating r, g, b, rl, gl, bl, x, y, z
-    cdef Py_ssize_t idx
-
-    for idx in range(red_arr.shape[0]):
-        r = red_arr[idx]
-        g = green_arr[idx]
-        b = blue_arr[idx]
-
-        # convert RGB to linear scale
-        rl = _to_linear_rgb(r)
-        gl = _to_linear_rgb(g)
-        bl = _to_linear_rgb(b)
-
-        # matrix mult for srgb->xyz,
-        # includes adjustment for reference white
-        x = ((rl * 0.4124564) + (gl * 0.3575761) + (bl * 0.1804375)) / xn
-        y = ((rl * 0.2126729) + (gl * 0.7151522) + (bl * 0.0721750))
-        z = ((rl * 0.0193339) + (gl * 0.1191920) + (bl * 0.9503041)) / zn
-
-        xyz_arr[idx, 0] = x
-        xyz_arr[idx, 1] = y
-        xyz_arr[idx, 2] = z
-
+# Per-pixel scalar steps. These are all inlined into the fused loops below.
 
 cdef inline floating _to_linear_rgb(floating rgb_component) noexcept nogil:
     if SRGB_COMPAND:
         return _to_linear_srgb_expand(rgb_component)
     # Use "simplified sRGB"
-    return rgb_component ** gamma
+    return _pow(rgb_component, <floating>GAMMA)
 
 
 cdef inline floating _to_linear_srgb_expand(floating rgb_component) noexcept nogil:
-    if rgb_component <= 0.04045:
-        return rgb_component / 12.92
-    return ((rgb_component + 0.055) / 1.055) ** 2.4
-
-
-cdef void _xyz_to_lab(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] lab) noexcept nogil:
-    cdef floating x, y, z, fx, fy, fz
-    cdef floating L, a, b
-    cdef Py_ssize_t idx
-
-    for idx in range(x_arr.shape[0]):
-        x = x_arr[idx]
-        y = y_arr[idx]
-        z = z_arr[idx]
-
-        # convert XYZ to LAB colorspace
-        if x > t0:
-            fx = x ** third
-        else:
-            fx = (alpha * x) + bintercept
-
-        if y > t0:
-            fy = y ** third
-        else:
-            fy = (alpha * y) + bintercept
-
-        if z > t0:
-            fz = z ** third
-        else:
-            fz = (alpha * z) + bintercept
-
-        L = (116 * fy) - 16
-        a = 500 * (fx - fy)
-        b = 200 * (fy - fz)
-
-        lab[idx, 0] = L
-        lab[idx, 1] = a
-        lab[idx, 2] = b
-
-
-cdef void _lab_to_lch(floating[:] L_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] lch) noexcept nogil:
-    cdef Py_ssize_t idx
-    cdef floating c, h
-
-    for idx in range(L_arr.shape[0]):
-        lch[idx, 0] = L_arr[idx]
-        # store temporary results then write output to avoid corruption
-        # if the output array is the same as the input arrays
-        c = ((a_arr[idx] * a_arr[idx]) + (b_arr[idx] * b_arr[idx])) ** 0.5
-        h = atan2(b_arr[idx], a_arr[idx])
-        lch[idx, 1] = c
-        lch[idx, 2] = h
-
-
-cdef void _lch_to_lab(floating[:] l_arr, floating[:] c_arr, floating[:] h_arr, floating[:, ::1] lab_arr) noexcept nogil:
-    cdef floating a, b
-    cdef Py_ssize_t idx
-
-    for idx in range(l_arr.shape[0]):
-        a = c_arr[idx] * cos(h_arr[idx])
-        b = c_arr[idx] * sin(h_arr[idx])
-        lab_arr[idx, 0] = l_arr[idx]
-        lab_arr[idx, 1] = a
-        lab_arr[idx, 2] = b
-
-
-cdef void _lab_to_xyz(floating[:] l_arr, floating[:] a_arr, floating[:] b_arr, floating[:, ::1] xyz_arr) noexcept nogil:
-    cdef floating x, y, z, L, a, b, tx, ty, tz
-    cdef Py_ssize_t idx
-
-    for idx in range(l_arr.shape[0]):
-        L = l_arr[idx]
-        a = a_arr[idx]
-        b = b_arr[idx]
-
-        tx = ((L + 16) / 116.0) + (a / 500.0)
-        if tx > delta:
-            x = tx ** 3
-        else:
-            x = 3 * delta * delta * (tx - bintercept)
-
-        ty = (L + 16) / 116.0
-        if ty > delta:
-            y = ty ** 3
-        else:
-            y = 3 * delta * delta * (ty - bintercept)
-
-        tz = ((L + 16) / 116.0) - (b / 200.0)
-        if tz > delta:
-            z = tz ** 3
-        else:
-            z = 3 * delta * delta * (tz - bintercept)
-
-        xyz_arr[idx, 0] = x
-        xyz_arr[idx, 1] = y
-        xyz_arr[idx, 2] = z
-
-
-cdef void _xyz_to_rgb(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] rgb_arr) noexcept nogil:
-    cdef floating rlin, glin, blin, r, g, b, x, y, z
-    cdef Py_ssize_t idx
-
-    for idx in range(x_arr.shape[0]):
-        x = x_arr[idx]
-        y = y_arr[idx]
-        z = z_arr[idx]
-
-        # uses reference white d65
-        x = x * xn
-        z = z * zn
-
-        # XYZ to sRGB
-        # expanded matrix multiplication
-        rlin = (x * 3.2404542) + (y * -1.5371385) + (z * -0.4985314)
-        glin = (x * -0.9692660) + (y * 1.8760108) + (z * 0.0415560)
-        blin = (x * 0.0556434) + (y * -0.2040259) + (z * 1.0572252)
-
-        r = _to_nonlinear_rgb(rlin)
-        g = _to_nonlinear_rgb(glin)
-        b = _to_nonlinear_rgb(blin)
-
-        # constrain to 0..1 to deal with any float drift
-        if r > 1.0:
-            r = 1.0
-        elif r < 0.0:
-            r = 0.0
-        if g > 1.0:
-            g = 1.0
-        elif g < 0.0:
-            g = 0.0
-        if b > 1.0:
-            b = 1.0
-        elif b < 0.0:
-            b = 0.0
-
-        rgb_arr[idx, 0] = r
-        rgb_arr[idx, 1] = g
-        rgb_arr[idx, 2] = b
+    if rgb_component <= <floating>0.04045:
+        return rgb_component * <floating>(1.0 / 12.92)
+    return _pow((rgb_component + <floating>0.055) * <floating>(1.0 / 1.055), <floating>2.4)
 
 
 cdef inline floating _to_nonlinear_rgb(floating rgb_component) noexcept nogil:
     if SRGB_COMPAND:
         return _to_nonlinear_srgb_compand(rgb_component)
     # Use "simplified sRGB"
-    return rgb_component ** (1 / gamma)
+    return _pow(rgb_component, <floating>(1.0 / GAMMA))
 
 
 cdef inline floating _to_nonlinear_srgb_compand(floating rgb_component) noexcept nogil:
-    if rgb_component <= 0.0031308:
-        return 12.92 * rgb_component
-    return (1.055 * (rgb_component ** (1 / 2.4))) - 0.055
+    if rgb_component <= <floating>0.0031308:
+        return <floating>12.92 * rgb_component
+    return (<floating>1.055 * _pow(rgb_component, <floating>(1.0 / 2.4))) - <floating>0.055
 
 
-cdef void _xyz_to_luv(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, floating[:, ::1] luv_arr) noexcept nogil:
-    cdef floating L, u, v, uprime, vprime, denom, x, y, z
+cdef inline floating _clamp_0_1(floating val) noexcept nogil:
+    # written so that NaN falls through both comparisons and stays NaN
+    val = <floating>0.0 if val < <floating>0.0 else val
+    return <floating>1.0 if val > <floating>1.0 else val
+
+
+cdef inline floating _lab_f(floating t) noexcept nogil:
+    # glibc's cbrt is slower than its pow, so keep pow here
+    if t > <floating>T0:
+        return _pow(t, <floating>THIRD)
+    return (<floating>ALPHA * t) + <floating>BINTERCEPT
+
+
+cdef inline floating _lab_finv(floating t) noexcept nogil:
+    if t > <floating>DELTA:
+        return t * t * t
+    return <floating>(3 * DELTA * DELTA) * (t - <floating>BINTERCEPT)
+
+
+cdef inline void _rgb_to_xyz_px(floating r, floating g, floating b,
+                                floating* x, floating* y, floating* z) noexcept nogil:
+    # convert RGB to linear scale
+    cdef floating rl = _to_linear_rgb(r)
+    cdef floating gl = _to_linear_rgb(g)
+    cdef floating bl = _to_linear_rgb(b)
+
+    # matrix mult for srgb->xyz,
+    # includes adjustment for reference white
+    x[0] = ((rl * <floating>0.4124564) + (gl * <floating>0.3575761) + (bl * <floating>0.1804375)) * <floating>(1.0 / XN)
+    y[0] = ((rl * <floating>0.2126729) + (gl * <floating>0.7151522) + (bl * <floating>0.0721750))
+    z[0] = ((rl * <floating>0.0193339) + (gl * <floating>0.1191920) + (bl * <floating>0.9503041)) * <floating>(1.0 / ZN)
+
+
+cdef inline void _xyz_to_rgb_px(floating x, floating y, floating z,
+                                floating* r, floating* g, floating* b) noexcept nogil:
+    cdef floating rlin, glin, blin
+    # uses reference white d65
+    x = x * <floating>XN
+    z = z * <floating>ZN
+
+    # XYZ to sRGB
+    # expanded matrix multiplication
+    rlin = (x * <floating>3.2404542) + (y * <floating>-1.5371385) + (z * <floating>-0.4985314)
+    glin = (x * <floating>-0.9692660) + (y * <floating>1.8760108) + (z * <floating>0.0415560)
+    blin = (x * <floating>0.0556434) + (y * <floating>-0.2040259) + (z * <floating>1.0572252)
+
+    # constrain to 0..1 to deal with any float drift
+    r[0] = _clamp_0_1(_to_nonlinear_rgb(rlin))
+    g[0] = _clamp_0_1(_to_nonlinear_rgb(glin))
+    b[0] = _clamp_0_1(_to_nonlinear_rgb(blin))
+
+
+cdef inline void _xyz_to_lab_px(floating x, floating y, floating z,
+                                floating* L, floating* a, floating* b) noexcept nogil:
+    cdef floating fx = _lab_f(x)
+    cdef floating fy = _lab_f(y)
+    cdef floating fz = _lab_f(z)
+    L[0] = (<floating>116 * fy) - <floating>16
+    a[0] = <floating>500 * (fx - fy)
+    b[0] = <floating>200 * (fy - fz)
+
+
+cdef inline void _lab_to_xyz_px(floating L, floating a, floating b,
+                                floating* x, floating* y, floating* z) noexcept nogil:
+    cdef floating ty = (L + <floating>16) * <floating>(1.0 / 116.0)
+    cdef floating tx = ty + (a * <floating>(1.0 / 500.0))
+    cdef floating tz = ty - (b * <floating>(1.0 / 200.0))
+    x[0] = _lab_finv(tx)
+    y[0] = _lab_finv(ty)
+    z[0] = _lab_finv(tz)
+
+
+cdef inline void _lab_to_lch_px(floating L, floating a, floating b,
+                                floating* L_out, floating* c, floating* h) noexcept nogil:
+    L_out[0] = L
+    c[0] = _sqrt((a * a) + (b * b))
+    h[0] = _atan2(b, a)
+
+
+cdef inline void _lch_to_lab_px(floating L, floating c, floating h,
+                                floating* L_out, floating* a, floating* b) noexcept nogil:
+    L_out[0] = L
+    a[0] = c * _cos(h)
+    b[0] = c * _sin(h)
+
+
+cdef inline void _xyz_to_luv_px(floating x, floating y, floating z,
+                                floating* L, floating* u, floating* v) noexcept nogil:
+    cdef floating denom, uprime, vprime, L_val
+    # x and z arrive normalized by the reference white (see _rgb_to_xyz_px),
+    # but u' and v' are defined on absolute XYZ
+    x = x * <floating>XN
+    z = z * <floating>ZN
+    denom = x + (<floating>15 * y) + (<floating>3 * z)
+    if denom == <floating>0.0:
+        # black: avoid 0 / 0
+        L[0] = <floating>0.0
+        u[0] = <floating>0.0
+        v[0] = <floating>0.0
+        return
+    uprime = (<floating>4 * x) / denom
+    vprime = (<floating>9 * y) / denom
+
+    y = y * <floating>(1.0 / YN)
+    if y <= <floating>T0:
+        L_val = <floating>KAPPA * y
+    else:
+        L_val = (<floating>116 * _pow(y, <floating>THIRD)) - <floating>16
+
+    L[0] = L_val
+    u[0] = <floating>13 * L_val * (uprime - <floating>UPRIME_N)
+    v[0] = <floating>13 * L_val * (vprime - <floating>VPRIME_N)
+
+
+cdef inline void _luv_to_xyz_px(floating L, floating u, floating v,
+                                floating* x, floating* y, floating* z) noexcept nogil:
+    cdef floating uprime, vprime, y_val, t
+    if L == <floating>0.0:
+        x[0] = <floating>0.0
+        y[0] = <floating>0.0
+        z[0] = <floating>0.0
+        return
+
+    uprime = (u / (<floating>13 * L)) + <floating>UPRIME_N
+    vprime = (v / (<floating>13 * L)) + <floating>VPRIME_N
+
+    if L <= <floating>8.0:
+        y_val = L * <floating>(1.0 / KAPPA)
+    else:
+        t = (L + <floating>16) * <floating>(1.0 / 116.0)
+        y_val = t * t * t
+
+    # produce XYZ normalized by the reference white like _rgb_to_xyz_px does
+    x[0] = y_val * ((<floating>9 * uprime) / (<floating>4 * vprime)) * <floating>(1.0 / XN)
+    y[0] = y_val
+    z[0] = y_val * ((<floating>12 - (<floating>3 * uprime) - (<floating>20 * vprime)) / (<floating>4 * vprime))
+    z[0] = z[0] * <floating>(1.0 / ZN)
+
+
+# Fused array loops: one read and one write per pixel for every conversion
+
+cdef void _rgb_to_xyz(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
     cdef Py_ssize_t idx
-
-    for idx in range(x_arr.shape[0]):
-        x = x_arr[idx]
-        y = y_arr[idx]
-        z = z_arr[idx]
-
-        denom = x + (15 * y) + (3 * z)
-        uprime = (4 * x) / denom
-        vprime = (9 * y) / denom
-
-        y = y / yn
-
-        if y <= t0:
-            L = kappa * y
-        else:
-            L = (116 * (y ** third)) - 16
-
-        u = 13 * L * (uprime - uprime_n)
-        v = 13 * L * (vprime - vprime_n)
-
-        luv_arr[idx, 0] = L
-        luv_arr[idx, 1] = u
-        luv_arr[idx, 2] = v
+    for idx in range(inp.shape[0]):
+        _rgb_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
 
 
-cdef void _luv_to_xyz(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, floating[:, ::1] xyz_arr) noexcept nogil:
-    cdef floating x, y, z, uprime, vprime, L, u, v
+cdef void _rgb_to_lab(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
     cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _rgb_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_lab_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
 
-    for idx in range(l_arr.shape[0]):
-        L = l_arr[idx]
-        u = u_arr[idx]
-        v = v_arr[idx]
 
-        if L == 0.0:
-            xyz_arr[idx, 0] = 0.0
-            xyz_arr[idx, 1] = 0.0
-            xyz_arr[idx, 2] = 0.0
-            continue
+cdef void _rgb_to_lch(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _rgb_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_lab_px(c1, c2, c3, &c1, &c2, &c3)
+        _lab_to_lch_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
 
-        uprime = (u / (13 * L)) + uprime_n
-        vprime = (v / (13 * L)) + vprime_n
 
-        if L <= 8.0:
-            y = L / kappa
-        else:
-            y = ((L + 16) / 116.0) ** 3
+cdef void _rgb_to_luv(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _rgb_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_luv_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
 
-        x = y * ((9 * uprime) / (4 * vprime))
-        z = y * ((12 - (3 * uprime) - (20 * vprime)) / (4 * vprime))
 
-        xyz_arr[idx, 0] = x
-        xyz_arr[idx, 1] = y
-        xyz_arr[idx, 2] = z
+cdef void _xyz_to_rgb(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    for idx in range(inp.shape[0]):
+        _xyz_to_rgb_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _xyz_to_lab(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    for idx in range(inp.shape[0]):
+        _xyz_to_lab_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _xyz_to_lch(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _xyz_to_lab_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _lab_to_lch_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _xyz_to_luv(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    for idx in range(inp.shape[0]):
+        _xyz_to_luv_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lab_to_xyz(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    for idx in range(inp.shape[0]):
+        _lab_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lab_to_rgb(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _lab_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_rgb_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lab_to_lch(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    for idx in range(inp.shape[0]):
+        _lab_to_lch_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lab_to_luv(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _lab_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_luv_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lch_to_lab(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    for idx in range(inp.shape[0]):
+        _lch_to_lab_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lch_to_xyz(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _lch_to_lab_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _lab_to_xyz_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lch_to_rgb(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _lch_to_lab_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _lab_to_xyz_px(c1, c2, c3, &c1, &c2, &c3)
+        _xyz_to_rgb_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _lch_to_luv(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _lch_to_lab_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _lab_to_xyz_px(c1, c2, c3, &c1, &c2, &c3)
+        _xyz_to_luv_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _luv_to_xyz(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    for idx in range(inp.shape[0]):
+        _luv_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _luv_to_lab(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _luv_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_lab_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _luv_to_rgb(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _luv_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_rgb_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])
+
+
+cdef void _luv_to_lch(const floating[:, :] inp, floating[:, :] out) noexcept nogil:
+    cdef Py_ssize_t idx
+    cdef floating c1, c2, c3
+    for idx in range(inp.shape[0]):
+        _luv_to_xyz_px(inp[idx, 0], inp[idx, 1], inp[idx, 2], &c1, &c2, &c3)
+        _xyz_to_lab_px(c1, c2, c3, &c1, &c2, &c3)
+        _lab_to_lch_px(c1, c2, c3, &out[idx, 0], &out[idx, 1], &out[idx, 2])

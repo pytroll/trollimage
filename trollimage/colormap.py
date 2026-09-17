@@ -65,63 +65,130 @@ def _colorize_dask(dask_array, colors, values):
 
     The channels are stacked on the first dimension.
     """
-    return dask_array.map_blocks(
-        _colorize, colors, values, dtype=colors.dtype, new_axis=0, chunks=[colors.shape[1]] + list(dask_array.chunks)
-    )
+    colors = np.asarray(colors)
+    chunks = [colors.shape[1]] + list(dask_array.chunks)
+    return dask_array.map_blocks(_colorize, colors, values, dtype=_colorize_dtype(colors), new_axis=0, chunks=chunks)
+
+
+def _colorize_dtype(colors):
+    """Get the dtype colorize computes in and produces for the given colormap colors.
+
+    Float32 and float64 colors are used in their own precision, anything else
+    is converted to float64. :meth:`XRImage.colorize` casts the colormap to the
+    image's dtype beforehand, so float32 images stay float32 end to end.
+    """
+    if colors.dtype in (np.float32, np.float64):
+        return colors.dtype
+    return np.dtype(np.float64)
 
 
 def _colorize(arr, colors, values):
-    """Colorize the array."""
-    channels = _interpolate_rgb_colors(arr, colors, values)
-    alpha = _interpolate_alpha(arr, colors, values)
-    channels.extend(alpha)
-    channels = _mask_channels(channels, arr)
-    return np.stack(channels, axis=0)
+    """Colorize the array.
+
+    The output is allocated channel-first (``(3 or 4, ...)``) up front and the
+    Cython kernel writes the RGB planes straight into it, so no strided
+    gathers or final ``np.stack`` are needed.
+    """
+    colors = np.asarray(colors)
+    out = np.empty((colors.shape[1],) + arr.shape, dtype=_colorize_dtype(colors))
+    _interpolate_rgb_colors(arr, colors, values, out[:3])
+    _interpolate_alpha(arr, colors, values, out[3:])
+    return _mask_array(out, arr)
 
 
-def _interpolate_rgb_colors(arr, colors, values):
-    interp_xp_coords = np.array(values)
-    interp_y_coords = rgb2lch(colors)
-    if values[0] > values[-1]:
+def _interpolate_rgb_colors(arr, colors, values, out):
+    """Interpolate colors in LCh space and write the RGB planes into ``out``."""
+    interp_xp_coords = np.asarray(values, dtype=out.dtype)
+    interp_y_coords = rgb2lch(colors.astype(out.dtype))
+    interp_xp_coords, interp_y_coords = _split_achromatic_control_points(interp_xp_coords, interp_y_coords)
+    if interp_xp_coords[0] > interp_xp_coords[-1]:
         # monotonically decreasing
         interp_xp_coords = interp_xp_coords[::-1]
         interp_y_coords = interp_y_coords[::-1]
-    # Make sure hue (radians) are consistently increasing or decreasing
-    interp_lch = np.zeros(arr.shape + (3,), dtype=interp_y_coords.dtype)
-    interp_lch[..., 0] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 0])
-    interp_lch[..., 1] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 1])
+    # Make sure hue (radians) are consistently increasing or decreasing.
+    # The interpolated hue is only ever fed to cos/sin in lch2rgb, so it does not need to
+    # be wrapped back into [-pi, pi).
     interp_y_coords[..., 2] = np.unwrap(interp_y_coords[..., 2])
-    interp_lch[..., 2] = np.interp(arr, interp_xp_coords, interp_y_coords[..., 2])
-    interp_lch[..., 2] = _ununwrap(interp_lch[..., 2])
-    new_rgb = lch2rgb(interp_lch)
-    return [new_rgb[..., 0], new_rgb[..., 1], new_rgb[..., 2]]
+    interp_lch = np.empty(out.shape, dtype=out.dtype)
+    for channel_idx in range(3):
+        interp_lch[channel_idx] = np.interp(arr, interp_xp_coords, interp_y_coords[..., channel_idx])
+    lch2rgb(np.moveaxis(interp_lch, 0, -1), out=np.moveaxis(out, 0, -1))
 
 
-def _ununwrap(input_radians):
-    """Undo the operations performed by numpy unwrap.
+def _split_achromatic_control_points(values, lch_colors, chroma_threshold=1e-2):
+    """Give achromatic control colors the hue of their chromatic neighbors.
 
-    Taken from https://stackoverflow.com/a/15927914/433202
+    The hue of a color with (near) zero chroma - white, gray, black - is
+    undefined; ``atan2`` of the rounding noise left in ``a*``/``b*`` returns
+    an arbitrary angle that changes with the floating point precision used.
+    Interpolating towards that arbitrary hue makes the colors between a
+    saturated control point and an achromatic one depend on numerical noise.
+
+    Instead, each segment next to an achromatic control point keeps the hue
+    of its chromatic end (the same choice d3's ``interpolateHcl`` makes). An
+    achromatic control point with different chromatic neighbors on each side
+    is duplicated so that both segments get their own hue. The duplicate
+    ``xp`` values are harmless for ``np.interp``: chroma is ~0 at that point
+    so the hue there does not affect the color.
+
+    Args:
+        values: 1D array of control point values.
+        lch_colors: ``(N, 3)`` array of the control colors in LCh space. May
+            be modified in place.
+        chroma_threshold: Chroma below which a color is considered achromatic.
+
+    Returns:
+        Tuple of ``(values, lch_colors)``, possibly expanded with duplicated
+        control points.
 
     """
-    return (input_radians + np.pi) % (2 * np.pi) - np.pi
+    hue = lch_colors[:, 2]
+    chromatic = lch_colors[:, 1] > chroma_threshold
+    if chromatic.all():
+        return values, lch_colors
+    if not chromatic.any():
+        hue[:] = 0.0
+        return values, lch_colors
+
+    indexes = np.arange(values.shape[0])
+    chromatic_indexes = indexes[chromatic]
+    chromatic_hues = hue[chromatic]
+    # index of the nearest chromatic point on each side of every point
+    left = np.searchsorted(chromatic_indexes, indexes, side="right") - 1
+    right = np.searchsorted(chromatic_indexes, indexes, side="left")
+    left = np.clip(left, 0, chromatic_indexes.size - 1)
+    right = np.clip(right, 0, chromatic_indexes.size - 1)
+    left_hue = np.where(chromatic, hue, chromatic_hues[left])
+    right_hue = np.where(chromatic, hue, chromatic_hues[right])
+
+    repeats = np.where(left_hue != right_hue, 2, 1)
+    values = np.repeat(values, repeats)
+    lch_colors = np.repeat(lch_colors, repeats, axis=0)
+    # the first copy of a duplicated point ends the left segment, the second starts the right one
+    lch_colors[:, 2] = np.repeat(left_hue, repeats)
+    lch_colors[np.cumsum(repeats) - 1, 2] = right_hue
+    return values, lch_colors
 
 
-def _interpolate_alpha(arr, colors, values):
-    alpha = [np.interp(arr, np.array(values), np.array(colors)[:, i + 3]) for i in range(np.array(colors).shape[1] - 3)]
-    return alpha
-
-
-def _mask_channels(channels, arr):
-    """Mask the channels if arr is a masked array."""
-    return [_mask_array(channel, arr) for channel in channels]
+def _interpolate_alpha(arr, colors, values, out):
+    """Interpolate any alpha channels of ``colors`` into the planes of ``out``."""
+    values = np.asarray(values)
+    for channel_idx in range(out.shape[0]):
+        out[channel_idx] = np.interp(arr, values, colors[:, channel_idx + 3])
 
 
 def _mask_array(new_array, arr):
-    """Mask new_array with the mask from array."""
-    try:
-        return np.ma.array(new_array, mask=arr.mask)
-    except AttributeError:
+    """Mask new_array with the mask from array.
+
+    The mask is broadcast to ``new_array``, which may have extra leading
+    dimensions (the channels of a colorized array).
+    """
+    if not isinstance(arr, np.ma.MaskedArray):
         return new_array
+    mask = arr.mask
+    if mask is not np.ma.nomask and mask.shape != new_array.shape:
+        mask = np.broadcast_to(mask, new_array.shape)
+    return np.ma.array(new_array, mask=mask)
 
 
 def palettize(arr, colors, values):

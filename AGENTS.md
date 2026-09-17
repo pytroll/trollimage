@@ -23,8 +23,8 @@ Treat `image.py` as legacy-but-supported, and prefer `xrimage.py` for anything n
 | --- | --- | --- |
 | `trollimage/xrimage.py` | ~1680 | `XRImage`: the xarray/dask image class. Stretches, mode conversion, saving. The modern API. |
 | `trollimage/_xrimage_rasterio.py` | ~260 | Every line of rasterio-touching code (`RIOFile`, `RIODataset`, CRS/transform extraction). Imported only from inside function bodies, which is how rasterio stays optional. |
-| `trollimage/colormap.py` | ~1310 | `Colormap` plus module-level `colorize`/`palettize`/`colorbar`/`palettebar`. Roughly 500 of those lines are built-in ColorBrewer colormap literals, constructed eagerly at import; `load_colorbrewer_colormaps.py` at the repo root is the script that generated them. |
-| `trollimage/_colorspaces.pyx` | ~530 | Cython colorspace kernels (rgb / xyz / lab / lch / luv), fused `float32|float64`, `nogil`. Derived from `rio-color` — see `LICENSE_RIO_COLOR.txt`. |
+| `trollimage/colormap.py` | ~1360 | `Colormap` plus module-level `colorize`/`palettize`/`colorbar`/`palettebar`. Roughly 500 of those lines are built-in ColorBrewer colormap literals, constructed eagerly at import; `load_colorbrewer_colormaps.py` at the repo root is the script that generated them. |
+| `trollimage/_colorspaces.pyx` | ~600 | Cython colorspace kernels (rgb / xyz / lab / lch / luv), fused `float32|float64`, `nogil`. Each conversion is one fused loop over inlined per-pixel `_*_px` steps; the loops are bound by libm (`pow`, `atan2`, `sincos`), not memory, so the float32 specialization calls `powf`/`sinf`/… and casts its constants. Accepts strided input and an `out=` array (colorize passes planar `(3, ...)` views). Derived from `rio-color` — see `LICENSE_RIO_COLOR.txt`. |
 | `trollimage/colorspaces.py` | 3 | Re-export shim for `rgb2lch`, `lch2rgb`, `convert_colors`. The old pure-Python implementation was deleted (commit `7ee58cb`). **Import through this shim, not `_colorspaces` directly.** |
 | `trollimage/image.py` | ~1120 | Legacy masked-array `Image` class, plus `check_image_format()` (which `xrimage.py` still imports) and `rgb2ycbcr`/`ycbcr2rgb`. |
 | `trollimage/utilities.py` | ~110 | `cmap_from_text`, `pilimage2trollimage`. Currently untested. |
@@ -105,9 +105,9 @@ Things that will bite you if you do not know them:
 - Style to imitate: `test_colormap.py` is the most modern file (plain pytest classes, heavy
   `parametrize`, `tmp_path`, extracted assertion helpers). `test_xrimage.py` is a mix of old and
   new. `test_image.py` is `unittest.TestCase`-era and should not be used as a model.
-- Known coverage gaps: there is **no test module for `colorspaces`/`_colorspaces`** (it is
-  exercised only indirectly, through one rgb↔lch round trip in the colorize tests) and none for
-  `utilities.py`.
+- `test_colorspaces.py` covers the compiled kernels directly: round trips for every pair of
+  spaces in both precisions, published reference colors, NaN propagation, strided/planar input
+  and the `out=` argument. Known coverage gap: there is still no test module for `utilities.py`.
 - `test_save_jp2_int` needs a GDAL build with the `JP2OpenJPEG` driver. Without it the test fails
   with `DriverRegistrationError`, which is an environment problem, not a regression — the CI conda
   environment installs `libgdal-jp2openjpeg` for exactly this reason.
@@ -218,6 +218,12 @@ has a real downstream cost.
 
 ## Conventions and gotchas
 
+- **`colorize` interpolates in LCh, and achromatic control colors get their neighbor's hue.** The
+  hue of white/gray/black is numerically arbitrary (`atan2` of rounding noise), so
+  `_split_achromatic_control_points` in `colormap.py` duplicates such control points and gives
+  each side the hue of its chromatic neighbor. Without it the diverging ColorBrewer maps had a
+  visible off-hue band next to their white center. The output dtype follows the colormap's
+  `colors` dtype (`XRImage.colorize` casts the colormap to the image dtype first).
 - **Mode is derived, not stored.** `XRImage.mode` is `''.join(self.data['bands'].values)`. To
   change an image's mode you change the `bands` coordinate.
 - **`self.data` is always a dask-backed `xr.DataArray`** with dims `bands, y, x`. `__init__`
