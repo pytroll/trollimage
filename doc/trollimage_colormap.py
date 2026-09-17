@@ -4,9 +4,10 @@ This module must be on the ``sys.path`` and added to the list of extensions
 in a ``conf.py``.
 
 """
-import os
+
 import importlib
-from typing import Any
+import os
+from typing import Any, ClassVar
 
 from docutils import nodes
 from docutils.parsers.rst.directives import flag
@@ -31,7 +32,7 @@ class TrollimageColormapDirective(SphinxDirective):
     """Custom sphinx directive for generating one or more colormap images."""
 
     required_arguments: int = 1
-    option_spec: dict[str, Any] = {
+    option_spec: ClassVar[dict[str, Any]] = {
         "category": flag,
     }
 
@@ -56,10 +57,11 @@ class TrollimageColormapDirective(SphinxDirective):
         if not isinstance(cmap_objects, dict):
             cmap_names = []
             for colormap_object in cmap_objects:
-                cmap_name = [cmap_name for cmap_name, cmap_obj in cmap_module.__dict__.items()
-                             if cmap_obj is colormap_object][0]
+                cmap_name = next(
+                    cmap_name for cmap_name, cmap_obj in cmap_module.__dict__.items() if cmap_obj is colormap_object
+                )
                 cmap_names.append(cmap_name)
-            cmap_objects = dict(zip(cmap_names, cmap_objects))
+            cmap_objects = dict(zip(cmap_names, cmap_objects, strict=True))
         return cmap_objects
 
     @staticmethod
@@ -72,5 +74,5 @@ class TrollimageColormapDirective(SphinxDirective):
             im.save(cmap_fn)
 
         paragraph = nodes.paragraph(text=cmap_name)
-        image = nodes.image("", **{"uri": cmap_fn, "alt": cmap_name})
+        image = nodes.image("", uri=cmap_fn, alt=cmap_name)
         return [paragraph, image]

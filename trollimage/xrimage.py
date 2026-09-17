@@ -8,20 +8,23 @@ evaluated. With the optional ``rasterio`` library installed dask array
 chunks can be saved in parallel.
 
 """
+
 from __future__ import annotations
 
+import contextlib
 import logging
 import numbers
 import os
 import pathlib
 import warnings
-from collections.abc import Sequence
-from typing import IO, Callable
+from collections.abc import Callable, Sequence
+from typing import IO
 
 import dask.array as da
 import numpy as np
 import xarray as xr
 from PIL import Image as PILImage
+
 from trollimage.image import check_image_format
 
 logger = logging.getLogger(__name__)
@@ -67,11 +70,11 @@ def invert_scale_offset(scale, offset):
 
 
 def lazy_pil_save(
-        pil_ready_arr: da.Array,
-        mode: str,
-        pathname_or_io: str | os.PathLike | IO[bytes],
-        *args,
-        **kwargs,
+    pil_ready_arr: da.Array,
+    mode: str,
+    pathname_or_io: str | os.PathLike | IO[bytes],
+    *args,
+    **kwargs,
 ) -> da.Array:
     """Save PIL Image in a dask-friendly way.
 
@@ -95,11 +98,11 @@ def lazy_pil_save(
 
 
 def _save_img_arr(
-        pil_ready_arr: np.ndarray,
-        mode: str,
-        pathname_or_io: str | os.PathLike | IO[bytes],
-        pil_args: tuple,
-        pil_kwargs: dict,
+    pil_ready_arr: np.ndarray,
+    mode: str,
+    pathname_or_io: str | os.PathLike | IO[bytes],
+    pil_args: tuple,
+    pil_kwargs: dict,
 ) -> np.ndarray:
     img = PILImage.fromarray(pil_ready_arr, mode)
 
@@ -108,8 +111,7 @@ def _save_img_arr(
     except OSError as e:
         # ex: cannot write mode LA as JPEG
         if "A as JPEG" in str(e):
-            new_msg = ("Image mode not supported for this format. Specify "
-                       "`fill_value=0` to set invalid values to black.")
+            new_msg = "Image mode not supported for this format. Specify `fill_value=0` to set invalid values to black."
             raise OSError(new_msg) from e
         raise
 
@@ -136,37 +138,37 @@ class XRImage:
         # 'data' is an XArray, get the data from it as a dask array
         if not isinstance(data.data, da.Array):
             logger.debug("Convert image data to dask array")
-            data.data = da.from_array(data.data, chunks=(data.sizes['bands'], 4096, 4096))
+            data.data = da.from_array(data.data, chunks=(data.sizes["bands"], 4096, 4096))
 
         self.data = data
-        self.height, self.width = self.data.sizes['y'], self.data.sizes['x']
+        self.height, self.width = self.data.sizes["y"], self.data.sizes["x"]
         self.palette = None
 
     @staticmethod
     def _correct_dims(data):
         """Standardize dimensions to bands, y, and x."""
-        if not hasattr(data, 'dims'):
+        if not hasattr(data, "dims"):
             raise TypeError("Data must have a 'dims' attribute.")
 
-        if 'y' not in data.dims or 'x' not in data.dims:
+        if "y" not in data.dims or "x" not in data.dims:
             if data.ndim != 2:
                 raise ValueError("Data must have a 'y' and 'x' dimension")
 
             # rename dimensions so we can use them
             # don't rename 'x' or 'y' if they already exist
-            if 'y' not in data.dims:
+            if "y" not in data.dims:
                 # find a dimension that isn't 'x'
-                old_dim = [d for d in data.dims if d != 'x'][0]
-                data = data.rename({old_dim: 'y'})
-            if 'x' not in data.dims:
+                old_dim = next(d for d in data.dims if d != "x")
+                data = data.rename({old_dim: "y"})
+            if "x" not in data.dims:
                 # find a dimension that isn't 'y'
-                old_dim = [d for d in data.dims if d != 'y'][0]
-                data = data.rename({old_dim: 'x'})
+                old_dim = next(d for d in data.dims if d != "y")
+                data = data.rename({old_dim: "x"})
 
         if "bands" not in data.dims:
             if data.ndim <= 2:
-                data = data.expand_dims('bands')
-                data['bands'] = ['L']
+                data = data.expand_dims("bands")
+                data["bands"] = ["L"]
             else:
                 raise ValueError("No 'bands' dimension provided.")
         elif "bands" not in data.coords or not np.issubdtype(data.coords["bands"].dtype, str):
@@ -177,8 +179,7 @@ class XRImage:
             else:
                 mode = bands_by_size[data.sizes["bands"]]
                 mode_method = "dimension size"
-            warnings.warn(f"Missing 'bands' coordinate. Assigning bands based on {mode_method}: {mode}",
-                          stacklevel=3)
+            warnings.warn(f"Missing 'bands' coordinate. Assigning bands based on {mode_method}: {mode}", stacklevel=3)
             data.coords["bands"] = list(mode)
 
         # doesn't actually copy the data underneath
@@ -191,7 +192,7 @@ class XRImage:
     @property
     def mode(self):
         """Mode of the image."""
-        return ''.join(self.data['bands'].values)
+        return "".join(self.data["bands"].values)
 
     @staticmethod
     def _gtiff_to_cog_kwargs(format_kwargs):
@@ -202,19 +203,28 @@ class XRImage:
         Convert kwargs to save() from GTiff driver to COG driver.
 
         """
-        format_kwargs.pop('photometric', None)
-        if 'zlevel' in format_kwargs:
-            format_kwargs['level'] = format_kwargs.pop('zlevel')
-        if 'jpeg_quality' in format_kwargs:
-            format_kwargs['quality'] = format_kwargs.pop('jpeg_quality')
-        format_kwargs.pop('tiled', None)
-        if 'blockxsize' in format_kwargs:
-            format_kwargs['blocksize'] = format_kwargs.pop('blockxsize')
-        format_kwargs.pop('blockysize', None)
+        format_kwargs.pop("photometric", None)
+        if "zlevel" in format_kwargs:
+            format_kwargs["level"] = format_kwargs.pop("zlevel")
+        if "jpeg_quality" in format_kwargs:
+            format_kwargs["quality"] = format_kwargs.pop("jpeg_quality")
+        format_kwargs.pop("tiled", None)
+        if "blockxsize" in format_kwargs:
+            format_kwargs["blocksize"] = format_kwargs.pop("blockxsize")
+        format_kwargs.pop("blockysize", None)
         return format_kwargs
 
-    def save(self, filename, fformat=None, fill_value=None, compute=True,
-             keep_palette=False, cmap=None, driver=None, **format_kwargs):
+    def save(
+        self,
+        filename,
+        fformat=None,
+        fill_value=None,
+        compute=True,
+        keep_palette=False,
+        cmap=None,
+        driver=None,
+        **format_kwargs,
+    ):
         """Save the image to the given *filename*.
 
         Args:
@@ -263,29 +273,43 @@ class XRImage:
             the caller.
 
         """
-        kwformat = format_kwargs.pop('format', None)
+        kwformat = format_kwargs.pop("format", None)
         fformat = fformat or kwformat or os.path.splitext(filename)[1][1:]
-        if fformat in ('tif', 'tiff', 'jp2'):
+        if fformat in ("tif", "tiff", "jp2"):
             try:
-                return self.rio_save(filename, fformat=fformat, driver=driver,
-                                     fill_value=fill_value, compute=compute,
-                                     keep_palette=keep_palette, cmap=cmap,
-                                     **format_kwargs)
+                return self.rio_save(
+                    filename,
+                    fformat=fformat,
+                    driver=driver,
+                    fill_value=fill_value,
+                    compute=compute,
+                    keep_palette=keep_palette,
+                    cmap=cmap,
+                    **format_kwargs,
+                )
             except ImportError:
-                logger.warning("Missing 'rasterio' dependency to save GeoTIFF "
-                               "image. Will try using PIL...")
-        return self.pil_save(filename, fformat, fill_value,
-                             compute=compute, **format_kwargs)
+                logger.warning("Missing 'rasterio' dependency to save GeoTIFF image. Will try using PIL...")
+        return self.pil_save(filename, fformat, fill_value, compute=compute, **format_kwargs)
 
-    def rio_save(self, filename, fformat=None, fill_value=None,
-                 dtype=np.uint8, compute=True, tags=None,
-                 keep_palette=False, cmap=None, overviews=None,
-                 overviews_minsize=256, overviews_resampling=None,
-                 include_scale_offset_tags=False,
-                 scale_offset_tags=None,
-                 colormap_tag=None,
-                 driver=None,
-                 **format_kwargs):
+    def rio_save(
+        self,
+        filename,
+        fformat=None,
+        fill_value=None,
+        dtype=np.uint8,
+        compute=True,
+        tags=None,
+        keep_palette=False,
+        cmap=None,
+        overviews=None,
+        overviews_minsize=256,
+        overviews_resampling=None,
+        include_scale_offset_tags=False,
+        scale_offset_tags=None,
+        colormap_tag=None,
+        driver=None,
+        **format_kwargs,
+    ):
         """Save the image using rasterio.
 
         Args:
@@ -345,6 +369,11 @@ class XRImage:
                 version of the Colormap that was used. See
                 :meth:`trollimage.colormap.Colormap.to_csv` for more
                 information.
+            include_scale_offset_tags (bool): Deprecated. Equivalent to passing
+                ``scale_offset_tags=("scale", "offset")``. Use
+                ``scale_offset_tags`` instead.
+            **format_kwargs: Additional keyword arguments passed directly to
+                the underlying rasterio driver.
 
         Returns:
             The filename saved if ``compute`` is ``True``. Otherwise, a two element
@@ -355,61 +384,64 @@ class XRImage:
             closed by the user.
 
         """
-        from ._xrimage_rasterio import RIOFile, RIODataset, split_regular_vs_lazy_tags
+        from ._xrimage_rasterio import RIODataset, RIOFile, split_regular_vs_lazy_tags
+
         fformat = fformat or os.path.splitext(filename)[1][1:]
-        drivers = {'jpg': 'JPEG',
-                   'png': 'PNG',
-                   'tif': 'GTiff',
-                   'tiff': 'GTiff',
-                   'jp2': 'JP2OpenJPEG'}
+        drivers = {
+            "jpg": "JPEG",
+            "png": "PNG",
+            "tif": "GTiff",
+            "tiff": "GTiff",
+            "jp2": "JP2OpenJPEG",
+        }
         # If fformat is specified but not driver then convert it into a driver
         driver = driver or drivers.get(fformat, fformat)
         # The COG driver adds overviews so we don't need to create them ourself.
         # One thing we can't do is prevent any overviews, if we use None then
         # the COG driver will create automatically, we can't pass OVERVIEWS=NONE.
-        if driver == 'COG' and overviews == []:
+        if driver == "COG" and overviews == []:
             overviews = None
         if include_scale_offset_tags:
             warnings.warn(
-                "include_scale_offset_tags is deprecated, please use "
-                "scale_offset_tags to indicate tag labels",
-                DeprecationWarning, stacklevel=2)
+                "include_scale_offset_tags is deprecated, please use scale_offset_tags to indicate tag labels",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             scale_offset_tags = scale_offset_tags or ("scale", "offset")
 
         if tags is None:
             tags = {}
 
-        data, mode = self.finalize(fill_value, dtype=dtype,
-                                   keep_palette=keep_palette)
-        data = data.transpose('bands', 'y', 'x')
+        data, mode = self.finalize(fill_value, dtype=dtype, keep_palette=keep_palette)
+        data = data.transpose("bands", "y", "x")
 
         crs = None
         gcps = None
         transform = None
-        if driver in ['COG', 'GTiff', 'JP2OpenJPEG']:
+        if driver in ["COG", "GTiff", "JP2OpenJPEG"]:
             if not np.issubdtype(data.dtype, np.floating):
-                format_kwargs.setdefault('compress', 'DEFLATE')
+                format_kwargs.setdefault("compress", "DEFLATE")
             photometric_map = {
-                'RGB': 'RGB',
-                'RGBA': 'RGB',
-                'CMYK': 'CMYK',
-                'CMYKA': 'CMYK',
-                'YCBCR': 'YCBCR',
-                'YCBCRA': 'YCBCR',
+                "RGB": "RGB",
+                "RGBA": "RGB",
+                "CMYK": "CMYK",
+                "CMYKA": "CMYK",
+                "YCBCR": "YCBCR",
+                "YCBCRA": "YCBCR",
             }
             if mode.upper() in photometric_map:
-                format_kwargs.setdefault('photometric',
-                                         photometric_map[mode.upper()])
+                format_kwargs.setdefault("photometric", photometric_map[mode.upper()])
 
             from ._xrimage_rasterio import get_data_arr_crs_transform_gcps
+
             crs, transform, gcps = get_data_arr_crs_transform_gcps(data)
 
             stime = data.attrs.get("start_time")
             if stime:
                 stime_str = stime.strftime("%Y:%m:%d %H:%M:%S")
-                tags.setdefault('TIFFTAG_DATETIME', stime_str)
-        if driver == 'JPEG' and 'A' in mode:
-            raise ValueError('JPEG does not support alpha')
+                tags.setdefault("TIFFTAG_DATETIME", stime_str)
+        if driver == "JPEG" and "A" in mode:
+            raise ValueError("JPEG does not support alpha")
 
         enhancement_colormap = self._get_colormap_from_enhancement_history(data)
         if colormap_tag and enhancement_colormap is not None:
@@ -418,39 +450,46 @@ class XRImage:
             self._add_scale_offset_to_tags(scale_offset_tags, data, tags)
 
         # If we are changing the driver then use appropriate kwargs
-        if driver == 'COG':
+        if driver == "COG":
             format_kwargs = self._gtiff_to_cog_kwargs(format_kwargs)
 
         # FIXME add metadata
-        r_file = RIOFile(filename, 'w', driver=driver,
-                         width=data.sizes['x'], height=data.sizes['y'],
-                         count=data.sizes['bands'],
-                         dtype=dtype,
-                         nodata=fill_value,
-                         crs=crs,
-                         transform=transform,
-                         gcps=gcps,
-                         **format_kwargs)
+        r_file = RIOFile(
+            filename,
+            "w",
+            driver=driver,
+            width=data.sizes["x"],
+            height=data.sizes["y"],
+            count=data.sizes["bands"],
+            dtype=dtype,
+            nodata=fill_value,
+            crs=crs,
+            transform=transform,
+            gcps=gcps,
+            **format_kwargs,
+        )
         r_file.open()
         if not keep_palette:
             from ._xrimage_rasterio import color_interp
+
             r_file.colorinterp = color_interp(data)
 
         if keep_palette and cmap is not None:
-            if data.dtype != 'uint8':
-                raise ValueError('Rasterio only supports 8-bit colormaps')
+            if data.dtype != "uint8":
+                raise ValueError("Rasterio only supports 8-bit colormaps")
             try:
                 from trollimage.colormap import Colormap
+
                 cmap = cmap.to_rio() if isinstance(cmap, Colormap) else cmap
                 r_file.rfile.write_colormap(1, cmap)
-            except AttributeError:
-                raise ValueError("Colormap is not formatted correctly")
+            except AttributeError as err:
+                raise ValueError("Colormap is not formatted correctly") from err
 
         tags, da_tags = split_regular_vs_lazy_tags(tags, r_file)
         r_file.rfile.update_tags(**tags)
-        r_dataset = RIODataset(r_file, overviews,
-                               overviews_resampling=overviews_resampling,
-                               overviews_minsize=overviews_minsize)
+        r_dataset = RIODataset(
+            r_file, overviews, overviews_resampling=overviews_resampling, overviews_minsize=overviews_minsize
+        )
 
         to_store = ([data.data], [r_dataset])
         if da_tags:
@@ -471,18 +510,18 @@ class XRImage:
 
     @staticmethod
     def _get_colormap_from_enhancement_history(data_arr):
-        for enhance_dict in reversed(data_arr.attrs.get('enhancement_history', [])):
+        for enhance_dict in reversed(data_arr.attrs.get("enhancement_history", [])):
             if "colormap" in enhance_dict:
                 return enhance_dict["colormap"]
         return None
 
     def pil_save(
-            self,
-            filename: str | pathlib.Path,
-            fformat: str | None = None,
-            fill_value: float | int | None = None,
-            compute: bool = True,
-            **format_kwargs,
+        self,
+        filename: str | pathlib.Path,
+        fformat: str | None = None,
+        fill_value: float | int | None = None,
+        compute: bool = True,
+        **format_kwargs,
     ) -> da.Array | str | pathlib.Path:
         """Save the image to the given *filename* using PIL.
 
@@ -493,9 +532,9 @@ class XRImage:
         fformat = fformat or os.path.splitext(filename)[1][1:]
         fformat = check_image_format(fformat)
 
-        if fformat == 'png':
+        if fformat == "png":
             # Take care of GeoImage.tags (if any).
-            format_kwargs['pnginfo'] = self._pngmeta()
+            format_kwargs["pnginfo"] = self._pngmeta()
 
         pil_ready_arr, mode = self.pil_array(fill_value)
         filename_arr = lazy_pil_save(pil_ready_arr, mode, filename, fformat, **format_kwargs)
@@ -510,7 +549,7 @@ class XRImage:
             scale = scale_offset_tags[scale_label]
             offset = scale_offset_tags[offset_label]
         except TypeError:
-            scale, offset = self.get_scaling_from_history(data_arr.attrs.get('enhancement_history', []))
+            scale, offset = self.get_scaling_from_history(data_arr.attrs.get("enhancement_history", []))
         tags[scale_label], tags[offset_label] = invert_scale_offset(scale, offset)
 
     def get_scaling_from_history(self, history=None):
@@ -520,20 +559,23 @@ class XRImage:
         used.
         """
         if history is None:
-            history = self.data.attrs.get('enhancement_history', [])
+            history = self.data.attrs.get("enhancement_history", [])
         try:
-            scaling = [(item['scale'], item['offset']) for item in history]
+            scaling = [(item["scale"], item["offset"]) for item in history]
         except KeyError as err:
-            logger.debug("Can only get combine scaling from a list of linear "
-                         f"scaling operations: {err}. Setting scale and offset "
-                         "to (NaN, NaN).")
+            logger.debug(
+                "Can only get combine scaling from a list of linear "
+                f"scaling operations: {err}. Setting scale and offset "
+                "to (NaN, NaN)."
+            )
             return np.nan, np.nan
         scale, offset = combine_scales_offsets(*scaling)
         scale_is_not_scalar = not isinstance(scale, numbers.Number) and len(scale) != 1
         offset_is_not_scalar = not isinstance(offset, numbers.Number) and len(offset) != 1
         if scale_is_not_scalar or offset_is_not_scalar:
-            logger.debug("Multi-band scale/offset tags can't be saved to "
-                         "geotiff. Setting scale and offset to (NaN, NaN).")
+            logger.debug(
+                "Multi-band scale/offset tags can't be saved to geotiff. Setting scale and offset to (NaN, NaN)."
+            )
             return np.nan, np.nan
         return scale, offset
 
@@ -549,9 +591,9 @@ class XRImage:
 
         """
         if pil_args is None:
-            pil_args = tuple()
+            pil_args = ()
         if pil_kwargs is None:
-            pil_kwargs = dict()
+            pil_kwargs = {}
         pil_ready_arr, mode = self.pil_array(*pil_args, **pil_kwargs)
 
         # HACK: aggdraw.Font objects cause segmentation fault in dask tokenize
@@ -565,13 +607,22 @@ class XRImage:
         if fun.__name__ == "_burn_overlay":
             from dask.base import tokenize
             from dask.utils import funcname
+
             func = _delayed_apply_pil
             if fun_args is None:
-                fun_args = tuple()
+                fun_args = ()
             if fun_kwargs is None:
-                fun_kwargs = dict()
-            tokenize_args = (pil_ready_arr, mode, fun, fun_args[:-1], fun_kwargs,
-                             self.data.attrs, self.data.dtype, output_mode)
+                fun_kwargs = {}
+            tokenize_args = (
+                pil_ready_arr,
+                mode,
+                fun,
+                fun_args[:-1],
+                fun_kwargs,
+                self.data.attrs,
+                self.data.dtype,
+                output_mode,
+            )
             dask_key_name = "%s-%s" % (
                 funcname(func),
                 tokenize(*tokenize_args, pure=True),
@@ -596,11 +647,12 @@ class XRImage:
         # new_array = self._delayed_apply_pil(fun, img_arr, fun_args, fun_kwargs,
         #                                     self.data.attrs, output_mode,
         #                                     **mapblocks_kwargs)
-        new_data = xr.DataArray(new_img_data, dims=['y', 'x', 'bands'],
-                                coords={'y': self.data.coords['y'],
-                                        'x': self.data.coords['x'],
-                                        'bands': list(output_mode)},
-                                attrs=self.data.attrs)
+        new_data = xr.DataArray(
+            new_img_data,
+            dims=["y", "x", "bands"],
+            coords={"y": self.data.coords["y"], "x": self.data.coords["x"], "bands": list(output_mode)},
+            attrs=self.data.attrs,
+        )
         return XRImage(new_data)
 
     def _pngmeta(self):
@@ -611,7 +663,7 @@ class XRImage:
         http://blog.modp.com/2007/08/python-pil-and-png-metadata-take-2.html
 
         """
-        reserved = ('interlace', 'gamma', 'dpi', 'transparency', 'aspect')
+        reserved = ("interlace", "gamma", "dpi", "transparency", "aspect")
 
         try:
             tags = self.tags
@@ -620,6 +672,7 @@ class XRImage:
 
         # Undocumented class
         from PIL import PngImagePlugin
+
         meta = PngImagePlugin.PngInfo()
 
         # Copy from tags to new dict
@@ -639,16 +692,16 @@ class XRImage:
         The returned array is 1 where data is valid, 0 where invalid.
 
         """
-        not_alpha = [b for b in data.coords['bands'].values if b != 'A']
+        not_alpha = [b for b in data.coords["bands"].values if b != "A"]
         null_mask = data.sel(bands=not_alpha)
         if np.issubdtype(data.dtype, np.integer) and fill_value is not None:
             null_mask = null_mask != fill_value
         else:
             null_mask = null_mask.notnull()
         # if any of the bands are valid, we don't want transparency
-        null_mask = null_mask.any(dim='bands')
-        null_mask = null_mask.expand_dims('bands')
-        null_mask['bands'] = ['A']
+        null_mask = null_mask.any(dim="bands")
+        null_mask = null_mask.expand_dims("bands")
+        null_mask["bands"] = ["A"]
         # changes to null_mask attrs should not effect the original attrs
         # XRImage never uses them either
         null_mask.attrs = {}
@@ -666,7 +719,7 @@ class XRImage:
         For float types the alpha band spans 0 to 1.
 
         """
-        fill_value = data.attrs.get('_FillValue', None)  # integer fill value
+        fill_value = data.attrs.get("_FillValue", None)  # integer fill value
         null_mask = alpha if alpha is not None else self._create_alpha(data, fill_value)
         # if we are using integer data, then alpha needs to be min-int to max-int
         # otherwise for floats we want 0 to 1
@@ -695,7 +748,9 @@ class XRImage:
                     "Specified fill value will overlap with valid "
                     "data. To avoid this warning specify a fill_value "
                     "that is the minimum or maximum for the data type "
-                    "being saved to.", stacklevel=3)
+                    "being saved to.",
+                    stacklevel=3,
+                )
         return scale, offset
 
     def _scale_to_dtype(self, data, dtype, fill_value=None):
@@ -720,7 +775,7 @@ class XRImage:
                 # leave room for fill value if needed
                 scale, offset = self._get_dtype_scale_offset(dtype, fill_value)
                 data = data.clip(0, 1) * scale + offset
-                attrs.setdefault('enhancement_history', list()).append({'scale': scale, 'offset': offset})
+                attrs.setdefault("enhancement_history", []).append({"scale": scale, "offset": offset})
             data = data.round()
             if fill_value is None:
                 data = data.fillna(np.iinfo(dtype).min)
@@ -754,10 +809,10 @@ class XRImage:
         else:
             alpha = None
 
-        flat_indexes = self.data.sel(bands='P').data.ravel().astype('int64')
-        dim_sizes = ((key, val) for key, val in self.data.sizes.items() if key != 'bands')
-        dims, new_shape = zip(*dim_sizes)
-        dims = dims + ('bands',)
+        flat_indexes = self.data.sel(bands="P").data.ravel().astype("int64")
+        dim_sizes = ((key, val) for key, val in self.data.sizes.items() if key != "bands")
+        dims, new_shape = zip(*dim_sizes, strict=True)
+        dims = dims + ("bands",)
         new_shape = new_shape + (pal.shape[1],)
         new_data = pal[flat_indexes].reshape(new_shape)
         coords = dict(self.data.coords)
@@ -814,24 +869,23 @@ class XRImage:
                 "P": {"RGB": self._from_p},
                 "PA": {"RGBA": self._from_p},
                 "L": {"RGB": self._l2rgb},
-                "LA": {"RGBA": self._l2rgb}
+                "LA": {"RGBA": self._l2rgb},
             }
             try:
                 data = cases[self.mode][mode](mode)
                 new_img = XRImage(data)
             except KeyError:
-                raise ValueError("Conversion from %s to %s not implemented !"
-                                 % (self.mode, mode))
+                raise ValueError("Conversion from %s to %s not implemented !" % (self.mode, mode)) from None
 
-        if self.mode.startswith('P') and new_img.mode.startswith('P'):
+        if self.mode.startswith("P") and new_img.mode.startswith("P"):
             # need to copy the palette
             new_img.palette = self.palette
         return new_img
 
     def final_mode(self, fill_value=None):
         """Get the mode of the finalized image when provided this fill_value."""
-        if fill_value is None and not self.mode.endswith('A'):
-            return self.mode + 'A'
+        if fill_value is None and not self.mode.endswith("A"):
+            return self.mode + "A"
         return self.mode
 
     def _add_alpha_and_scale(self, data, ifill, dtype):
@@ -857,11 +911,10 @@ class XRImage:
     def _get_input_fill_value(self, data):
         # if the data are integers then this fill value will be used to check for invalid values
         if np.issubdtype(data, np.integer):
-            return data.attrs.get('_FillValue')
+            return data.attrs.get("_FillValue")
         return None
 
-    def _scale_and_replace_fill_value(self, data, input_fill_value, fill_value,
-                                      dtype, scale, replace_fill_value):
+    def _scale_and_replace_fill_value(self, data, input_fill_value, fill_value, dtype, scale, replace_fill_value):
         # scale float data to the proper dtype
         # this method doesn't cast yet so that we can keep track of NULL values
         if scale:
@@ -872,13 +925,11 @@ class XRImage:
 
     def _scale_alpha_or_fill_data(self, data, fill_value, dtype, scale, alpha, replace_fill_value):
         input_fill_value = self._get_input_fill_value(data)
-        needs_alpha = alpha and fill_value is None and not self.mode.endswith('A')
+        needs_alpha = alpha and fill_value is None and not self.mode.endswith("A")
         if needs_alpha:
             # We don't have a fill value or an alpha, let's add an alpha
             return self._add_alpha_and_scale(data, input_fill_value, dtype)
-        return self._scale_and_replace_fill_value(data, input_fill_value,
-                                                  fill_value, dtype, scale,
-                                                  replace_fill_value)
+        return self._scale_and_replace_fill_value(data, input_fill_value, fill_value, dtype, scale, replace_fill_value)
 
     def finalize(self, fill_value=None, dtype=np.uint8, keep_palette=False):
         """Finalize the image to be written to an output file.
@@ -918,45 +969,41 @@ class XRImage:
                 for non-paletted images.
 
         """
-        if keep_palette and not self.mode.startswith('P'):
+        if keep_palette and not self.mode.startswith("P"):
             keep_palette = False
 
         if not keep_palette:
-            finalize_kwargs = dict(
-                fill_value=fill_value, dtype=dtype,
-                keep_palette=keep_palette,
-            )
+            finalize_kwargs = {
+                "fill_value": fill_value,
+                "dtype": dtype,
+                "keep_palette": keep_palette,
+            }
             if self.mode == "P":
                 return self.convert("RGB").finalize(**finalize_kwargs)
             if self.mode == "PA":
                 return self.convert("RGBA").finalize(**finalize_kwargs)
 
         if np.issubdtype(dtype, np.floating) and fill_value is None:
-            logger.warning("Image with floats cannot be transparent, so "
-                           "setting fill_value to 0")
+            logger.warning("Image with floats cannot be transparent, so setting fill_value to 0")
             fill_value = 0
 
         final_data = self.data.copy()
-        try:
-            final_data.attrs['enhancement_history'] = list(self.data.attrs['enhancement_history'])
-        except KeyError:
-            pass
+        with contextlib.suppress(KeyError):
+            final_data.attrs["enhancement_history"] = list(self.data.attrs["enhancement_history"])
         with xr.set_options(keep_attrs=True):
             attrs = final_data.attrs
             final_data = self._scale_alpha_or_fill_data(
-                    final_data, fill_value, dtype,
-                    scale=not keep_palette,
-                    alpha=not keep_palette,
-                    replace_fill_value=True)
+                final_data, fill_value, dtype, scale=not keep_palette, alpha=not keep_palette, replace_fill_value=True
+            )
             final_data = final_data.astype(dtype)
             final_data.attrs = attrs
 
-        return final_data, ''.join(final_data['bands'].values)
+        return final_data, "".join(final_data["bands"].values)
 
     def pil_image(
-            self,
-            fill_value: int | float | None = None,
-            compute: bool = True,
+        self,
+        fill_value: int | float | None = None,
+        compute: bool = True,
     ) -> PILImage.Image:
         """Return a PIL image from the current image.
 
@@ -974,16 +1021,18 @@ class XRImage:
         """
         pil_ready_arr, mode = self.pil_array(fill_value)
         if not compute:
-            raise RuntimeError("Delayed PIL Image creation is no longer supported. Set 'compute=True' (default) "
-                               "to get a PIL Image object back or use the 'pil_array' method to get a dask "
-                               "array and image mode that are ready to be passed to 'PILImage.fromarray' "
-                               "in a later dask function.")
+            raise RuntimeError(
+                "Delayed PIL Image creation is no longer supported. Set 'compute=True' (default) "
+                "to get a PIL Image object back or use the 'pil_array' method to get a dask "
+                "array and image mode that are ready to be passed to 'PILImage.fromarray' "
+                "in a later dask function."
+            )
 
         return PILImage.fromarray(pil_ready_arr.compute(), mode=mode)
 
     def pil_array(
-            self,
-            fill_value: int | float | None = None,
+        self,
+        fill_value: int | float | None = None,
     ) -> tuple[da.Array, str]:
         """Return a PIL-ready array wrapped in a dask Array and the associated image mode.
 
@@ -1018,14 +1067,12 @@ class XRImage:
 
         """
         channels, mode = self.finalize(fill_value)
-        pil_ready_arr = np.squeeze(channels.transpose('y', 'x', 'bands').data)
+        pil_ready_arr = np.squeeze(channels.transpose("y", "x", "bands").data)
         return pil_ready_arr, mode
 
     def xrify_tuples(self, tup):
         """Make xarray.DataArray from tuple."""
-        return xr.DataArray(tup,
-                            dims=['bands'],
-                            coords={'bands': self.data['bands']})
+        return xr.DataArray(tup, dims=["bands"], coords={"bands": self.data["bands"]})
 
     def gamma(self, gamma=None):
         """Apply gamma correction to the channels of the image.
@@ -1047,13 +1094,10 @@ class XRImage:
         self.data = self.data.clip(min=0)
         self.data **= inverse_gamma
         self.data.attrs = attrs
-        self.data.attrs.setdefault('enhancement_history', []).append({'gamma': gamma})
+        self.data.attrs.setdefault("enhancement_history", []).append({"gamma": gamma})
 
     def _get_inverse_gamma(self, gamma):
-        if np.issubdtype(self.data.dtype, np.floating):
-            dtype = self.data.dtype
-        else:
-            dtype = np.float32
+        dtype = self.data.dtype if np.issubdtype(self.data.dtype, np.floating) else np.float32
         if isinstance(gamma, (list, tuple)):
             gamma = self.xrify_tuples(gamma).astype(dtype)
         else:
@@ -1074,8 +1118,7 @@ class XRImage:
         [0.0,1.0].
 
         """
-        logger.debug("Applying stretch %s with parameters %s",
-                     stretch, str(kwargs))
+        logger.debug("Applying stretch %s with parameters %s", stretch, str(kwargs))
 
         # FIXME: do not apply stretch to alpha channel
 
@@ -1083,8 +1126,7 @@ class XRImage:
             if len(stretch) == 2:
                 self.stretch_linear(cutoffs=stretch)
             else:
-                raise ValueError(
-                    "Stretch tuple must have exactly two elements")
+                raise ValueError("Stretch tuple must have exactly two elements")
         elif stretch == "linear":
             self.stretch_linear(**kwargs)
         elif stretch == "histogram":
@@ -1123,40 +1165,38 @@ class XRImage:
 
     def _get_left_and_right_quantiles_for_linear_stretch(self, cutoffs):
         logger.debug("Calculate the histogram quantiles: ")
-        logger.debug("Left and right quantiles: " +
-                     str(cutoffs[0]) + " " + str(cutoffs[1]))
+        logger.debug("Left and right quantiles: " + str(cutoffs[0]) + " " + str(cutoffs[1]))
         data = self.data
         nb_bands = len(data.coords["bands"])
 
-        dont_stretch_alpha = ('A' in self.data.coords['bands'].values and
-                              (np.isscalar(cutoffs[0]) or len(cutoffs) == nb_bands - 1))
+        dont_stretch_alpha = "A" in self.data.coords["bands"].values and (
+            np.isscalar(cutoffs[0]) or len(cutoffs) == nb_bands - 1
+        )
 
         if np.isscalar(cutoffs[0]):
             cutoffs = [cutoffs] * nb_bands
 
         if dont_stretch_alpha:
-            data = self.data.sel(bands=self.data.coords['bands'].values[:-1])
+            data = self.data.sel(bands=self.data.coords["bands"].values[:-1])
 
         left_data, right_data = self._get_left_and_right_quantiles_without_alpha(data, cutoffs)
 
         if dont_stretch_alpha:
             left_data = left_data + [da.zeros_like(left_data[0])]
             right_data = right_data + [da.ones_like(right_data[0])]
-        left = xr.DataArray(da.stack(left_data), dims=('bands',),
-                            coords={'bands': self.data['bands']})
-        right = xr.DataArray(da.stack(right_data), dims=('bands',),
-                             coords={'bands': self.data['bands']})
+        left = xr.DataArray(da.stack(left_data), dims=("bands",), coords={"bands": self.data["bands"]})
+        right = xr.DataArray(da.stack(right_data), dims=("bands",), coords={"bands": self.data["bands"]})
         return left, right
 
     @staticmethod
     def _get_left_and_right_quantiles_without_alpha(
-            data_arr: xr.DataArray,
-            cutoffs: Sequence[Sequence[float]],  # two-element sequences [left_cutoff, right_cutoff]
+        data_arr: xr.DataArray,
+        cutoffs: Sequence[Sequence[float]],  # two-element sequences [left_cutoff, right_cutoff]
     ) -> tuple[list[da.Array], list[da.Array]]:
         left = []
         right = []
         for i in range(data_arr.sizes["bands"]):
-            left_i, right_i = data_arr.isel(bands=i).quantile([cutoffs[i][0], 1-cutoffs[i][1]], dim=("y", "x"))
+            left_i, right_i = data_arr.isel(bands=i).quantile([cutoffs[i][0], 1 - cutoffs[i][1]], dim=("y", "x"))
             left.append(left_i.data)
             right.append(right_i.data)
         return left, right
@@ -1168,8 +1208,8 @@ class XRImage:
         normalizes to the [0,1] range.
 
         """
-        min_stretch = self._check_stretch_value(min_stretch, kind='min')
-        max_stretch = self._check_stretch_value(max_stretch, kind='max')
+        min_stretch = self._check_stretch_value(min_stretch, kind="min")
+        max_stretch = self._check_stretch_value(max_stretch, kind="max")
         scale_factor = self._get_scale_factor(min_stretch, max_stretch)
 
         attrs = self.data.attrs
@@ -1181,12 +1221,11 @@ class XRImage:
 
         self.data = np.multiply(self.data, scale_factor, dtype=scale_factor.dtype) + offset
         self.data.attrs = attrs
-        self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale_factor,
-                                                                      'offset': offset})
+        self.data.attrs.setdefault("enhancement_history", []).append({"scale": scale_factor, "offset": offset})
 
-    def _check_stretch_value(self, val, kind='min'):
+    def _check_stretch_value(self, val, kind="min"):
         if val is None:
-            non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
+            non_band_dims = tuple(x for x in self.data.dims if x != "bands")
             val = getattr(self.data, kind)(dim=non_band_dims)
         if isinstance(val, (list, tuple)):
             val = self.xrify_tuples(val)
@@ -1204,7 +1243,7 @@ class XRImage:
         return val
 
     def _get_scale_factor(self, min_stretch, max_stretch):
-        delta = (max_stretch - min_stretch)
+        delta = max_stretch - min_stretch
         dtype = self._infer_scale_factor_dtype()
         if isinstance(delta, xr.DataArray):
             # fillna if delta is NaN
@@ -1230,8 +1269,8 @@ class XRImage:
         if approximate:
             warnings.warn("The 'approximate' keyword is deprecated.", stacklevel=2)
 
-        nwidth = 2048.
-        cdf = np.arange(0., 1., 1. / nwidth)
+        nwidth = 2048.0
+        cdf = np.arange(0.0, 1.0, 1.0 / nwidth)
 
         def _band_hist(band_data: da.Array) -> da.Array:
             one_chunk_data = band_data.rechunk((-1,) * band_data.ndim)
@@ -1252,20 +1291,19 @@ class XRImage:
             return res.rechunk(band_data.chunks)
 
         band_results = []
-        for band in self.data['bands'].values:
-            if band == 'A':
+        for band in self.data["bands"].values:
+            if band == "A":
                 continue
             band_data = self.data.sel(bands=band)
             res = _band_hist(band_data.data)
             band_results.append(res)
 
-        if 'A' in self.data.coords['bands'].values:
-            band_results.append(self.data.sel(bands='A'))
-        self.data.data = da.stack(band_results,
-                                  axis=self.data.dims.index('bands'))
-        self.data.attrs.setdefault('enhancement_history', []).append({'hist_equalize': True})
+        if "A" in self.data.coords["bands"].values:
+            band_results.append(self.data.sel(bands="A"))
+        self.data.data = da.stack(band_results, axis=self.data.dims.index("bands"))
+        self.data.attrs.setdefault("enhancement_history", []).append({"hist_equalize": True})
 
-    def stretch_logarithmic(self, factor=100., base="e", min_stretch=None, max_stretch=None):
+    def stretch_logarithmic(self, factor=100.0, base="e", min_stretch=None, max_stretch=None):
         """Move data into range [1:factor] through normalized logarithm.
 
         Args:
@@ -1287,7 +1325,7 @@ class XRImage:
 
         """
         logger.debug("Perform a logarithmic contrast stretch.")
-        crange = (0., 1.0)
+        crange = (0.0, 1.0)
         log_func = np.log if base == "e" else getattr(np, "log" + base)
         min_stretch, max_stretch = self._convert_log_minmax_stretch(min_stretch, max_stretch)
 
@@ -1295,29 +1333,27 @@ class XRImage:
         c__ = float(crange[0])
 
         def _band_log(arr, min_input, max_input):
-            slope = (factor - 1.) / (max_input - min_input)
+            slope = (factor - 1.0) / (max_input - min_input)
             arr = np.clip(arr, min_input, max_input)
-            arr = 1. + (arr - min_input) * slope
+            arr = 1.0 + (arr - min_input) * slope
             arr = c__ + b__ * log_func(arr)
             return arr
 
         band_results = []
-        for band_idx, band in enumerate(self.data['bands'].values):
-            if band == 'A':
+        for band_idx, band in enumerate(self.data["bands"].values):
+            if band == "A":
                 continue
             band_data = self.data.sel(bands=band)
-            res = _band_log(band_data.data,
-                            min_stretch[band_idx],
-                            max_stretch[band_idx])
+            res = _band_log(band_data.data, min_stretch[band_idx], max_stretch[band_idx])
             band_results.append(res)
 
-        if 'A' in self.data.coords['bands'].values:
-            band_results.append(self.data.sel(bands='A'))
-        self.data.data = da.stack(band_results, axis=self.data.dims.index('bands'))
-        self.data.attrs.setdefault('enhancement_history', []).append({'log_factor': factor})
+        if "A" in self.data.coords["bands"].values:
+            band_results.append(self.data.sel(bands="A"))
+        self.data.data = da.stack(band_results, axis=self.data.dims.index("bands"))
+        self.data.attrs.setdefault("enhancement_history", []).append({"log_factor": factor})
 
     def _convert_log_minmax_stretch(self, min_stretch, max_stretch):
-        non_band_dims = tuple(x for x in self.data.dims if x != 'bands')
+        non_band_dims = tuple(x for x in self.data.dims if x != "bands")
         if min_stretch is None:
             min_stretch = [m.data for m in self.data.min(dim=non_band_dims)]
         if max_stretch is None:
@@ -1340,7 +1376,7 @@ class XRImage:
         clipped_stimuli = np.clip(self.data, s0, None)
         self.data = k * np.log(clipped_stimuli / s0)
         self.data.attrs = attrs
-        self.data.attrs.setdefault('enhancement_history', []).append({'weber_fechner': (k, s0)})
+        self.data.attrs.setdefault("enhancement_history", []).append({"weber_fechner": (k, s0)})
 
     def invert(self, invert=True):
         """Inverts all the channels of a image according to *invert*.
@@ -1363,8 +1399,7 @@ class XRImage:
         attrs = self.data.attrs
         self.data = self.data * scale + offset
         self.data.attrs = attrs
-        self.data.attrs.setdefault('enhancement_history', []).append({'scale': scale,
-                                                                      'offset': offset})
+        self.data.attrs.setdefault("enhancement_history", []).append({"scale": scale, "offset": offset})
 
     def stack(self, img):
         """Stack the provided image on top of the current image."""
@@ -1381,8 +1416,7 @@ class XRImage:
         That is if the current image has missing data.
 
         """
-        raise NotImplementedError("This method has not be implemented for "
-                                  "xarray support.")
+        raise NotImplementedError("This method has not be implemented for xarray support.")
         if self.is_empty():
             raise ValueError("Cannot merge an empty image.")
 
@@ -1394,11 +1428,8 @@ class XRImage:
             selfmask = np.ma.mask_or(selfmask, chn.mask)
 
         for i in range(len(self.channels)):
-            self.channels[i] = np.ma.where(selfmask,
-                                           img.channels[i],
-                                           self.channels[i])
-            self.channels[i].mask = np.logical_and(selfmask,
-                                                   img.channels[i].mask)
+            self.channels[i] = np.ma.where(selfmask, img.channels[i], self.channels[i])
+            self.channels[i].mask = np.logical_and(selfmask, img.channels[i].mask)
 
     def colorize(self, colormap):
         """Colorize the current image using ``colormap``.
@@ -1428,7 +1459,7 @@ class XRImage:
 
         colormap = self._adjust_colormap_dtype(colormap)
         l_data = self._get_masked_floating_luminance_data()
-        alpha = self.data.sel(bands=['A']) if self.mode == "LA" else None
+        alpha = self.data.sel(bands=["A"]) if self.mode == "LA" else None
         new_data = colormap.colorize(l_data.data)
 
         if colormap.colors.shape[1] == 4:
@@ -1441,16 +1472,18 @@ class XRImage:
 
         # copy the coordinates so we don't affect the original
         coords = dict(self.data.coords)
-        coords['bands'] = list(mode)
+        coords["bands"] = list(mode)
         attrs = self.data.attrs
         dims = self.data.dims
         self.data = xr.DataArray(new_data, coords=coords, attrs=attrs, dims=dims)
         scale_factor, offset = self._get_colormap_scale_offset(colormap)
-        self.data.attrs.setdefault('enhancement_history', []).append({
-            'scale': scale_factor,
-            'offset': offset,
-            'colormap': colormap,
-        })
+        self.data.attrs.setdefault("enhancement_history", []).append(
+            {
+                "scale": scale_factor,
+                "offset": offset,
+                "colormap": colormap,
+            }
+        )
 
     def _adjust_colormap_dtype(self, colormap):
         if np.issubdtype(self.data.dtype, np.floating) and colormap.colors.dtype != self.data.dtype:
@@ -1459,7 +1492,7 @@ class XRImage:
         return colormap
 
     def _get_masked_floating_luminance_data(self):
-        l_data = self.data.sel(bands='L')
+        l_data = self.data.sel(bands="L")
         # mask any integer fields with _FillValue
         # assume NaN is used otherwise
         if self.mode == "L" and np.issubdtype(self.data.dtype, np.integer):
@@ -1528,26 +1561,28 @@ class XRImage:
         if self.mode not in ("L", "LA"):
             raise ValueError("Image should be grayscale to colorize")
 
-        l_data = self.data.sel(bands=['L'])
+        l_data = self.data.sel(bands=["L"])
         new_data, self.palette = colormap.palettize(l_data.data)
 
         if self.mode == "L":
             mode = "P"
         else:
             mode = "PA"
-            new_data = da.concatenate([new_data, self.data.sel(bands=['A'])], axis=0)
+            new_data = da.concatenate([new_data, self.data.sel(bands=["A"])], axis=0)
 
         old_dtype = self.data.dtype
         self.data.data = new_data
-        self.data.coords['bands'] = list(mode)
+        self.data.coords["bands"] = list(mode)
         self._set_new_fill_value_after_palettize(colormap, old_dtype)
         # See docstring notes above for how scale/offset should be used
         scale_factor, offset = self._get_colormap_scale_offset(colormap)
-        self.data.attrs.setdefault('enhancement_history', []).append({
-            'scale': scale_factor,
-            'offset': offset,
-            'colormap': colormap,
-        })
+        self.data.attrs.setdefault("enhancement_history", []).append(
+            {
+                "scale": scale_factor,
+                "offset": offset,
+                "colormap": colormap,
+            }
+        )
 
     @staticmethod
     def _get_colormap_scale_offset(colormap):
@@ -1561,11 +1596,11 @@ class XRImage:
         """Set new fill value after palettizing."""
         # OK: float without fill value or fill value nan
         # OK: int without fill value or fill value to max value
-        if ((np.issubdtype(old_dtype, np.inexact) and
-             np.isnan(self.data.attrs.get("_FillValue", np.nan))) or
-            (np.issubdtype(old_dtype, np.integer) and
-             self.data.attrs.get("_FillValue", np.iinfo(old_dtype).max) == np.iinfo(old_dtype).max)):
-            self.data.attrs["_FillValue"] = colormap.values.shape[0]-1
+        if (np.issubdtype(old_dtype, np.inexact) and np.isnan(self.data.attrs.get("_FillValue", np.nan))) or (
+            np.issubdtype(old_dtype, np.integer)
+            and self.data.attrs.get("_FillValue", np.iinfo(old_dtype).max) == np.iinfo(old_dtype).max
+        ):
+            self.data.attrs["_FillValue"] = colormap.values.shape[0] - 1
         # not OK: float or int with different fill value
         elif "_FillValue" in self.data.attrs:
             warnings.warn(
@@ -1575,7 +1610,8 @@ class XRImage:
                 "will be correctly palettized only for float with NaN or for "
                 "ints with fill value set to dtype max.",
                 UserWarning,
-                stacklevel=3)
+                stacklevel=3,
+            )
         # else: non-numeric data, probably doesn't work at all and will fail
         # elsewhere anyway
 
@@ -1601,39 +1637,30 @@ class XRImage:
         Both images must have mode ``"RGBA"``.
 
         Args:
-            src (:class:`XRImage` with mode ``"RGBA"``)
+            src (:class:`XRImage` with mode ``"RGBA"``):
                 Image to be blended on top of current image.
 
         .. _alpha blending: https://en.wikipedia.org/w/index.php?title=Alpha_compositing&oldid=891033105#Alpha_blending
 
-        Returns
+        Returns:
             XRImage with mode "RGBA", blended as described above
 
         """
         # NB: docstring maths copy-pasta from enwiki
 
         if self.mode != "RGBA":
-            raise ValueError(
-                    "Expected self.mode='RGBA', got {md!s}".format(
-                        md=self.mode))
+            raise ValueError(f"Expected self.mode='RGBA', got {self.mode!s}")
         if not isinstance(src, XRImage):
-            raise TypeError("Expected XRImage, got {tp!s}".format(
-                tp=type(src)))
+            raise TypeError(f"Expected XRImage, got {type(src)!s}")
         if src.mode != "RGBA":
-            raise ValueError("Expected src.mode='RGBA', got {sm!s}".format(
-                sm=src.mode))
+            raise ValueError(f"Expected src.mode='RGBA', got {src.mode!s}")
 
         srca = src.data.sel(bands="A")
         dsta = self.data.sel(bands="A")
-        outa = srca + dsta * (1-srca)
+        outa = srca + dsta * (1 - srca)
         bi = {"bands": ["R", "G", "B"]}
-        rgb = ((src.data.loc[bi] * srca
-               + self.data.loc[bi] * dsta * (1-srca))
-               / outa).where(outa != 0, 0)
-        return self.__class__(
-                xr.concat(
-                    [rgb, outa.expand_dims("bands")],
-                    dim="bands"))
+        rgb = ((src.data.loc[bi] * srca + self.data.loc[bi] * dsta * (1 - srca)) / outa).where(outa != 0, 0)
+        return self.__class__(xr.concat([rgb, outa.expand_dims("bands")], dim="bands"))
 
     def show(self):
         """Display the image on screen."""
@@ -1641,27 +1668,28 @@ class XRImage:
 
     def _repr_png_(self):
         import io
+
         b = io.BytesIO()
-        self.pil_image().save(b, format='png')
+        self.pil_image().save(b, format="png")
         return b.getvalue()
 
 
 def _delayed_apply_pil(
-        pil_ready_array: np.ndarray,
-        mode: str,
-        fun: Callable,
-        fun_args: tuple | None,
-        fun_kwargs: dict | None,
-        dtype: np.dtype,
-        image_metadata: dict | None = None,
-        output_mode: str | None = None,
+    pil_ready_array: np.ndarray,
+    mode: str,
+    fun: Callable,
+    fun_args: tuple | None,
+    fun_kwargs: dict | None,
+    dtype: np.dtype,
+    image_metadata: dict | None = None,
+    output_mode: str | None = None,
 ) -> np.ndarray:
     if fun_args is None:
-        fun_args = tuple()
+        fun_args = ()
     if fun_kwargs is None:
-        fun_kwargs = dict()
+        fun_kwargs = {}
     if image_metadata is None:
-        image_metadata = dict()
+        image_metadata = {}
     pil_image = PILImage.fromarray(pil_ready_array, mode=mode)
     new_img = fun(pil_image, image_metadata, *fun_args, **fun_kwargs)
     if output_mode is not None:

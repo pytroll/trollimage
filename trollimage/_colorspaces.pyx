@@ -1,5 +1,5 @@
-# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, initializedcheck=False, nonecheck=False, cpow=True
-cimport cython
+# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False
+# cython: initializedcheck=False, nonecheck=False, cpow=True
 
 from libc.math cimport cos, sin, atan2
 import numpy as np
@@ -18,7 +18,8 @@ np.import_array()
 #     bint npy_isnan(np.float32_t x) nogil
 
 # Function pointer type to allow for generic high-level functions
-ctypedef void (*CONVERT_FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3, floating[:, ::1] out) noexcept nogil
+ctypedef void (*CONVERT_FUNC)(floating[:] comp1, floating[:] comp2, floating[:] comp3,
+                              floating[:, ::1] out) noexcept nogil
 
 
 cdef:
@@ -35,7 +36,6 @@ cdef:
     np.float32_t denom_n = xn + (15 * yn) + (3 * zn)
     np.float32_t uprime_n = (4 * xn) / denom_n
     np.float32_t vprime_n = (9 * yn) / denom_n
-
 
     # Compile time option to use
     # sRGB companding (default, True) or simplified gamma (False)
@@ -219,7 +219,6 @@ cdef np.ndarray[floating, ndim=2] _call_convert_func(
     return out_colors
 
 
-
 cdef void _rgb_to_lab(floating[:] r_arr, floating[:] g_arr, floating[:] b_arr, floating[:, ::1] lab_arr) noexcept nogil:
     _rgb_to_xyz[floating](r_arr, g_arr, b_arr, lab_arr)
     _xyz_to_lab[floating](lab_arr[:, 0], lab_arr[:, 1], lab_arr[:, 2], lab_arr)
@@ -286,7 +285,8 @@ cdef void _luv_to_lch(floating[:] l_arr, floating[:] u_arr, floating[:] v_arr, f
 
 # Direct colorspace conversions
 
-cdef void _rgb_to_xyz(floating[:] red_arr, floating[:] green_arr, floating[:] blue_arr, floating[:, ::1] xyz_arr) noexcept nogil:
+cdef void _rgb_to_xyz(floating[:] red_arr, floating[:] green_arr, floating[:] blue_arr,
+                      floating[:, ::1] xyz_arr) noexcept nogil:
     cdef floating r, g, b, rl, gl, bl, x, y, z
     cdef Py_ssize_t idx
 
@@ -436,9 +436,9 @@ cdef void _xyz_to_rgb(floating[:] x_arr, floating[:] y_arr, floating[:] z_arr, f
         glin = (x * -0.9692660) + (y * 1.8760108) + (z * 0.0415560)
         blin = (x * 0.0556434) + (y * -0.2040259) + (z * 1.0572252)
 
-        r  = _to_nonlinear_rgb(rlin)
-        g  = _to_nonlinear_rgb(glin)
-        b  = _to_nonlinear_rgb(blin)
+        r = _to_nonlinear_rgb(rlin)
+        g = _to_nonlinear_rgb(glin)
+        b = _to_nonlinear_rgb(blin)
 
         # constrain to 0..1 to deal with any float drift
         if r > 1.0:

@@ -1,0 +1,6 @@
+# Reformat the whole codebase with `ruff format` (line length 120).
+# Mechanical only -- no behaviour change.
+#
+# GitHub honours this file automatically. For local `git blame`, opt in with:
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+e77b773a33131d58ac7c3eff797a98019529cd18

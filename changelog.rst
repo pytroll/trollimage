@@ -387,5 +387,3 @@ v0.2.0 (2013-12-04)
 - Split between colorspaces and colormap stuff. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
 - Initial commit. [Martin Raspaud]
-
-

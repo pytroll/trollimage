@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+"""Sphinx configuration for the trollimage documentation."""
 #
 # TrollImage documentation build configuration file, created by
 # sphinx-quickstart on Mon Dec  2 09:40:29 2013.
@@ -13,6 +13,7 @@
 
 import os
 import sys
+
 from trollimage import __version__
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -28,28 +29,33 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.intersphinx',
-              'sphinx.ext.napoleon', 'sphinxcontrib.apidoc', "trollimage_colormap"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
+    "sphinxcontrib.apidoc",
+    "trollimage_colormap",
+]
 # API docs
 apidoc_module_dir = "../trollimage"
 apidoc_output_dir = "api"
 apidoc_excluded_paths = []
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # The suffix of source filenames.
-source_suffix = '.rst'
+source_suffix = ".rst"
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # General information about the project.
-project = u'TrollImage'
-copyright = u'2018, The Pytroll Team'
+project = "TrollImage"
+copyright = "2018, The Pytroll Team"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -73,7 +79,7 @@ release = short_version
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = ["_build"]
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 # default_role = None
@@ -90,7 +96,7 @@ exclude_patterns = ['_build']
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = "sphinx"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -100,7 +106,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -129,7 +135,7 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -173,13 +179,13 @@ html_static_path = ['_static']
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'TrollImagedoc'
+htmlhelp_basename = "TrollImagedoc"
 
 
 # -- Options for LaTeX output --------------------------------------------------
 
 # The paper size ('letter' or 'a4').
-latex_paper_size = 'a4'
+latex_paper_size = "a4"
 
 # The font size ('10pt', '11pt' or '12pt').
 # latex_font_size = '10pt'
@@ -187,8 +193,7 @@ latex_paper_size = 'a4'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'TrollImage.tex', u'TrollImage Documentation',
-   u'The Pytroll Team', 'manual'),
+    ("index", "TrollImage.tex", "TrollImage Documentation", "The Pytroll Team", "manual"),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -220,15 +225,14 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'trollimage', u'TrollImage Documentation',
-     [u'The Pytroll Team'], 1)
+    ("index", "trollimage", "TrollImage Documentation", ["The Pytroll Team"], 1),
 ]
 
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://numpy.org/doc/stable', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
-    'xarray': ('https://docs.xarray.dev/en/stable', None),
-    'dask': ('https://dask.pydata.org/en/latest', None),
-    'rasterio': ('https://rasterio.readthedocs.io/en/latest', None),
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable", None),
+    "dask": ("https://dask.pydata.org/en/latest", None),
+    "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
 }

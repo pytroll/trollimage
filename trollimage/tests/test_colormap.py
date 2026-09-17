@@ -1,27 +1,32 @@
 """Test colormap.py."""
 
-import os
 import contextlib
-from trollimage import colormap
-import numpy as np
+import os
 from tempfile import NamedTemporaryFile
+
+import numpy as np
+import pytest
 import xarray
 
-import pytest
+from trollimage import colormap
 
-COLORS_RGB1 = np.array([
-    [0.0, 0.0, 0.0],
-    [0.2, 0.2, 0.0],
-    [0.0, 0.2, 0.2],
-    [0.0, 0.2, 0.0],
-])
+COLORS_RGB1 = np.array(
+    [
+        [0.0, 0.0, 0.0],
+        [0.2, 0.2, 0.0],
+        [0.0, 0.2, 0.2],
+        [0.0, 0.2, 0.0],
+    ]
+)
 
-COLORS_RGBA1 = np.array([
-    [0.0, 0.0, 0.0, 1.0],
-    [0.2, 0.2, 0.0, 0.5],
-    [0.0, 0.2, 0.2, 0.0],
-    [0.0, 0.2, 0.0, 1.0],
-])
+COLORS_RGBA1 = np.array(
+    [
+        [0.0, 0.0, 0.0, 1.0],
+        [0.2, 0.2, 0.0, 0.5],
+        [0.0, 0.2, 0.2, 0.0],
+        [0.0, 0.2, 0.0, 1.0],
+    ]
+)
 
 
 def _mono_inc_colormap():
@@ -51,10 +56,12 @@ class TestColormap:
 
     def test_invert_set_range(self):
         """Test inverted set_range."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1, 1, 1)),
+            (4, (0, 0, 0)),
+        )
 
         cm_.set_range(8, 0)
         assert cm_.values[0] == 8
@@ -65,15 +72,21 @@ class TestColormap:
 
     def test_add(self):
         """Test adding colormaps."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1, 1, 1)),
-                                (4, (0, 0, 0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1, 1, 1)),
+            (4, (0, 0, 0)),
+        )
 
-        cm1 = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)))
-        cm2 = colormap.Colormap((3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
+        cm1 = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+        )
+        cm2 = colormap.Colormap(
+            (3, (1.0, 1.0, 1.0)),
+            (4, (0.0, 0.0, 0.0)),
+        )
 
         cm3 = cm1 + cm2
 
@@ -83,11 +96,13 @@ class TestColormap:
     @pytest.mark.parametrize("category", [False, True])
     def test_colorbar(self, category):
         """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1.0, 0.0, 1.0)),
-                                (4, (1.0, 1.0, 1.0)),
-                                (5, (0.0, 0.0, 0.0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1.0, 0.0, 1.0)),
+            (4, (1.0, 1.0, 1.0)),
+            (5, (0.0, 0.0, 0.0)),
+        )
 
         channels = colormap.colorbar(1, 9, cm_, category=category)
         channels = np.array(channels)[:, 0, :]
@@ -100,10 +115,12 @@ class TestColormap:
 
     def test_palettebar(self):
         """Test colorbar."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1.0, 1.0, 1.0)),
+            (4, (0.0, 0.0, 0.0)),
+        )
 
         channel, palette = colormap.palettebar(1, 4, cm_)
 
@@ -112,15 +129,21 @@ class TestColormap:
 
     def test_to_rio(self):
         """Test conversion to rasterio colormap."""
-        cm_ = colormap.Colormap((1, (1.0, 1.0, 0.0)),
-                                (2, (0.0, 1.0, 1.0)),
-                                (3, (1.0, 1.0, 1.0)),
-                                (4, (0.0, 0.0, 0.0)))
+        cm_ = colormap.Colormap(
+            (1, (1.0, 1.0, 0.0)),
+            (2, (0.0, 1.0, 1.0)),
+            (3, (1.0, 1.0, 1.0)),
+            (4, (0.0, 0.0, 0.0)),
+        )
         orig_colors = cm_.colors.copy()
 
         d = cm_.to_rio()
-        exp = {1: (255, 255, 0), 2: (0, 255, 255),
-               3: (255, 255, 255), 4: (0, 0, 0)}
+        exp = {
+            1: (255, 255, 0),
+            2: (0, 255, 255),
+            3: (255, 255, 255),
+            4: (0, 0, 0),
+        }
 
         assert d == exp
         # assert original colormap information hasn't changed
@@ -183,13 +206,7 @@ class TestColormap:
         # this should succeed
         cmap2 + cmap1
 
-    @pytest.mark.parametrize(
-        'colors',
-        [
-            COLORS_RGB1,
-            COLORS_RGBA1
-        ]
-    )
+    @pytest.mark.parametrize("colors", [COLORS_RGB1, COLORS_RGBA1])
     def test_to_rgb(self, colors):
         """Test 'to_rgb' method."""
         cmap = colormap.Colormap(
@@ -203,13 +220,7 @@ class TestColormap:
         else:
             assert rgb_cmap is not cmap
 
-    @pytest.mark.parametrize(
-        'colors',
-        [
-            COLORS_RGB1,
-            COLORS_RGBA1
-        ]
-    )
+    @pytest.mark.parametrize("colors", [COLORS_RGB1, COLORS_RGBA1])
     def test_to_rgba(self, colors):
         """Test 'to_rgba' method."""
         cmap = colormap.Colormap(
@@ -223,20 +234,8 @@ class TestColormap:
         else:
             assert rgb_cmap is not cmap
 
-    @pytest.mark.parametrize(
-        'colors1',
-        [
-            COLORS_RGB1,
-            COLORS_RGBA1
-        ]
-    )
-    @pytest.mark.parametrize(
-        'colors2',
-        [
-            COLORS_RGB1,
-            COLORS_RGBA1
-        ]
-    )
+    @pytest.mark.parametrize("colors1", [COLORS_RGB1, COLORS_RGBA1])
+    @pytest.mark.parametrize("colors2", [COLORS_RGB1, COLORS_RGBA1])
     def test_merge_rgb_rgba(self, colors1, colors2):
         """Test that two colormaps with RGB or RGBA colors can be merged."""
         cmap1 = colormap.Colormap(
@@ -279,7 +278,7 @@ class TestColormap:
         # this should succeed
         _ = cmap1 + cmap2
 
-    @pytest.mark.parametrize('inplace', [False, True])
+    @pytest.mark.parametrize("inplace", [False, True])
     def test_reverse(self, inplace):
         """Test colormap reverse."""
         values = np.linspace(0.2, 0.5, 10)
@@ -294,14 +293,15 @@ class TestColormap:
         _assert_unchanged_values(cmap, new_cmap, inplace, orig_values)
 
     @pytest.mark.parametrize(
-        'new_range',
+        "new_range",
         [
             (0.0, 1.0),
             (1.0, 0.0),
             (210.0, 300.0),
             (300.0, 210.0),
-        ])
-    @pytest.mark.parametrize('inplace', [False, True])
+        ],
+    )
+    @pytest.mark.parametrize("inplace", [False, True])
     def test_set_range(self, new_range, inplace):
         """Test 'set_range' method."""
         values = np.linspace(0.2, 0.5, 10)
@@ -319,15 +319,16 @@ class TestColormap:
         _assert_unchanged_colors(cmap, new_cmap, orig_colors)
 
     @pytest.mark.parametrize(
-        'new_range',
+        "new_range",
         [
             (0.0, 1.0),
             (1.0, 0.0),
             (0.2, 0.5),
             (0.8, 0.3),
-        ])
-    @pytest.mark.parametrize('colors_already_with_alpha', [False, True])
-    @pytest.mark.parametrize('inplace', [False, True])
+        ],
+    )
+    @pytest.mark.parametrize("colors_already_with_alpha", [False, True])
+    @pytest.mark.parametrize("inplace", [False, True])
     def test_set_alpha_range(self, new_range, inplace, colors_already_with_alpha):
         """Test 'set_alpha_range' method."""
         values = np.linspace(0, 1, 11)
@@ -349,7 +350,7 @@ class TestColormap:
         [
             (_mono_inc_colormap, (0, 1, 2, 3)),
             (_mono_dec_colormap, (3, 2, 1, 0)),
-        ]
+        ],
     )
     def test_palettize_in_range(self, input_cmap_func, expected_result):
         """Test palettize with values inside the set range."""
@@ -361,8 +362,7 @@ class TestColormap:
 
     def test_palettize_mono_inc_out_range(self):
         """Test palettize with a value outside the colormap values."""
-        cm = colormap.Colormap(values=[0, 1, 2, 3],
-                               colors=_four_rgb_colors())
+        cm = colormap.Colormap(values=[0, 1, 2, 3], colors=_four_rgb_colors())
         data = np.arange(-1, 5)
         channels, colors = cm.palettize(data)
         np.testing.assert_allclose(colors, cm.colors)
@@ -370,8 +370,7 @@ class TestColormap:
 
     def test_palettize_mono_inc_nan(self):
         """Test palettize with monotonic increasing values with a NaN."""
-        cm = colormap.Colormap(values=[0, 1, 2, 3],
-                               colors=_four_rgb_colors())
+        cm = colormap.Colormap(values=[0, 1, 2, 3], colors=_four_rgb_colors())
         data = np.arange(-1.0, 5.0)
         data[-1] = np.nan
         channels, colors = cm.palettize(data)
@@ -381,16 +380,13 @@ class TestColormap:
     def test_palettize_mono_inc_in_range_dask(self):
         """Test palettize on a dask array."""
         import dask.array as da
-        data = da.from_array(np.array([[1, 2, 3, 4],
-                                       [1, 2, 3, 4],
-                                       [1, 2, 3, 4]]), chunks=2)
+
+        data = da.from_array(np.array([[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]]), chunks=2)
         cm = _mono_inc_colormap()
         channels, colors = cm.palettize(data)
         assert isinstance(channels, da.Array)
         np.testing.assert_allclose(colors, cm.colors)
-        np.testing.assert_allclose(channels.compute(), [[0, 1, 2, 3],
-                                                        [0, 1, 2, 3],
-                                                        [0, 1, 2, 3]])
+        np.testing.assert_allclose(channels.compute(), [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]])
         assert channels.dtype == int
 
     def test_palettize_edge_of_dtype_range(self):
@@ -407,7 +403,7 @@ class TestColormap:
         [
             (_mono_inc_colormap, _four_rgb_colors()),
             (_mono_dec_colormap, _four_rgb_colors()[::-1]),
-        ]
+        ],
     )
     def test_colorize_no_interpolation(self, input_cmap_func, expected_result):
         """Test colorize."""
@@ -415,25 +411,35 @@ class TestColormap:
         cm = input_cmap_func()
         channels = cm.colorize(data)
         output_colors = [channels[:, i] for i in range(data.size)]
-        for output_color, expected_color in zip(output_colors, expected_result):
+        for output_color, expected_color in zip(output_colors, expected_result, strict=True):
             np.testing.assert_allclose(output_color, expected_color, atol=0.001)
 
     @pytest.mark.parametrize(
         ("input_cmap_func", "expected_result"),
         [
-            (_mono_inc_colormap,
-             np.array([
-                 [0.43301, 1.0, 0.639861],
-                 [0.738804, 1.0, 0.926142],
-                 [0.466327, 0.466327, 0.466327],
-                 [0.0, 0.0, 0.0]])),
-            (_mono_dec_colormap,
-             np.array([
-                 [0.466327, 0.466327, 0.466327],
-                 [0.738804, 1.0, 0.926142],
-                 [0.43301, 1.0, 0.639861],
-                 [1.0, 1.0, 0.0]])),
-        ]
+            (
+                _mono_inc_colormap,
+                np.array(
+                    [
+                        [0.43301, 1.0, 0.639861],
+                        [0.738804, 1.0, 0.926142],
+                        [0.466327, 0.466327, 0.466327],
+                        [0.0, 0.0, 0.0],
+                    ]
+                ),
+            ),
+            (
+                _mono_dec_colormap,
+                np.array(
+                    [
+                        [0.466327, 0.466327, 0.466327],
+                        [0.738804, 1.0, 0.926142],
+                        [0.43301, 1.0, 0.639861],
+                        [1.0, 1.0, 0.0],
+                    ]
+                ),
+            ),
+        ],
     )
     def test_colorize_with_interpolation(self, input_cmap_func, expected_result):
         """Test colorize where data values require interpolation between colors."""
@@ -450,23 +456,31 @@ class TestColormap:
     def test_colorize_dask_with_interpolation(self):
         """Test colorize dask arrays."""
         import dask.array as da
-        data = da.from_array(np.array([[1.5, 2.5, 3.5, 4],
-                                       [1.5, 2.5, 3.5, 4],
-                                       [1.5, 2.5, 3.5, 4]]), chunks=-1)
 
-        expected_channels = [np.array([[0.43301012, 0.73880362, 0.46632665, 0.],
-                                       [0.43301012, 0.73880362, 0.46632665, 0.],
-                                       [0.43301012, 0.73880362, 0.46632665, 0.]]),
-                             np.array([[1., 1., 0.46632662, 0.],
-                                       [1., 1., 0.46632662, 0.],
-                                       [1., 1., 0.46632662, 0.]]),
-                             np.array([[0.63986057, 0.92614193, 0.46632658, 0.],
-                                       [0.63986057, 0.92614193, 0.46632658, 0.],
-                                       [0.63986057, 0.92614193, 0.46632658, 0.]])]
+        data = da.from_array(np.array([[1.5, 2.5, 3.5, 4], [1.5, 2.5, 3.5, 4], [1.5, 2.5, 3.5, 4]]), chunks=-1)
+
+        expected_channels = [
+            np.array(
+                [
+                    [0.43301012, 0.73880362, 0.46632665, 0.0],
+                    [0.43301012, 0.73880362, 0.46632665, 0.0],
+                    [0.43301012, 0.73880362, 0.46632665, 0.0],
+                ]
+            ),
+            np.array([[1.0, 1.0, 0.46632662, 0.0], [1.0, 1.0, 0.46632662, 0.0], [1.0, 1.0, 0.46632662, 0.0]]),
+            np.array(
+                [
+                    [0.63986057, 0.92614193, 0.46632658, 0.0],
+                    [0.63986057, 0.92614193, 0.46632658, 0.0],
+                    [0.63986057, 0.92614193, 0.46632658, 0.0],
+                ]
+            ),
+        ]
 
         cm = _mono_inc_colormap()
         import dask
-        with dask.config.set(scheduler='sync'):
+
+        with dask.config.set(scheduler="sync"):
             channels = cm.colorize(data)
             assert isinstance(channels, da.Array)
             channels_np = channels.compute()
@@ -488,14 +502,49 @@ class TestColormap:
             (0.7, (171 / 255.0, 221 / 255.0, 164 / 255.0)),
             (0.8, (102 / 255.0, 194 / 255.0, 165 / 255.0)),
             (0.9, (50 / 255.0, 136 / 255.0, 189 / 255.0)),
-            (1.0, (94 / 255.0, 79 / 255.0, 162 / 255.0)))
+            (1.0, (94 / 255.0, 79 / 255.0, 162 / 255.0)),
+        )
         data = np.linspace(0.75, 0.95, 10)
-        expected = np.array([[0.53504425, 0.47514295, 0.41509147, 0.28825797, 0.12078193,
-                              0., 0.06763011, 0.19413283, 0.20869236, 0.24952029],
-                             [0.8154807, 0.79158862, 0.7670261, 0.73066567, 0.6855056,
-                              0.63483774, 0.57879493, 0.52270084, 0.47846375, 0.43116887],
-                             [0.64195795, 0.6437378, 0.64633243, 0.67815406, 0.71676881,
-                              0.74382618, 0.75153729, 0.73985524, 0.73037312, 0.71271801]])
+        expected = np.array(
+            [
+                [
+                    0.53504425,
+                    0.47514295,
+                    0.41509147,
+                    0.28825797,
+                    0.12078193,
+                    0.0,
+                    0.06763011,
+                    0.19413283,
+                    0.20869236,
+                    0.24952029,
+                ],
+                [
+                    0.8154807,
+                    0.79158862,
+                    0.7670261,
+                    0.73066567,
+                    0.6855056,
+                    0.63483774,
+                    0.57879493,
+                    0.52270084,
+                    0.47846375,
+                    0.43116887,
+                ],
+                [
+                    0.64195795,
+                    0.6437378,
+                    0.64633243,
+                    0.67815406,
+                    0.71676881,
+                    0.74382618,
+                    0.75153729,
+                    0.73985524,
+                    0.73037312,
+                    0.71271801,
+                ],
+            ]
+        )
 
         if reverse:
             spectral = spectral.reverse(inplace=False)
@@ -523,25 +572,27 @@ def closed_named_temp_file(**kwargs):
 
 def _write_cmap_to_file(cmap_filename, cmap_data):
     ext = os.path.splitext(cmap_filename)[1]
-    if ext in (".npy",):
+    if ext == ".npy":
         np.save(cmap_filename, cmap_data)
-    elif ext in (".npz",):
+    elif ext == ".npz":
         np.savez(cmap_filename, cmap_data)
     else:
         np.savetxt(cmap_filename, cmap_data, delimiter=",")
 
 
 def _generate_cmap_test_data(color_scale, colormap_mode):
-    cmap_data = np.array([
-        [1, 0, 0],
-        [1, 1, 0],
-        [1, 1, 1],
-        [0, 0, 1],
-    ], dtype=np.float64)
+    cmap_data = np.array(
+        [
+            [1, 0, 0],
+            [1, 1, 0],
+            [1, 1, 1],
+            [0, 0, 1],
+        ],
+        dtype=np.float64,
+    )
     if len(colormap_mode) != 3:
         _cmap_data = cmap_data
-        cmap_data = np.empty((cmap_data.shape[0], len(colormap_mode)),
-                             dtype=np.float64)
+        cmap_data = np.empty((cmap_data.shape[0], len(colormap_mode)), dtype=np.float64)
         if colormap_mode.startswith("V") or colormap_mode.endswith("A"):
             cmap_data[:, 0] = np.array([128, 130, 132, 134]) / 255.0
             cmap_data[:, -3:] = _cmap_data
@@ -614,7 +665,7 @@ class TestFromFileCreation:
             cmap = colormap.Colormap.from_file(cmap_filename, colormap_mode="RGBA")
             assert cmap.colors.shape[0] == 4
             assert cmap.colors.shape[1] == 4  # RGBA
-            np.testing.assert_equal(cmap.colors[0], [128 / 255., 1.0, 0, 0])
+            np.testing.assert_equal(cmap.colors[0], [128 / 255.0, 1.0, 0, 0])
             assert cmap.values.shape[0] == 4
             assert cmap.values[0] == 0
             assert cmap.values[-1] == 1.0
@@ -625,7 +676,7 @@ class TestFromFileCreation:
             ("VRGBA", "RGBA"),
             ("VRGBA", "VRGB"),
             ("RGBA", "RGB"),
-        ]
+        ],
     )
     @pytest.mark.parametrize("filename_suffix", [".npy", ".csv"])
     def test_cmap_bad_mode(self, real_mode, forced_mode, filename_suffix):
@@ -634,20 +685,25 @@ class TestFromFileCreation:
             cmap_data = _generate_cmap_test_data(None, real_mode)
             _write_cmap_to_file(cmap_filename, cmap_data)
             # Force colormap_mode VRGBA to RGBA and we should see an exception
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Unexpected colormap shape"):
                 colormap.Colormap.from_file(cmap_filename, colormap_mode=forced_mode)
 
     def test_cmap_from_file_bad_shape(self):
         """Test that unknown array shape causes an error."""
-        with closed_named_temp_file(suffix='.npy') as cmap_filename:
-            np.save(cmap_filename, np.array([
-                [0],
-                [64],
-                [128],
-                [255],
-            ]))
+        with closed_named_temp_file(suffix=".npy") as cmap_filename:
+            np.save(
+                cmap_filename,
+                np.array(
+                    [
+                        [0],
+                        [64],
+                        [128],
+                        [255],
+                    ]
+                ),
+            )
 
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Unexpected colormap shape"):
                 colormap.Colormap.from_file(cmap_filename)
 
     @pytest.mark.parametrize("color_scale", [None, 1.0])
@@ -718,8 +774,7 @@ def test_build_colormap_with_int_data_and_without_meanings():
 
     # test that values are respected even if valid_range is passed
     # see https://github.com/pytroll/satpy/issues/2376
-    cmap = colormap.Colormap.from_array_with_metadata(
-        palette, np.uint8, valid_range=[0, 100])
+    cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8, valid_range=[0, 100])
 
     np.testing.assert_array_equal(cmap.values, [0, 1])
 
@@ -732,29 +787,22 @@ def test_build_colormap_with_float_data():
         colormap.Colormap.from_array_with_metadata(palette / 100, np.float32)
 
     cmap = colormap.Colormap.from_array_with_metadata(
-        palette,
-        np.float32,
-        valid_range=[0, 100],
-        scale_factor=2,
-        remove_last=True)
+        palette, np.float32, valid_range=[0, 100], scale_factor=2, remove_last=True
+    )
 
     np.testing.assert_array_equal(cmap.values, [0, 200])
 
     cmap = colormap.Colormap.from_array_with_metadata(
-        palette,
-        np.float32,
-        valid_range=[0, 100],
-        scale_factor=2,
-        remove_last=False)
+        palette, np.float32, valid_range=[0, 100], scale_factor=2, remove_last=False
+    )
 
     np.testing.assert_array_equal(cmap.values, [0, 100, 200])
 
 
 def test_build_colormap_with_int_data_and_with_meanings():
     """Test colormap building."""
-    palette = xarray.DataArray(np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]]),
-                               dims=['value', 'band'])
-    palette.attrs['palette_meanings'] = [2, 3, 4]
+    palette = xarray.DataArray(np.array([[0, 0, 0], [127, 127, 127], [255, 255, 255]]), dims=["value", "band"])
+    palette.attrs["palette_meanings"] = [2, 3, 4]
     cmap = colormap.Colormap.from_array_with_metadata(palette, np.uint8)
     np.testing.assert_array_equal(cmap.values, [2, 3, 4])
 
