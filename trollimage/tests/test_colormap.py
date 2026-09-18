@@ -422,7 +422,7 @@ class TestColormap:
                 np.array(
                     [
                         [0.43301, 1.0, 0.639861],
-                        [0.738804, 1.0, 0.926142],
+                        [0.69685, 1.0, 0.999891],
                         [0.466327, 0.466327, 0.466327],
                         [0.0, 0.0, 0.0],
                     ]
@@ -433,7 +433,7 @@ class TestColormap:
                 np.array(
                     [
                         [0.466327, 0.466327, 0.466327],
-                        [0.738804, 1.0, 0.926142],
+                        [0.69685, 1.0, 0.999891],
                         [0.43301, 1.0, 0.639861],
                         [1.0, 1.0, 0.0],
                     ]
@@ -441,11 +441,15 @@ class TestColormap:
             ),
         ],
     )
-    def test_colorize_with_interpolation(self, input_cmap_func, expected_result):
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+    def test_colorize_with_interpolation(self, input_cmap_func, expected_result, dtype):
         """Test colorize where data values require interpolation between colors."""
-        data = np.array([1.5, 2.5, 3.5, 4])
+        data = np.array([1.5, 2.5, 3.5, 4], dtype=dtype)
         cm = input_cmap_func()
+        cm.colors = cm.colors.astype(dtype)
         channels = cm.colorize(data)
+        # the colormap's dtype decides the precision of the computation and result
+        assert channels.dtype == dtype
         output_colors = [channels[:, i] for i in range(data.size)]
         # test each resulting value (each one is an RGB color)
         np.testing.assert_allclose(output_colors[0], expected_result[0], atol=0.001)
@@ -453,40 +457,130 @@ class TestColormap:
         np.testing.assert_allclose(output_colors[2], expected_result[2], atol=0.001)
         np.testing.assert_allclose(output_colors[3], expected_result[3], atol=0.001)
 
-    def test_colorize_dask_with_interpolation(self):
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+    def test_colorize_dask_with_interpolation(self, dtype):
         """Test colorize dask arrays."""
         import dask.array as da
 
-        data = da.from_array(np.array([[1.5, 2.5, 3.5, 4], [1.5, 2.5, 3.5, 4], [1.5, 2.5, 3.5, 4]]), chunks=-1)
+        data = da.from_array(
+            np.array([[1.5, 2.5, 3.5, 4], [1.5, 2.5, 3.5, 4], [1.5, 2.5, 3.5, 4]], dtype=dtype), chunks=-1
+        )
 
         expected_channels = [
             np.array(
                 [
-                    [0.43301012, 0.73880362, 0.46632665, 0.0],
-                    [0.43301012, 0.73880362, 0.46632665, 0.0],
-                    [0.43301012, 0.73880362, 0.46632665, 0.0],
+                    [0.43301012, 0.69685015, 0.46632665, 0.0],
+                    [0.43301012, 0.69685015, 0.46632665, 0.0],
+                    [0.43301012, 0.69685015, 0.46632665, 0.0],
                 ]
             ),
             np.array([[1.0, 1.0, 0.46632662, 0.0], [1.0, 1.0, 0.46632662, 0.0], [1.0, 1.0, 0.46632662, 0.0]]),
             np.array(
                 [
-                    [0.63986057, 0.92614193, 0.46632658, 0.0],
-                    [0.63986057, 0.92614193, 0.46632658, 0.0],
-                    [0.63986057, 0.92614193, 0.46632658, 0.0],
+                    [0.63986057, 0.99989069, 0.46632658, 0.0],
+                    [0.63986057, 0.99989069, 0.46632658, 0.0],
+                    [0.63986057, 0.99989069, 0.46632658, 0.0],
                 ]
             ),
         ]
 
         cm = _mono_inc_colormap()
+        cm.colors = cm.colors.astype(dtype)
         import dask
 
         with dask.config.set(scheduler="sync"):
             channels = cm.colorize(data)
             assert isinstance(channels, da.Array)
+            assert channels.dtype == dtype
             channels_np = channels.compute()
+        assert channels_np.dtype == dtype
         np.testing.assert_allclose(channels_np[0], expected_channels[0], atol=0.001)
         np.testing.assert_allclose(channels_np[1], expected_channels[1], atol=0.001)
         np.testing.assert_allclose(channels_np[2], expected_channels[2], atol=0.001)
+
+    @pytest.mark.parametrize("reverse", [False, True])
+    def test_colorize_achromatic_control_point_keeps_neighbor_hue(self, reverse):
+        """Test that interpolating towards white/gray/black keeps the hue of the chromatic neighbor.
+
+        The hue of an achromatic color is undefined (numerical noise), so the
+        segments on either side of it must use the hue of their other end.
+        """
+        from trollimage.colorspaces import rgb2lch
+
+        cyan = (0.0, 1.0, 1.0)
+        white = (1.0, 1.0, 1.0)
+        magenta = (1.0, 0.0, 1.0)
+        values = [0, 1, 2]
+        colors = [cyan, white, magenta]
+        if reverse:
+            values.reverse()
+            colors.reverse()
+        cm = colormap.Colormap(values=values, colors=colors)
+        channels = cm.colorize(np.array([0.5, 1.0, 1.5]))
+
+        near_cyan, at_white, near_magenta = rgb2lch(channels.T)
+        cyan_hue = rgb2lch(np.array([cyan]))[0, 2]
+        magenta_hue = rgb2lch(np.array([magenta]))[0, 2]
+        # a light cyan (green and blue are saturated, red is not)
+        assert channels[1, 0] == pytest.approx(1.0, abs=0.001)
+        assert channels[2, 0] == pytest.approx(1.0, abs=0.001)
+        assert channels[0, 0] < 0.75
+        # a light magenta
+        assert channels[0, 2] == pytest.approx(1.0, abs=0.001)
+        assert channels[2, 2] == pytest.approx(1.0, abs=0.001)
+        assert channels[1, 2] < 0.75
+        # white itself: full luminance, no chroma (its hue is meaningless)
+        np.testing.assert_allclose(at_white[:2], [100.0, 0.0], atol=0.001)
+        assert near_cyan[2] == pytest.approx(cyan_hue, abs=0.05)
+        assert near_magenta[2] == pytest.approx(magenta_hue, abs=0.05)
+
+    def test_colorize_all_achromatic(self):
+        """Test colorize with a colormap made only of greys."""
+        cm = colormap.Colormap((0, (0.0, 0.0, 0.0)), (1, (1.0, 1.0, 1.0)))
+        channels = cm.colorize(np.array([0.0, 0.25, 0.5, 1.0]))
+        # every output color is a gray
+        np.testing.assert_allclose(channels[0], channels[1], atol=1e-6)
+        np.testing.assert_allclose(channels[0], channels[2], atol=1e-6)
+        np.testing.assert_allclose(channels[0], [0.0, 0.2325, 0.4663, 1.0], atol=0.001)
+
+    @pytest.mark.parametrize(
+        ("values", "lch_colors", "exp_values", "exp_hues"),
+        [
+            # achromatic point between two different hues is duplicated
+            ([0, 1, 2], [[50, 40, 1.0], [100, 0, 9.0], [50, 40, -2.0]], [0, 1, 1, 2], [1.0, 1.0, -2.0, -2.0]),
+            # achromatic end points take their only neighbor's hue
+            ([0, 1, 2], [[0, 0, 9.0], [50, 40, 1.0], [100, 0, 9.0]], [0, 1, 2], [1.0, 1.0, 1.0]),
+            # consecutive achromatic points
+            (
+                [0, 1, 2, 3],
+                [[50, 40, 1.0], [100, 0, 9.0], [50, 0, 8.0], [50, 40, -2.0]],
+                [0, 1, 1, 2, 2, 3],
+                [1.0, 1.0, -2.0, 1.0, -2.0, -2.0],
+            ),
+            # nothing chromatic at all: hue is zeroed
+            ([0, 1], [[0, 0, 9.0], [100, 0, 8.0]], [0, 1], [0.0, 0.0]),
+            # nothing achromatic: untouched
+            ([0, 1], [[50, 40, 1.0], [50, 40, -2.0]], [0, 1], [1.0, -2.0]),
+        ],
+    )
+    def test_split_achromatic_control_points(self, values, lch_colors, exp_values, exp_hues):
+        """Test the control point expansion used to give achromatic colors a hue."""
+        values = np.array(values, dtype=np.float64)
+        lch_colors = np.array(lch_colors, dtype=np.float64)
+        new_values, new_lch = colormap._split_achromatic_control_points(values, lch_colors)
+        np.testing.assert_array_equal(new_values, exp_values)
+        np.testing.assert_array_equal(new_lch[:, 2], exp_hues)
+        # luminance and chroma of the duplicated points are unchanged
+        np.testing.assert_array_equal(new_lch[:, :2], lch_colors[np.searchsorted(values, new_values), :2])
+
+    def test_colorize_masked_array_keeps_mask(self):
+        """Test that colorizing a masked array masks every channel where the input was masked."""
+        cm = _mono_inc_colormap()
+        data = np.ma.array([[1.5, 2.5], [3.5, 4.0]], mask=[[True, False], [False, False]])
+        channels = cm.colorize(data)
+        assert isinstance(channels, np.ma.MaskedArray)
+        assert channels.shape == (3, 2, 2)
+        np.testing.assert_array_equal(channels.mask, np.broadcast_to(data.mask, (3, 2, 2)))
 
     @pytest.mark.parametrize("reverse", [False, True])
     def test_colorize_with_large_hue_jumps(self, reverse):
