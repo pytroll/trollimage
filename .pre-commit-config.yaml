@@ -1,7 +1,7 @@
 fail_fast: false
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.16.3'
+    rev: 'v0.16.10'
     hooks:
       # Order matters: --fix rewrites are not formatter-stable, so lint first.
       - id: ruff-check
