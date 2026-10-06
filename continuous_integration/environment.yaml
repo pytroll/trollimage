@@ -19,5 +19,6 @@ dependencies:
   - pyresample
   - pytest
   - pytest-cov
+  - setuptools
   - fsspec
   - pip
