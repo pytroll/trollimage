@@ -1,3 +1,25 @@
+## Version 1.29.0 (2026/10/13)
+
+### Pull Requests Merged
+
+#### Bugs fixed
+
+* [PR 237](https://github.com/pytroll/trollimage/pull/237) - Switch to ruff check and ruff format
+
+#### Features added
+
+* [PR 238](https://github.com/pytroll/trollimage/pull/238) - Optimize colorspace conversions and improve achromatic colormap handling
+* [PR 237](https://github.com/pytroll/trollimage/pull/237) - Switch to ruff check and ruff format
+
+#### Documentation changes
+
+* [PR 238](https://github.com/pytroll/trollimage/pull/238) - Optimize colorspace conversions and improve achromatic colormap handling
+* [PR 235](https://github.com/pytroll/trollimage/pull/235) - Add initial guide for AI agents
+* [PR 223](https://github.com/pytroll/trollimage/pull/223) - Upgrade RTD to Ubuntu 24
+
+In this release 6 pull requests were closed.
+
+
 ## Version 1.28.0 (2026/02/04)
 
 ### Issues Closed
